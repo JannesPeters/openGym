@@ -89,6 +89,15 @@ describe('readSession', () => {
   })
 })
 
+describe('variant progression', () => {
+  it('starts a new machine variant at its own baseline, not the base exercise history', () => {
+    const S = hist('0576', [[100, 5, 5, 5]])
+    const variant = { id: 'machine-a', sets: 3, reps: 5, weight: 40, prog: 'linear' }
+    expect(sessionsFor(S, variant.id, variant)).toEqual([])
+    expect(nextPrescription(S, variant, { id: 'r1' })).toMatchObject({ policy: 'linear', kind: 'first' })
+  })
+})
+
 describe('stallCount', () => {
   it('counts consecutive misses back from the most recent session', () => {
     expect(stallCount([{ ok: true }, { ok: true }])).toBe(0)

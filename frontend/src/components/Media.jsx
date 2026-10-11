@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { imgSrc, gifSrc, isVideoSrc, isCustomEx, figureOf } from '../lib/exercises.js'
+import { imgSrc, gifSrc, isVideoSrc, isCustomEx, figureOf, mediaExerciseOf } from '../lib/exercises.js'
 import { MOBILE } from '../lib/mobile.js'
 import { useStore } from '../store/useStore.js'
 import { t, exerciseNameFor } from '../lib/i18n.js'
@@ -9,9 +9,11 @@ import CustomMedia, { CustomThumb } from './CustomMedia.jsx'
 // An exercise's picture, wherever one shows. A custom exercise goes to CustomMedia.jsx — its own
 // photo, GIF, video or link, from the local media store — and never through imgSrc/gifSrc, which
 // name files of the shipped dataset (a stray img/gif on a custom exercise, written by a fork, is
-// ignored). The split is by component, not by branch, so each side keeps its own hooks in order.
+// ignored). A variant without its own media uses its base's artwork. The split is by component,
+// not by branch, so each side keeps its own hooks in order.
 export default function Media(p) {
-  return isCustomEx(p.ex) ? <CustomMedia {...p} /> : <BuiltinMedia {...p} />
+  const ex = mediaExerciseOf(p.ex)
+  return isCustomEx(ex) ? <CustomMedia {...p} ex={ex} /> : <BuiltinMedia {...p} ex={ex} />
 }
 
 // Big autoplaying animation; tap toggles to the still frame. `compact` shrinks it (superset cards).
@@ -132,7 +134,8 @@ export function autoplayMuted(el) {
 // broken-image glyph in a list of them (#281). The failure is remembered per image, so a list
 // that re-renders does not ask again; a new exercise in the same slot tries its own.
 export function Thumb(p) {
-  return isCustomEx(p.ex) ? <CustomThumb {...p} /> : <BuiltinThumb {...p} />
+  const ex = mediaExerciseOf(p.ex)
+  return isCustomEx(ex) ? <CustomThumb {...p} ex={ex} /> : <BuiltinThumb {...p} ex={ex} />
 }
 function BuiltinThumb({ ex }) {
   const body = useStore(s => figureOf(s.S))

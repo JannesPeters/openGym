@@ -540,6 +540,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': 'Crea il tuo esercizio',
+  'Create variant': 'Crea variante',
+  'Original': 'Originale',
+  'Variants': 'Varianti',
+  'Variant of {0}': 'Variante di {0}',
   'Edit custom exercise': 'Modifica esercizio personalizzato',
   'Exercise name': 'Nome esercizio',
   'name + body part, no animation': 'nome + parte del corpo, senza animazione',

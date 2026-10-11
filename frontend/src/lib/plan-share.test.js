@@ -263,6 +263,41 @@ describe('custom exercises in a shared plan', () => {
     expect(target.customEx).toEqual([mine])
     expect(target.routines[0].ex[0].id).toBe('mine')
   })
+
+  it('shares and remaps a custom base together with a variant used by the routine', () => {
+    const base = { id: 'base', n: 'Lever Chest Press', bp: 'chest', eq: 'leverage machine', custom: true }
+    const variant = {
+      id: 'nautilus', n: 'Lever Chest Press (Nautilus)', bp: 'chest', eq: 'leverage machine',
+      baseExerciseId: 'base', variantLabel: 'Nautilus', custom: true,
+    }
+    const source = {
+      routines: [{ id: 'r', name: 'Chest', ex: [{ id: 'nautilus', sets: 3, reps: 8 }] }],
+      week: {}, customEx: [base, variant],
+    }
+    const bundle = buildPlanBundle(source, 'Plan')
+    expect(bundle.customEx.map(c => c.id)).toEqual(['base', 'nautilus'])
+
+    const target = { routines: [], week: {}, customEx: [] }
+    mergePlan(target, parsePlan(bundle))
+    const mappedBase = target.customEx.find(c => c.n === base.n)
+    const mappedVariant = target.customEx.find(c => c.variantLabel === 'Nautilus')
+    expect(mappedVariant.baseExerciseId).toBe(mappedBase.id)
+    expect(mappedVariant.id).not.toBe(variant.id)
+    expect(target.routines[0].ex[0].id).toBe(mappedVariant.id)
+  })
+
+  it('keeps a built-in parent id when sharing a custom variant', () => {
+    const variant = {
+      id: 'nautilus', n: 'Lever Chest Press (Nautilus)', bp: 'chest', eq: 'leverage machine',
+      baseExerciseId: '0576', variantLabel: 'Nautilus', custom: true,
+    }
+    const source = { routines: [{ id: 'r', name: 'Chest', ex: [{ id: variant.id, sets: 3, reps: 8 }] }], week: {}, customEx: [variant] }
+    const target = { routines: [], week: {}, customEx: [] }
+    mergePlan(target, parsePlan(buildPlanBundle(source, 'Plan')))
+    expect(target.customEx[0].baseExerciseId).toBe('0576')
+    expect(target.customEx[0].variantLabel).toBe('Nautilus')
+    expect(target.routines[0].ex[0].id).toBe(target.customEx[0].id)
+  })
 })
 
 describe('plan-share links and media (#246)', () => {

@@ -18,7 +18,7 @@
 // bounded by the plan (a few MB for a typical one) and each file goes once.
 //
 // Not in the phone app: it has no service worker, and its media comes from the CDN.
-import { EXIDX, imgSrc, gifSrc, isCustomEx, figureOf } from './exercises.js'
+import { EXIDX, imgSrc, gifSrc, isCustomEx, figureOf, mediaExerciseOf } from './exercises.js'
 
 // The worker's media cache, public/sw.js MEDIA. Duplicated because the worker is not bundled;
 // sw-media.test.js pins the two together.
@@ -39,7 +39,7 @@ export function planMediaUrls(S, base = globalThis.location?.href, index = EXIDX
   const origin = new URL(base).origin
   const urls = new Set()
   for (const id of ids) {
-    const ex = index[id]
+    const ex = mediaExerciseOf(index[id], index)
     // A custom exercise's photo or video is not a file of the shipped dataset: it lives in the
     // local media store and has its own prefetch (lib/media-sync.js). An unknown id has nothing.
     if (!ex || isCustomEx(ex)) continue

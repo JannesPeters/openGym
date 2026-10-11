@@ -541,6 +541,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': 'สร้างท่าออกกำลังกายของตัวเอง',
+  'Create variant': 'สร้างรูปแบบ',
+  'Original': 'ต้นฉบับ',
+  'Variants': 'รูปแบบ',
+  'Variant of {0}': 'รูปแบบของ {0}',
   'Edit custom exercise': 'แก้ไขท่าที่สร้างเอง',
   'Exercise name': 'ชื่อท่าออกกำลังกาย',
   'name + body part, no animation': 'ชื่อ + ส่วนร่างกาย ไม่มีภาพเคลื่อนไหว',

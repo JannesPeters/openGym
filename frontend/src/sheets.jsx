@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
-import { EXDB, EXIDX, BODYPARTS, isCardio, isBodyweightEq, allExercises, equipmentOf, byCategory, smOf, searchExercises, similarExercises, exOr, isAssisted, betterWeight, beatsWeight, isCustomEx } from './lib/exercises.js'
+import { EXDB, EXIDX, BODYPARTS, CATEGORIES, isCardio, isBodyweightEq, allExercises, equipmentOf, byCategory, smOf, searchExercises, similarExercises, exOr, isAssisted, betterWeight, beatsWeight, isCustomEx, baseExerciseIdOf, variantLabelOf, variantBaseName, variantName, groupExerciseVariants, EXERCISE_NAME_MAX, VARIANT_LABEL_MAX } from './lib/exercises.js'
 import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile, profileEquipment, ACC_V } from './lib/equipment.js'
 import { fmtDate, fmtDateRange, fmtNum, fmtPlate, exerciseNameText, fmtVol, fmtDur, durPart, todayISO, isoOf, uid, exCount, routineCount, setsWorkCount, DAYN, DAYS, weekOrder, weekStartOf, weekDayOffset, MONTHS_LONG, ACCENTS } from './lib/format.js'
 import { lastEntryFor, bestWeightFor, bestWeightForEntry, buildSets, effectiveRoutineIds, workoutDay, workoutVolume, setsDone, setsDoneActive, setUnitsTotal, lastBW, sessionSections, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, EFFORT, capEffort, stepEffort, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX } from './lib/history.js'
@@ -9,10 +9,11 @@ import { usesBar, defaultBarWeight, hasBarOverride, isNoBar } from './lib/bar.js
 import { PLATE_SIZES, pairsOf, ownsPlates, withPlatePairs, withStandardPlates, withLoadKind, loadKindFor, baseWeightFor, dropGrid } from './lib/plates.js'
 import { toScale, rirOf, EFFORT_PRESETS, effortColor } from './lib/effort.js'
 import { beep, vibrate } from './lib/sound.js'
-import { t, tn, dateLocale, instrFor, instrTranslated, descFor, exerciseNameFor, exerciseNameClass, getLang, useLang } from './lib/i18n.js'
+import { t, tn, dateLocale, instrFor, instrTranslated, descFor, exerciseNameFor, exerciseTitleFor, exerciseNameClass, getLang, useLang } from './lib/i18n.js'
 import { nav, closeThenNav, navToWorkout } from './lib/nav.js'
 import { buildStarterPlan, starterPlanDays, starterPlanOptions } from './lib/starter.js'
 import Media, { Thumb } from './components/Media.jsx'
+import ExerciseName from './components/ExerciseName.jsx'
 import CustomMediaField from './components/CustomMediaField.jsx'
 import WorkoutMediaSection, { workoutMediaCount } from './components/WorkoutMedia.jsx'
 import { mediaOf, normalizeMediaRef, cleanUrl, workoutMediaOf } from './lib/media-refs.js'
@@ -29,7 +30,7 @@ import BodyMap from './components/BodyMap.jsx'
 import MuscleExplorer from './components/MuscleExplorer.jsx'
 import ExerciseViewToggle from './components/ExerciseViewToggle.jsx'
 import { sameMuscleFirst, swapMuscleOf } from './lib/similar-exercises.js'
-import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, normalizeMuscleGroups, hasExplicitMuscleMetadata, inMuscleOrder } from './lib/muscles.js'
+import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, normalizeMuscleGroups, hasExplicitMuscleMetadata, inMuscleOrder, canonicalMuscleOf, targetMuscleOf } from './lib/muscles.js'
 import { parseImport, mergeImport } from './lib/import-csv.js'
 import { importHevyData, HevyApiError, HEVY_DEV_SETTINGS, mergeHevyRoutines } from './lib/import-hevy.js'
 import { buildPlanBundle, parsePlan, mergePlan, printPlan, planPrintHTML } from './lib/plan-share.js'
@@ -832,7 +833,7 @@ function BarWeightSheet({ exId, cfg, close }) {
   const ex = exOr(exId)
   return <>
     <h3>{t('Plate loading')}</h3>
-    <div className={`muted small ${exerciseNameClass(ex)}`} style={{ marginBottom: 12 }}>{exerciseNameFor(ex)}</div>
+    <div className={`muted small ${exerciseNameClass(ex)}`} style={{ marginBottom: 12 }}><ExerciseName ex={ex} /></div>
     <BarWeightEditor ex={ex} cfg={cfg} extra={t('Applies to this exercise everywhere, not just this plan.')} />
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
@@ -951,6 +952,8 @@ const trainedBy = ex => { const weights = muscleWeightsOf(ex); return slug => we
 export function detailTags(ex) {
   const seen = new Set()
   const out = []
+  const trained = trainedBy(ex)
+  const canonical = value => canonicalMuscleOf(value) || value
   const add = (label, extra) => {
     const k = String(label || '').trim().toLocaleLowerCase()
     if (!k || seen.has(k)) return false
@@ -960,19 +963,26 @@ export function detailTags(ex) {
   }
   add(t(ex.bp), { acc: true })
   if (ex.bp === 'cardio') add(t(MUSCLE_NAME['cardiovascular system']), { icon: 'figureStrength' })
-  else for (const s of (ex.primaries?.length ? ex.primaries : (ex.tg ? [ex.tg] : [])).filter(trainedBy(ex))) add(t(MUSCLE_NAME[s] || s), { icon: 'figureStrength' })
+  else for (const s of (ex.primaries?.length ? ex.primaries : (ex.tg ? [ex.tg] : [])).map(canonical).filter(trained)) add(t(MUSCLE_NAME[s] || s), { icon: 'figureStrength' })
   add(t(ex.eq), { icon: 'kettlebell' })
   let helpers = 0
-  for (const s of (ex.secondaries?.length ? ex.secondaries : smOf(ex)).filter(trainedBy(ex))) {
+  for (const s of (ex.secondaries?.length ? ex.secondaries : smOf(ex)).map(canonical).filter(trained)) {
     if (helpers >= 3) break
     if (add(t(MUSCLE_NAME[s] || s))) helpers++
   }
   return out
 }
 
-function ExerciseDetail({ ex, close }) {
+function ExerciseDetail({ ex: initialEx, close }) {
+  const [selected, setSelected] = useState(initialEx)
+  const ex = EXIDX[selected.id] || selected
   useLang() // the description and steps arrive in their own chunk the first time a sheet asks
   const st = useStore(s => s.S)
+  const baseId = baseExerciseIdOf(ex)
+  const familyId = baseId || ex.id
+  const variants = (st.customEx || []).filter(c => baseExerciseIdOf(c) === familyId)
+  const baseExercise = baseId ? EXIDX[baseId] : null
+  const variantOptions = [baseExercise || (!baseId ? ex : null), ...variants].filter(Boolean)
   const last = lastEntryFor(st, ex.id)
   const best = bestWeightFor(st, ex.id, currentDbLoad(st, ex.id))
   const fav = isFav(st, ex.id)
@@ -983,12 +993,26 @@ function ExerciseDetail({ ex, close }) {
   }
   return <>
     <div className="row between" style={{ gap: 8, alignItems: 'flex-start' }}>
-      <h3 className={'exdetail-name ' + exerciseNameClass(ex)}>{exerciseNameFor(ex)}</h3>
+      <h3 className={`exdetail-name ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></h3>
       <button className={'iconbtn fav-btn' + (fav ? ' on' : '')} aria-pressed={fav}
         aria-label={fav ? t('Remove from favourites') : t('Add to favourites')} onClick={flipFav}>
         <Icon name={fav ? 'starFill' : 'star'} />
       </button>
     </div>
+    {variantOptions.length > 1 && <>
+      <h4 className="sec" style={{ margin: '8px 0 2px' }}>{t('Variants')}</h4>
+      <div className="chips" role="group" aria-label={t('Variants')} style={{ margin: '0 0 8px' }}>
+        {variantOptions.map(option => <button key={option.id} type="button"
+          className={'chip' + (option.id === ex.id ? ' on' : '')}
+          aria-pressed={option.id === ex.id}
+          aria-label={exerciseNameFor(option)}
+          title={exerciseNameFor(option)}
+          style={{ textTransform: 'none' }}
+          onClick={() => setSelected(option)}>
+          {option.id === familyId ? t('Original') : variantLabelOf(option) || exerciseNameFor(option)}
+        </button>)}
+      </div>
+    </>}
     <Media ex={ex} />
     <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '10px 0' }}>
       {detailTags(ex).map(tg => <span key={tg.key} className={'tag' + (tg.acc ? ' acc' : '')}>{tg.icon && <Icon name={tg.icon} />}{tg.label}</span>)}
@@ -1001,6 +1025,7 @@ function ExerciseDetail({ ex, close }) {
       <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
     </div>}
+    {!ex.missing && <Button icon="plusCircle" style={{ marginTop: 8 }} onClick={() => { close(); exerciseVariantSheet(ex) }}>{t('Create variant')}</Button>}
     {modeOf({ id: ex.id }) === 'reps' && <>
       <h4 className="sec">{t('Plate loading')}</h4>
       <BarWeightEditor ex={ex} extra={t('You still log the total weight. This only feeds the plate line under each set.')} />
@@ -1041,7 +1066,7 @@ function ExerciseHistory({ exId }) {
   const unit = h.metric === 'weight' ? st.unit : h.metric === 'reps' ? t('reps') : h.metric === 'sec' ? 's' : t('min')
   const e1Best = useMemo(() => Math.max(0, ...h.e1rmPoints.map(p => p.y)), [h])
   if (!h.total) return <>
-    <h3 className={exerciseNameClass(ex)}>{exerciseNameFor(ex)}</h3>
+    <h3 className={exerciseNameClass(ex)}><ExerciseName ex={ex} /></h3>
     <div className="empty"><div className="ico"><Icon name="history" /></div>{t('No sessions logged yet')}</div>
   </>
   const tail = s => [
@@ -1049,7 +1074,7 @@ function ExerciseHistory({ exId }) {
     s.e1rm != null && t('Est. 1RM') + ' ' + fmtNum(s.e1rm) + ' ' + st.unit,
   ].filter(Boolean).join(' · ')
   return <>
-    <h3 className={exerciseNameClass(ex)} style={{ marginBottom: 2 }}>{exerciseNameFor(ex)}</h3>
+    <h3 className={exerciseNameClass(ex)} style={{ marginBottom: 2 }}><ExerciseName ex={ex} /></h3>
     <div className="muted small" style={{ marginBottom: 10 }}>{t('Exercise history')} · {tn('{0} session', '{0} sessions', h.total)}</div>
     {/* Only reps work with a load produces an estimate, so the toggle is absent for the rest. */}
     {h.e1rmPoints.length > 0 && h.metric === 'weight' && <Segmented className="seg-range" value={curve} onChange={setCurve}
@@ -1094,7 +1119,7 @@ function AddToRoutine({ ex, close }) {
     }, null, isNew ? null : st.routines.find(x => x.id === rid))
   }
   return <>
-    <h3 className={exerciseNameClass(ex)}>{t('Add “{0}”', exerciseNameFor(ex))}</h3>
+    <h3>{t('Add “{0}”', exerciseTitleFor(ex))}{variantLabelOf(ex) && <span className="tag ex-variant-meta">{variantLabelOf(ex)}</span>}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>{t('Pick a routine. Sets, reps and weight come next.')}</div>
     <div className="list">
       {st.routines.map(r => <div key={r.id} className="item" {...tappable(() => pick(r.id))}>
@@ -1114,14 +1139,24 @@ export const addToRoutineSheet = ex => ui().openSheet(close => <AddToRoutine ex=
 // (planning, logging, PRs, stats). A photo, GIF or video of your own, and a link to a video or
 // guide, are optional (components/CustomMediaField.jsx): the state keeps a small reference to the
 // file, never the file itself, and the link is cleaned on save and again whenever it is opened.
-function CustomExForm({ existing, prefill, onDone, close }) {
+function CustomExForm({ existing, base, prefill, onDone, close }) {
+  const source = existing || base
+  const baseId = baseExerciseIdOf(existing) || (base && (baseExerciseIdOf(base) || base.id))
+  const isVariant = !!baseId
+  const baseName = variantBaseName((baseId && EXIDX[baseId]) || base || existing)
+  const sourceGroups = hasExplicitMuscleMetadata(source || {}) ? normalizeMuscleGroups(source || {}) : []
+  const sourcePrimaries = Array.isArray(source?.primaries) && source.primaries.length
+    ? source.primaries : source?.bp === 'cardio' ? ['cardiovascular system'] : sourceGroups.slice(0, 1)
+  const sourceSecondaries = Array.isArray(source?.primaries) && source.primaries.length
+    ? (source.secondaries || []) : sourceGroups.slice(1)
   const nameRef = useRef(null)
   const onNameFocus = useSheetKeyboard(nameRef)
   const [n, setN] = useState(existing ? existing.n : (prefill || ''))
-  const [bp, setBp] = useState(existing ? existing.bp : '')
-  const [eq, setEq] = useState(existing ? (existing.eq || '') : '')
-  const storedEq = existing && typeof existing.eq === 'string' && existing.eq && !ALL_EQUIPMENT.includes(existing.eq) ? existing.eq : null
-  const [desc, setDesc] = useState(existing ? (existing.desc || '') : '')
+  const [variantLabel, setVariantLabel] = useState(variantLabelOf(existing))
+  const [bp, setBp] = useState(source ? source.bp : '')
+  const [eq, setEq] = useState(source ? (source.eq || '') : '')
+  const storedEq = source && typeof source.eq === 'string' && source.eq && !ALL_EQUIPMENT.includes(source.eq) ? source.eq : null
+  const [desc, setDesc] = useState(source ? (source.desc || '') : '')
   const [media, setMedia] = useState(() => mediaOf(existing))
   // Whether this form changed the media at all. An edit that did not touch it writes back what the
   // exercise had, byte for byte: a ref from a newer version of the app (a codec or type this one
@@ -1133,17 +1168,8 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     if ('media' in patch) { setMedia(patch.media); setMediaTouched(true) }
     if ('url' in patch) setUrl(patch.url)
   }
-  const [primaries, setPrimaries] = useState(() => {
-    if (existing && Array.isArray(existing.primaries) && existing.primaries.length) return [...existing.primaries]
-    if (existing?.bp === 'cardio') return ['cardiovascular system']
-    const norm = hasExplicitMuscleMetadata(existing || {}) ? normalizeMuscleGroups(existing || {}) : []
-    return norm.length ? [norm[0]] : []
-  })
-  const [secondaries, setSecondaries] = useState(() => {
-    if (existing && Array.isArray(existing.primaries) && existing.primaries.length) return [...(existing.secondaries || [])]
-    const norm = hasExplicitMuscleMetadata(existing || {}) ? normalizeMuscleGroups(existing || {}) : []
-    return norm.slice(1)
-  })
+  const [primaries, setPrimaries] = useState(() => [...sourcePrimaries])
+  const [secondaries, setSecondaries] = useState(() => [...sourceSecondaries])
   // Every primary chip this sheet saw a tap on, in that order. `primaries` alone cannot say what the
   // user reached for first: an existing exercise seeds it in the map's order, because that is how the
   // muscles are stored. The taps are the only record of the user's own order, and they decide the
@@ -1155,7 +1181,9 @@ function CustomExForm({ existing, prefill, onDone, close }) {
   }
   const toggleSecondary = value => setSecondaries(current => current.includes(value) ? current.filter(m => m !== value) : [...current, value])
   const save = () => {
-    const name = n.trim()
+    const label = variantLabel.trim().slice(0, VARIANT_LABEL_MAX)
+    if (isVariant && !label) { toast(t('Give it a name')); return }
+    const name = isVariant ? variantName(baseName, label) : n.trim()
     if (!name) { toast(t('Give it a name')); return }
     if (!bp) { toast(t('Pick a body part')); return }
     if (!eq) { toast(t('Pick equipment')); return }
@@ -1181,16 +1209,35 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     // Once that muscle is gone the next answer is the first one tapped here that survived — a tap that
     // only turned a chip off says nothing and is skipped with it. The sorted list is the last resort,
     // for the user who drops the target and adds nothing in its place.
-    const tg = (existing && prim.includes(existing.tg)) ? existing.tg : (primaryTaps.find(m => prim.includes(m)) || prim[0] || '')
+    const sourceTarget = source && normalizeMuscleGroups({ tg: source.tg })[0]
+    const tg = prim.includes(sourceTarget) ? sourceTarget : (primaryTaps.find(m => prim.includes(m)) || prim[0] || '')
     let id = existing && existing.id
     const extra = c => {
       if (!keepMedia) { if (ref) c.media = ref; else delete c.media }
       if (link) c.url = link; else delete c.url
+      if (isVariant) {
+        c.baseExerciseId = baseId
+        c.variantLabel = label
+        if (bp === source?.bp && CATEGORIES.includes(source.cat)) c.cat = source.cat
+        else delete c.cat
+        const sameMuscles = bp === source?.bp
+          && JSON.stringify(prim) === JSON.stringify(inMuscleOrder(sourcePrimaries))
+          && JSON.stringify(sm) === JSON.stringify(inMuscleOrder(sourceSecondaries.filter(m => !prim.includes(m))))
+        if (sameMuscles && source?.muscleWeights) c.muscleWeights = { ...source.muscleWeights }
+        else delete c.muscleWeights
+        if (!existing && Array.isArray(source?.st)) c.st = [...source.st]
+      }
     }
-    if (existing) update(s => { const c = (s.customEx || []).find(x => x.id === id); if (c) {
-      c.n = name; c.bp = bp; c.desc = d; c.tg = tg; c.sm = sm; c.muscleGroups = groups; c.primaries = prim; c.secondaries = sm; c.eq = eq
-      extra(c)
-    } })
+    if (existing) update(s => {
+      const c = (s.customEx || []).find(x => x.id === id)
+      if (c) {
+        c.n = name; c.bp = bp; c.desc = d; c.tg = tg; c.sm = sm; c.muscleGroups = groups; c.primaries = prim; c.secondaries = sm; c.eq = eq
+        extra(c)
+      }
+      if (!isVariant) (s.customEx || []).forEach(variant => {
+        if (baseExerciseIdOf(variant) === id) variant.n = variantName(name, variantLabelOf(variant))
+      })
+    })
     else {
       id = 'c' + uid()
       update(s => { const c = { id, n: name, bp, desc: d, tg, sm, muscleGroups: groups, primaries: prim, secondaries: sm, eq, custom: true }; extra(c); (s.customEx = s.customEx || []).push(c) })
@@ -1203,9 +1250,16 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     onDone && onDone(EXIDX[id])
   }
   return <>
-    <h3>{existing ? t('Edit custom exercise') : t('Create your own exercise')}</h3>
+    <h3>{existing ? t('Edit custom exercise') : isVariant ? t('Create variant') : t('Create your own exercise')}</h3>
+    {isVariant && <div className="muted small" style={{ marginBottom: 8 }}>{t('Variant of {0}', exerciseNameFor({ id: baseId, n: baseName }))}</div>}
     <div className="muted small" style={{ marginBottom: 12 }}>{t('Name it and pick a body part. It works just like any other exercise.')}</div>
-    <input ref={nameRef} className="input" placeholder={t('Exercise name')} maxLength={80} value={n} onFocus={onNameFocus} onChange={e => setN(e.target.value)} />
+    <input ref={nameRef} className="input" placeholder={t('Exercise name')}
+      maxLength={isVariant ? VARIANT_LABEL_MAX : EXERCISE_NAME_MAX} value={isVariant ? variantLabel : n}
+      onFocus={onNameFocus} onChange={e => isVariant ? setVariantLabel(e.target.value) : setN(e.target.value)} />
+    {isVariant && variantLabel.trim() && <div className="small dim" style={{ marginTop: 8 }}>
+      <span className={exerciseNameClass({ id: baseId, n: baseName })}>{exerciseNameFor({ id: baseId, n: baseName })}</span>
+      <span className="tag ex-variant-meta">{variantLabel.trim()}</span>
+    </div>}
     <div className="chips" style={{ margin: '12px 0' }}>
       {BODYPARTS.map(b => <button key={b} className={'chip' + (bp === b ? ' on' : '')} onClick={() => setBp(b)}>{t(b)}</button>)}
     </div>
@@ -1231,11 +1285,15 @@ function CustomExForm({ existing, prefill, onDone, close }) {
       value={desc} onChange={e => setDesc(e.target.value)} />
     <CustomMediaField media={media} url={url} onChange={onMedia} />
     <div style={{ height: 14 }} />
-    <Button variant="primary" onClick={save}>{existing ? t('Save') : t('Create exercise')}</Button>
+    <Button variant="primary" onClick={save}>{existing ? t('Save') : isVariant ? t('Create variant') : t('Create exercise')}</Button>
     {existing && <><div style={{ height: 8 }} /><Button variant="danger" icon="trash" onClick={() => { close(); deleteCustomEx(existing) }}>{t('Delete exercise')}</Button></>}
   </>
 }
 export const customExSheet = (existing, onDone, prefill) => ui().openSheet(close => <CustomExForm existing={existing} prefill={prefill} onDone={onDone} close={close} />)
+export const exerciseVariantSheet = (ex, onDone = exerciseDetailSheet) => {
+  const base = EXIDX[baseExerciseIdOf(ex)] || ex
+  return ui().openSheet(close => <CustomExForm base={base} onDone={onDone} close={close} />)
+}
 
 export function deleteCustomEx(ex, afterDelete) {
   if (S().active?.entries.some(e => e.id === ex.id)) { toast(t('Finish your current workout first')); return }
@@ -1314,7 +1372,7 @@ function ExercisePicker({ onPick, title, close, like }) {
   // While searching, what you have logged or planned follows right after them.
   const narrowedList = eqOn ? eqFiltered.filter(e => e.eq === eqOn) : eqFiltered
   const ranked = q.trim() ? sortYoursFirst(narrowedList, st, usage) : sortFavouritesFirst(narrowedList, st)
-  const f = bp === SAME ? sameMuscleFirst(ranked, likeEx) : ranked
+  const f = groupExerciseVariants(bp === SAME ? sameMuscleFirst(ranked, likeEx) : ranked)
   const chosenCount = Object.keys(usage).length
   const favCount = (st.favEx || []).length
   const special = bp === '★' || bp === '☆'
@@ -1331,7 +1389,7 @@ function ExercisePicker({ onPick, title, close, like }) {
     ? similarExercises((profile && !showAll ? all.filter(e => exAvailable(st, e)) : all).filter(e => bp === SAME || !bp || e.bp === bp), q, f, f.length ? 12 : 30)
     : []
   const pickRow = e => <div key={e.id} className="item" {...tappable(() => onPick(e))}>
-        <Thumb ex={e} /><div className="grow"><div className={`tt ${exerciseNameClass(e)}`}>{isFav(st, e.id) && <Icon name="starFill" className="fav-star" />}{exerciseNameFor(e)}</div><div className="ss capitalize">{t(MUSCLE_NAME[e.tg] || e.tg || e.bp)} · {t(e.eq)}</div></div>
+        <Thumb ex={e} /><div className="grow"><div className="tt">{isFav(st, e.id) && <Icon name="starFill" className="fav-star" />}<ExerciseName ex={e} /></div><div className="ss capitalize">{t(MUSCLE_NAME[targetMuscleOf(e)] || targetMuscleOf(e))} · {t(e.eq)}</div></div>
         {/* Accent tag = already in a routine/log ("Chosen"); the yellow star by the name = favourite. */}
         {usage[e.id] && <span className="tag acc"><Icon name="starFill" /></span>}
         {/* A "+" glyph reads as "add this now" — it used to just open the same detail sheet as
@@ -1643,8 +1701,15 @@ const intensifierToSave = x => (x.type === 'dropset'
     ? { ...x, totalReps: Math.max(1, Math.round(x.totalReps) || 0), restSec: Math.max(5, Number(x.restSec) || 0) }
     : x)
 
-function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, initial, saveLabel }) {
+function ExConfig({ ex: initialEx, existing, onSave, onDelete, onReplace, close, routine, initial, saveLabel, allowVariants = false }) {
+  const [selected, setSelected] = useState(initialEx)
+  const ex = EXIDX[selected.id] || selected
   const st = useStore(s => s.S)
+  const baseId = baseExerciseIdOf(ex)
+  const familyId = baseId || ex.id
+  const variants = (st.customEx || []).filter(c => baseExerciseIdOf(c) === familyId)
+  const baseExercise = baseId ? EXIDX[baseId] : null
+  const variantOptions = [baseExercise || (!baseId ? ex : null), ...variants].filter(Boolean)
   const cardio = isCardio(ex.id)
   const speedUnit = speedUnitOf(st)
   const seed = existing || initial || defaultConfig(ex.id)
@@ -1679,6 +1744,10 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
       ? { ...next, ...normalizeRepRange(next.reps, next.repsMin, isPerSide(next) ? 2 : 1) }
       : next
   })
+  const saveConfig = out => {
+    if (ex.id === initialEx.id) onSave(out)
+    else onSave(out, ex)
+  }
   const save = () => {
     if (progressionStepInvalid) return
     close()
@@ -1722,8 +1791,8 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     const withMeant = dbLoad ? { dbLoad } : {}
     // "Last set to failure": written only when on, so a plan that never asked keeps its shape.
     const withFailure = c.lastToFailure === true ? { lastToFailure: true } : {}
-    if (cardio) onSave({ sets, min: Math.max(1, Math.round(c.min) || 20), speed: Math.max(0, c.speed || 8), ...withNote, ...withRest })
-    else if (mode === 'time') onSave({ sets, mode: 'time', sec: Math.max(1, Math.round(c.sec) || 45), weight: Math.max(0, c.weight || 0), ...flags, ...(perSide ? { side: true } : {}), ...prog, ...withNote, ...withWarmups, ...withRest, ...withMeant, ...withFailure })
+    if (cardio) saveConfig({ sets, min: Math.max(1, Math.round(c.min) || 20), speed: Math.max(0, c.speed || 8), ...withNote, ...withRest })
+    else if (mode === 'time') saveConfig({ sets, mode: 'time', sec: Math.max(1, Math.round(c.sec) || 45), weight: Math.max(0, c.weight || 0), ...flags, ...(perSide ? { side: true } : {}), ...prog, ...withNote, ...withWarmups, ...withRest, ...withMeant, ...withFailure })
     else {
       // A unilateral target is stored even: the split has to divide, and a typed 15 would
       // otherwise plan seven reps on one side and eight on the other, every session.
@@ -1757,11 +1826,25 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
       if (c.backoff === true && backoffOffered(out, 'reps', ex, bw) && isBackoff({ ...out, backoff: true })) out.backoff = true
       // A pyramid has its own Max set for this, so the flag is not offered (or kept) there.
       if (!list.length) Object.assign(out, withFailure)
-      onSave(out)
+      saveConfig(out)
     }
   }
   return <>
-    <h3 className={exerciseNameClass(ex)}>{exerciseNameFor(ex)}</h3>
+    <h3 className={exerciseNameClass(ex)}><ExerciseName ex={ex} /></h3>
+    {allowVariants && variantOptions.length > 1 && <>
+      <h4 className="sec" style={{ margin: '8px 0 2px' }}>{t('Variants')}</h4>
+      <div className="chips" role="group" aria-label={t('Variants')} style={{ margin: '0 0 8px' }}>
+        {variantOptions.map(option => <button key={option.id} type="button"
+          className={'chip' + (option.id === ex.id ? ' on' : '')}
+          aria-pressed={option.id === ex.id}
+          aria-label={exerciseNameFor(option)}
+          title={exerciseNameFor(option)}
+          style={{ textTransform: 'none' }}
+          onClick={() => setSelected(option)}>
+          {option.id === familyId ? t('Original') : variantLabelOf(option) || exerciseNameFor(option)}
+        </button>)}
+      </div>
+    </>}
     <Media ex={ex} />
     {/* The same tags the exercise detail sheet shows, secondaries included: choosing what goes
         into a plan is exactly when "what else does this hit" matters, and until now that was
@@ -1770,9 +1853,9 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
         turns into a translatable label. */}
     <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '10px 0 14px' }}>
       {cardio && <span className="tag acc"><Icon name="figureRun" />{t('Cardio')}</span>}
-      <span className="tag">{t(MUSCLE_NAME[ex.tg] || ex.tg || ex.bp)}</span><span className="tag">{t(ex.eq)}</span>
+      <span className="tag">{t(MUSCLE_NAME[targetMuscleOf(ex)] || targetMuscleOf(ex))}</span><span className="tag">{t(ex.eq)}</span>
       {!cardio && (ex.secondaries?.length ? ex.secondaries : smOf(ex)).filter(trainedBy(ex)).slice(0, 3)
-        .map((s, i) => <span key={i} className="tag dim">{t(MUSCLE_NAME[s] || s)}</span>)}
+        .map((s, i) => { const slug = canonicalMuscleOf(s) || s; return <span key={i} className="tag dim">{t(MUSCLE_NAME[slug] || slug)}</span> })}
     </div>
     {descFor(ex) && <div className="exnote">{descFor(ex)}</div>}
     {!cardio && <div style={{ marginBottom: 14 }}>
@@ -2019,7 +2102,8 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     {onDelete && <><div style={{ height: 8 }} /><Button variant="danger" onClick={() => { close(); onDelete() }}>{t('Remove from routine')}</Button></>}
   </>
 }
-export const exConfigSheet = (ex, existing, onSave, onDelete, routine, initial, onReplace, saveLabel) => ui().openSheet(close => <ExConfig ex={ex} existing={existing} initial={initial} onSave={onSave} onDelete={onDelete} onReplace={onReplace} routine={routine} saveLabel={saveLabel} close={close} />)
+export const exConfigSheet = (ex, existing, onSave, onDelete, routine, initial, onReplace, saveLabel, allowVariants = false) =>
+  ui().openSheet(close => <ExConfig ex={ex} existing={existing} initial={initial} onSave={onSave} onDelete={onDelete} onReplace={onReplace} routine={routine} saveLabel={saveLabel} allowVariants={allowVariants} close={close} />)
 
 /* ============================ glyph picker ============================ */
 // Grouped by what the glyph means for a training day, so picking one is a scan
@@ -3017,7 +3101,7 @@ function ExerciseNote({ entryIdx, close }) {
   }
 
   return <>
-    <h3 className={exerciseNameClass(ex)}>{exerciseNameFor(ex)}</h3>
+    <h3 className={exerciseNameClass(ex)}><ExerciseName ex={ex} /></h3>
     <div className="small muted" style={{ marginBottom: 6 }}>{t('This session')}</div>
     <textarea ref={noteRef} className="input" rows={3} maxLength={NOTE_MAX} value={note}
       placeholder={t('How it went, what to change. Saved with today’s workout.')}
@@ -3276,7 +3360,7 @@ function LastAndNext({ st, w }) {
       const tr = row.trend == null ? null : TREND[row.trend]
       return <div key={row.id} className="item" style={{ display: 'block' }}>
         <div className="row between" style={{ gap: 8 }}>
-          <span className={'tt ' + exerciseNameClass(ex)} style={{ fontWeight: 600 }}>{ex ? exerciseNameFor(ex) : row.id}</span>
+          <span className={'tt ' + (ex ? exerciseNameClass(ex) : '')} style={{ fontWeight: 600 }}>{ex ? <ExerciseName ex={ex} /> : row.id}</span>
           {tr ? <span style={{ color: tr[1], display: 'inline-flex' }} aria-label={row.trend > 0 ? t('Up on last time') : row.trend < 0 ? t('Down on last time') : t('Same as last time')}><Icon name={tr[0]} /></span>
             : <span className="tag nocap">{t('First time')}</span>}
         </div>
@@ -3298,7 +3382,7 @@ function CardioDone({ st, w }) {
     <div className="list">{rows.map((row, i) => {
       const ex = EXIDX[row.id]
       return <div key={i} className="item" style={{ display: 'block' }}>
-        <span className={'tt ' + exerciseNameClass(ex)} style={{ fontWeight: 600 }}>{ex ? exerciseNameFor(ex) : row.id}</span>
+        <span className={'tt ' + (ex ? exerciseNameClass(ex) : '')} style={{ fontWeight: 600 }}>{ex ? <ExerciseName ex={ex} /> : row.id}</span>
         <div className="small">{row.sets.map(x => setLabel(row.id, x, row.target, speedUnitOf(st))).join('  ·  ')}</div>
       </div>
     })}</div>
@@ -3317,8 +3401,8 @@ function FinishSummary({ w, prs, e1prs = [], close }) {
       <div className="tile"><div className="l">{t('PRs')}</div><div className="v" style={{ fontSize: 20 }}>{prs.length || '–'}</div></div>
     </div>
     {(prs.length > 0 || e1prs.length > 0) && <div style={{ textAlign: 'start', marginBottom: 12 }}>
-      {prs.map(id => <div key={id} className="small accent row" style={{ gap: 5 }}><Icon name="trophy" style={{ fontSize: 13 }} />{t('New PR:')} <span className={exerciseNameClass(EXIDX[id])}>{EXIDX[id] ? exerciseNameFor(EXIDX[id]) : id}</span></div>)}
-      {e1prs.map(p => <div key={p.id} className="small accent row" style={{ gap: 5 }}><Icon name="chartLine" style={{ fontSize: 13 }} />{t('Best estimated 1RM:')} <span className={exerciseNameClass(EXIDX[p.id])}>{EXIDX[p.id] ? exerciseNameFor(EXIDX[p.id]) : p.id}</span> · {fmtNum(p.est)} {st.unit}</div>)}
+      {prs.map(id => <div key={id} className="small accent row" style={{ gap: 5 }}><Icon name="trophy" style={{ fontSize: 13 }} />{t('New PR:')} <span>{EXIDX[id] ? <ExerciseName ex={EXIDX[id]} /> : id}</span></div>)}
+      {e1prs.map(p => <div key={p.id} className="small accent row" style={{ gap: 5 }}><Icon name="chartLine" style={{ fontSize: 13 }} />{t('Best estimated 1RM:')} <span>{EXIDX[p.id] ? <ExerciseName ex={EXIDX[p.id]} /> : p.id}</span> · {fmtNum(p.est)} {st.unit}</div>)}
     </div>}
     <h4 className="sec" style={{ textAlign: 'start' }}>{t('What you just trained')}</h4>
     <BodyMap load={loadOfWorkouts([w])} body={st.body} />

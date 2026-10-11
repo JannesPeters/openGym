@@ -4,8 +4,16 @@ import { LANGS, DERIVED_LOCALES } from './i18n-core.js'
 import {
   MUSCLE_NAME, exerciseMuscleSnapshot, hasExplicitMuscleMetadata, levelsOf, loadOf,
   loadOfWorkouts, loadOfWeeklyPlan, matchesMuscleGroups, muscleBalanceWindow, muscleGroupsOf,
-  musclesOf, muscleWeightsOf, rankOf
+  musclesOf, muscleWeightsOf, rankOf, canonicalMuscleOf, targetMuscleOf
 } from './muscles.js'
+
+describe('canonical muscle labels', () => {
+  it('normalizes catalogue aliases such as pectorals before displaying an exercise target', () => {
+    expect(canonicalMuscleOf('pectorals')).toBe('chest')
+    expect(targetMuscleOf({ bp: 'chest', tg: 'pectorals' })).toBe('chest')
+    expect(targetMuscleOf({ bp: 'back', tg: 'spine' })).toBe('lower-back')
+  })
+})
 
 describe('multi-muscle exercise metadata', () => {
   it('normalizes legacy primary/secondary fields and removes duplicate groups', () => {

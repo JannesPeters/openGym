@@ -540,6 +540,7 @@ h4.sec{
   color:var(--label-2);border-radius:6px;padding:3px 7px;font-size:12px;
   font-weight:500;text-transform:capitalize;
 }
+.tag.ex-variant-meta{margin-inline-start:6px;text-transform:none;vertical-align:middle;white-space:nowrap}
 .tag.acc{background:var(--acc-soft);color:var(--acc)}
 /* Left / Right on a per-side row: one width for both (#322). The two hidden words share the
    visible one's grid cell, so the pill is as wide as the longer word. */

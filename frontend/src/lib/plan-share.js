@@ -8,7 +8,7 @@
 //  2. A clean, printable page (Save as PDF) where a single exercise never splits across
 //     a page break — each exercise, and each routine that fits, stays in one place.
 
-import { EXIDX, canonicalExId, isBodyweightEq } from './exercises.js'
+import { EXIDX, canonicalExId, isBodyweightEq, CATEGORIES, baseExerciseIdOf, variantLabelOf, referencedCustomExercises } from './exercises.js'
 import { cleanUrl } from './media-refs.js'
 import { modeOf, exLine, MAX_PLANNED_WARMUPS } from './history.js'
 import { deriveSessionName } from './session-merge.js'
@@ -171,6 +171,19 @@ const muscleList = v => inMuscleOrder([...new Set((Array.isArray(v) ? v : []).fi
  *  that are empty stay absent, so a file written before this change reads the same as one after. */
 function cleanCustom(c) {
   const o = { id: c.id, n: c.n, bp: c.bp }
+  const baseId = baseExerciseIdOf(c)
+  if (baseId) {
+    o.baseExerciseId = baseId
+    const label = variantLabelOf(c)
+    if (label) o.variantLabel = label
+    if (CATEGORIES.includes(c.cat)) o.cat = c.cat
+    const weights = {}
+    for (const muscle of MUSCLES) {
+      const weight = c.muscleWeights?.[muscle]
+      if (typeof weight === 'number' && Number.isFinite(weight) && weight >= 0 && weight <= 1) weights[muscle] = weight
+    }
+    if (Object.keys(weights).length) o.muscleWeights = weights
+  }
   if (c.desc) o.desc = c.desc
   // The link to a video or guide travels with a shared plan (#246), cleaned both ways like any
   // other field of someone else's file; the exercise's own photo or video never does — it is a
@@ -200,9 +213,7 @@ export function buildPlanBundle(S, name) {
     ex: (r.ex || []).map(cleanEx)
   }))
   const usedIds = new Set(routines.flatMap(r => r.ex.map(e => e.id)))
-  const customEx = (S.customEx || [])
-    .filter(c => usedIds.has(c.id))
-    .map(cleanCustom)
+  const customEx = referencedCustomExercises(S.customEx || [], usedIds).map(cleanCustom)
   // A weekday can hold several routines (merge order preserved). `[].concat` normalises a
   // legacy scalar id to a one-element list, so a bundle written before this change and one
   // written after are read the same way at the other end.
@@ -284,14 +295,20 @@ export function mergePlan(s, bundle, { schedule } = {}) {
   const source = convertedBundle(bundle, destination)
   s.customEx = s.customEx || []
   const exIdMap = {}
-  ;(source.customEx || []).forEach(c => {
-    const same = s.customEx.find(x => (x.n || '').toLowerCase() === (c.n || '').toLowerCase() && x.bp === c.bp)
+  const customs = source.customEx || []
+  // Bases get their recipient ids before any variant's parent link is mapped.
+  ;[...customs.filter(c => !baseExerciseIdOf(c)), ...customs.filter(baseExerciseIdOf)].forEach(c => {
+    const baseId = baseExerciseIdOf(c)
+    const mappedBase = baseId ? (exIdMap[baseId] || canonicalExId(baseId)) : null
+    const same = s.customEx.find(x => (x.n || '').toLowerCase() === (c.n || '').toLowerCase() && x.bp === c.bp
+      && baseExerciseIdOf(x) === mappedBase && variantLabelOf(x) === variantLabelOf(c))
     if (same) { exIdMap[c.id] = same.id; return }
     const nid = uid()
     exIdMap[c.id] = nid
     // Stored exactly as the form would have created it — `custom: true` is what lets the recipient
     // edit or delete it, and `sm` mirrors the secondaries the way the form writes them.
     const clean = cleanCustom(c)
+    if (mappedBase) clean.baseExerciseId = mappedBase
     s.customEx.push({ ...clean, id: nid, ...(clean.secondaries ? { sm: clean.secondaries } : {}), custom: true })
   })
   const ridMap = {}

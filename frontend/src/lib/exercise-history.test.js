@@ -24,6 +24,15 @@ describe('exerciseHistory', () => {
     expect(exerciseHistory({}, 'bench').total).toBe(0)
   })
 
+  it('keeps a machine variant history separate from the base exercise', () => {
+    const S = { workouts: [
+      { id: 'base', d: iso(0), start: T0, entries: [{ id: '0576', target: { mode: 'reps' }, sets: [work(60, 8)] }] },
+      { id: 'variant', d: iso(1), start: T0 + DAY, entries: [{ id: 'machine-a', target: { mode: 'reps' }, sets: [work(40, 8)] }] },
+    ] }
+    expect(exerciseHistory(S, '0576')).toMatchObject({ total: 1, best: 60 })
+    expect(exerciseHistory(S, 'machine-a')).toMatchObject({ total: 1, best: 40 })
+  })
+
   it('lists sessions newest first with their work sets, value and volume', () => {
     const S = { workouts: [session(0, [work(60, 5), work(60, 5)]), session(2, [work(65, 5), work(65, 4)])] }
     const h = exerciseHistory(S, 'bench')

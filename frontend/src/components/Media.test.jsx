@@ -3,6 +3,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Media, { Thumb } from './Media.jsx'
+import { EXIDX, gifSrc, registerCustom } from '../lib/exercises.js'
 import { createMediaStore, memoryBackend, _setMediaStore } from '../lib/media-store.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -111,6 +112,16 @@ describe('Media — a custom exercise', () => {
     const img = host.querySelector('.exmedia img')
     expect(img.getAttribute('src')).toMatch(/^blob:t\//)
     expect(host.innerHTML).not.toContain('fork.')
+  })
+
+  it('shows the base exercise animation when a variant has no media of its own', async () => {
+    const base = EXIDX['0576']
+    const variant = { id: 'machine-a', n: 'lever chest press (Nautilus)', bp: 'chest', custom: true, baseExerciseId: base.id, variantLabel: 'Nautilus' }
+    registerCustom([variant])
+    try {
+      await mountCustom(variant)
+      expect(host.querySelector('.exmedia video')?.getAttribute('src')).toBe(gifSrc(base))
+    } finally { registerCustom([]) }
   })
 
   it('a GIF animates, and a tap switches to its still and back', async () => {

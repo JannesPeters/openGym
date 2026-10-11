@@ -541,6 +541,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': 'Saját gyakorlat létrehozása',
+  'Create variant': 'Változat létrehozása',
+  'Original': 'Eredeti',
+  'Variants': 'Változatok',
+  'Variant of {0}': '{0} változata',
   'Edit custom exercise': 'Egyéni gyakorlat szerkesztése',
   'Exercise name': 'Gyakorlat neve',
   'name + body part, no animation': 'név + testrész, animáció nélkül',

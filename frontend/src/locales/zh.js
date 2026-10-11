@@ -540,6 +540,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': '创建自己的动作',
+  'Create variant': '创建变体',
+  'Original': '原始',
+  'Variants': '变体',
+  'Variant of {0}': '{0} 的变体',
   'Edit custom exercise': '编辑自定义动作',
   'Exercise name': '动作名称',
   'name + body part, no animation': '名称 + 身体部位，无动画',

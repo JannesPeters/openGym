@@ -540,6 +540,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': '나만의 운동 만들기',
+  'Create variant': '변형 만들기',
+  'Original': '원본',
+  'Variants': '변형',
+  'Variant of {0}': '{0} 변형',
   'Edit custom exercise': '커스텀 운동 편집',
   'Exercise name': '운동 이름',
   'name + body part, no animation': '이름 + 부위, 애니메이션 없음',

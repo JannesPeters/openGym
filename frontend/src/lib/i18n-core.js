@@ -12,6 +12,7 @@ export const LANGS = {
 // Languages with exercise instructions / names, generated from catalogue/i18n by
 // scripts/catalogue/build.mjs. A pack can be partial; what it lacks shows in English.
 import { INSTR_LANGS, EXERCISE_NAME_LANGS } from './catalogue-langs.js'
+import { baseExerciseIdOf, variantLabelOf, variantBaseName } from './exercise-variants.js'
 export { INSTR_LANGS, EXERCISE_NAME_LANGS }
 // Languages rendered right-to-left; i18n.js setLang applies the direction from this.
 export const RTL_LANGS = new Set(['ar'])
@@ -158,23 +159,26 @@ export function _detailsFailed(retryMs = 20000) {
 // Instructions for an exercise in the current language (English steps as fallback). `st` on the
 // exercise itself still wins over nothing: a custom exercise or an older plan file carries its own.
 export const instrFor = ex => {
-  const own = instr && instr[ex.id]
+  const baseId = baseExerciseIdOf(ex)
+  const own = instr && (instr[ex.id] || instr[baseId])
   if (own) return own
   if (!enInstr) askDetails()
-  return (enInstr && enInstr[ex.id]) || ex.st || []
+  return (enInstr && (enInstr[ex.id] || enInstr[baseId])) || ex.st || []
 }
 
 // Whether the steps instrFor shows are in the current language rather than the English fallback.
-export const instrTranslated = ex => !!(instr && ex && instr[ex.id])
+export const instrTranslated = ex => !!(instr && ex && (instr[ex.id] || instr[baseExerciseIdOf(ex)]))
 
 // A sentence or two on what the exercise is, in the current language when someone has written
 // it, otherwise in English. Empty for exercises nobody has described yet and for custom ones.
 export const descFor = ex => {
   if (!ex) return ''
-  const own = descs && descs[ex.id]
+  const baseId = baseExerciseIdOf(ex)
+  if (baseId && ex.desc) return ex.desc
+  const own = descs && (descs[ex.id] || descs[baseId])
   if (own) return own
   if (!enDescs) askDetails()
-  return (enDescs && enDescs[ex.id]) || ex.desc || ''
+  return (enDescs && (enDescs[ex.id] || enDescs[baseId])) || ex.desc || ''
 }
 
 // i18n.js hands over the loader here; core itself never imports a chunk.
@@ -203,7 +207,9 @@ export function _setDetails(newEnInstr, newEnDescs, newDescs, forLang = lang) {
 export const exerciseNameFor = ex => {
   // A language that chose "English names only" sees the canonical catalogue title, not the
   // translation — and never the parenthetical either. Custom exercises keep their exact name.
-  if (enOnly) return ex?.n || ''
+  const label = variantLabelOf(ex)
+  if (enOnly) return label ? `${variantBaseName(ex)} · ${label}` : ex?.n || ''
+  if (label) return `${exerciseNameFor({ id: baseExerciseIdOf(ex), n: variantBaseName(ex) })} · ${label}`
   const translated = exerciseNames && ex && exerciseNames[ex.id]
   if (!translated) return ex?.n || ''
   // Some names (Burpee, Pilates, brand/model terms) are the established term in the target
@@ -215,6 +221,11 @@ export const exerciseNameFor = ex => {
       || !enParens
     ? translated
     : `${translated} (${ex.n})`
+}
+
+export const exerciseTitleFor = ex => {
+  const baseId = baseExerciseIdOf(ex)
+  return baseId ? exerciseNameFor({ id: baseId, n: variantBaseName(ex) }) : exerciseNameFor(ex)
 }
 
 // Exercise-name packs written in the language's own casing. German capitalises its nouns and
@@ -235,12 +246,13 @@ export const CASED_NAME_LANGS = ['de']
 // exercise while "English names only" is on, since exerciseNameFor then shows the English title.
 // Callers spread this onto the element that holds exerciseNameFor(ex)'s output, nothing else —
 // muscle and equipment labels next to it are t() strings and keep their own capitalize.
-export const exerciseNameClass = ex => (!enOnly && exerciseNames && ex && exerciseNames[ex.id]
+const nameIdOf = ex => variantLabelOf(ex) ? baseExerciseIdOf(ex) : ex?.id
+export const exerciseNameClass = ex => (!enOnly && exerciseNames && exerciseNames[nameIdOf(ex)]
   && CASED_NAME_LANGS.includes(baseLang(lang)) ? '' : 'capitalize')
 
 // Search both the localized and canonical English title without changing persisted data.
 export const exerciseNameSearchText = ex => {
-  const translated = exerciseNames && ex && exerciseNames[ex.id]
+  const translated = exerciseNames && ex && (exerciseNames[ex.id] || exerciseNames[baseExerciseIdOf(ex)])
   return translated ? `${translated} ${ex.n}` : (ex?.n || '')
 }
 

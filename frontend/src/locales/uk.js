@@ -374,6 +374,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': 'Створити свою вправу',
+  'Create variant': 'Створити варіант',
+  'Original': 'Оригінал',
+  'Variants': 'Варіанти',
+  'Variant of {0}': 'Варіант вправи: {0}',
   'Edit custom exercise': 'Змінити свою вправу',
   'Exercise name': 'Назва вправи',
   'name + body part, no animation': 'назва + частина тіла, без анімації',

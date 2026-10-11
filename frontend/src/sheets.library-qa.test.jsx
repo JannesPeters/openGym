@@ -11,7 +11,7 @@ import { DEF, useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { _setLangState } from './lib/i18n-core.js'
 import { bindUI } from './components/ui.jsx'
-import { customExSheet, exerciseDetailSheet } from './sheets.jsx'
+import { customExSheet, detailTags, exerciseDetailSheet, exerciseVariantSheet, exConfigSheet } from './sheets.jsx'
 
 bindUI(useUI)
 
@@ -86,9 +86,71 @@ describe('editing a custom exercise named like a catalogue one', () => {
     customExSheet(null)
     expect(renderTop().querySelector('input.input').maxLength).toBe(80)
   })
+
+  it('creates a separately tracked variant from a catalogue exercise', () => {
+    exerciseVariantSheet(EXIDX['0576'])
+    const form = renderTop()
+    const input = form.querySelector('input.input')
+    expect(input.maxLength).toBe(40)
+    type(input, 'Nautilus')
+    click(form, 'button', 'Create variant')
+    const [variant] = S().customEx
+    expect(variant).toMatchObject({
+      id: expect.any(String), n: 'lever chest press (Nautilus)', baseExerciseId: '0576',
+      variantLabel: 'Nautilus', bp: 'chest', eq: 'leverage machine', custom: true,
+    })
+    expect(variant.id).not.toBe('0576')
+  })
+
+  it('keeps custom variant names in sync when their base exercise is renamed', () => {
+    const base = { id: 'cx-base', n: 'Lever Chest Press', bp: 'chest', eq: 'leverage machine', custom: true }
+    const variant = {
+      id: 'cx-variant', n: 'Lever Chest Press (Nautilus)', bp: 'chest', eq: 'leverage machine',
+      baseExerciseId: base.id, variantLabel: 'Nautilus', custom: true,
+    }
+    useStore.setState(s => ({ S: { ...s.S, customEx: [base, variant] } }))
+    registerCustom([base, variant])
+    customExSheet(base)
+    const form = renderTop()
+    type(form.querySelector('input.input'), 'Chest Press')
+    click(form, 'button', 'Save')
+    expect(S().customEx[1].n).toBe('Chest Press (Nautilus)')
+  })
 })
 
 describe('the exercise detail sheet', () => {
+  it('shows the same canonical muscle metadata for catalogue and machine variants', () => {
+    const base = EXIDX['1301']
+    expect(base.tg).toBe('pectorals')
+    const variant = {
+      ...base, id: 'cx-variant', n: 'machine inner chest press (Gym80)',
+      tg: 'chest', baseExerciseId: base.id, variantLabel: 'Gym80', custom: true,
+    }
+    expect(detailTags(variant).map(tag => tag.label)).toEqual(detailTags(base).map(tag => tag.label))
+  })
+
+  it('shows family variants near the exercise name and switches details in place', () => {
+    const base = EXIDX['0576']
+    const variant = {
+      id: 'cx-variant', n: 'lever chest press (Nautilus)', bp: 'chest', eq: 'leverage machine',
+      baseExerciseId: base.id, variantLabel: 'Nautilus', custom: true,
+    }
+    seed(variant)
+    exerciseDetailSheet(base)
+    const detail = renderTop()
+    const selector = detail.querySelector('.chips[role="group"]')
+    expect([...selector.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Original', 'Nautilus'])
+    expect(selector.querySelectorAll('button')[1].getAttribute('aria-label')).toBe('lever chest press · Nautilus')
+
+    act(() => selector.querySelectorAll('button')[1].click())
+    expect(detail.querySelector('h3').textContent).toBe(`${base.n} Nautilus`)
+    expect(selector.querySelector('[aria-pressed="true"]').textContent).toBe('Nautilus')
+    act(() => selector.querySelectorAll('button')[0].click())
+    expect(detail.querySelector('h3').textContent).toBe(base.n)
+    expect(selector.querySelector('[aria-pressed="true"]').textContent).toBe('Original')
+    expect(useUI.getState().sheets).toHaveLength(1)
+  })
+
   it('does not tag a muscle the exercise gets no credit for', () => {
     const bench = EXIDX['0025']
     expect(bench.muscleWeights.biceps).toBe(0)
@@ -101,5 +163,25 @@ describe('the exercise detail sheet', () => {
   it('lets a long name wrap instead of pushing the star out', () => {
     exerciseDetailSheet(EXIDX['0025'])
     expect(renderTop().querySelector('h3').classList.contains('exdetail-name')).toBe(true)
+  })
+})
+
+describe('routine exercise variants', () => {
+  it('shows variants in the exercise settings and saves the selected exercise id', () => {
+    const base = EXIDX['0576']
+    const variant = {
+      id: 'cx-variant', n: 'lever chest press (Nautilus)', bp: 'chest', eq: 'leverage machine',
+      baseExerciseId: base.id, variantLabel: 'Nautilus', custom: true,
+    }
+    seed(variant)
+    let saved
+    exConfigSheet(base, null, (config, selectedEx) => { saved = { config, selectedEx } }, null, null, null, null, null, true)
+    const form = renderTop()
+    const selector = form.querySelector('.chips[role="group"]')
+    expect([...selector.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Original', 'Nautilus'])
+    act(() => selector.querySelectorAll('button')[1].click())
+    click(form, 'button', 'Add to routine')
+    expect(saved.selectedEx.id).toBe(variant.id)
+    expect(saved.config).toMatchObject({ sets: 3, mode: 'reps' })
   })
 })

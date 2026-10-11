@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { api, setRemoteAuth } from '../lib/api.js'
 import { localTZ } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
-import { registerCustom, healCustomEx } from '../lib/exercises.js'
+import { registerCustom, healCustomEx, referencedCustomExercises } from '../lib/exercises.js'
 import { DEMO, DEMO_SEEDED } from '../lib/demo.js'
 import { rememberDefaultLang } from '../lib/default-lang.js'
 import { guestAllowed } from '../lib/guest.js'
@@ -1252,7 +1252,7 @@ export const useStore = create((set, get) => {
     }
     if (!any) return { before, later: null }
     const used = new Set(later.workouts.flatMap(w => (Array.isArray(w?.entries) ? w.entries : []).map(e => e?.id)))
-    later.customEx = [...later.customEx, ...before.customEx.filter(c => used.has(c.id))]
+    later.customEx = referencedCustomExercises(S.customEx || [], [...used, ...later.customEx.map(c => c.id)])
     return { before, later }
   }
   const preOf = S => {

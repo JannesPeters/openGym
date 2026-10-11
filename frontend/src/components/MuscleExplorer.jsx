@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store/useStore.js'
-import { BODYPARTS, allExercises, equipmentOf, searchExercises } from '../lib/exercises.js'
+import { BODYPARTS, allExercises, equipmentOf, searchExercises, groupExerciseVariants } from '../lib/exercises.js'
 import { activeProfile, exAvailable } from '../lib/equipment.js'
 import { bestWeightFor } from '../lib/history.js'
 import { fmtNum, exCount } from '../lib/format.js'
-import { MUSCLES, MUSCLE_NAME, musclesOf } from '../lib/muscles.js'
-import { t, exerciseNameFor, exerciseNameClass } from '../lib/i18n.js'
+import { MUSCLES, MUSCLE_NAME, musclesOf, targetMuscleOf } from '../lib/muscles.js'
+import { t, exerciseNameClass } from '../lib/i18n.js'
 import BodyMap from './BodyMap.jsx'
 import { Thumb } from './Media.jsx'
+import ExerciseName from './ExerciseName.jsx'
 import Icon from './Icon.jsx'
 import ExerciseViewToggle from './ExerciseViewToggle.jsx'
 import { Button } from './ui.jsx'
@@ -42,7 +43,7 @@ export default function MuscleExplorer({ onPick, onDetail, onPlan }) {
   const eqOpts = equipmentOf(base)
   const eqOn = eqOpts.includes(eq) ? eq : ''
   // Favourites float to the top of whatever the filters left (issue #6), the rest keeps its order.
-  const exercises = sortFavouritesFirst(eqOn ? base.filter(e => e.eq === eqOn) : base, S)
+  const exercises = groupExerciseVariants(sortFavouritesFirst(eqOn ? base.filter(e => e.eq === eqOn) : base, S))
   const choose = ex => onPick ? onPick(ex) : onDetail(ex)
   // The live count and the × of the Library's search (#338): the count while a search or a
   // filter narrows the muscle's list, the × while there is text.
@@ -95,7 +96,7 @@ export default function MuscleExplorer({ onPick, onDetail, onPlan }) {
           const primary = musclesOf(e)[selected] === 1
           return <div key={e.id} className="item" {...tappable(() => choose(e))}>
             <Thumb ex={e} />
-            <div className="grow"><div className={`tt ${exerciseNameClass(e)}`}>{isFav(S, e.id) && <Icon name="starFill" className="fav-star" />}{exerciseNameFor(e)}</div><div className="ss">{t(primary ? 'Primary target' : 'Also trains')} · <span className="capitalize">{t(MUSCLE_NAME[e.tg] || e.tg || e.bp)} · {t(e.eq)}</span></div></div>
+            <div className="grow"><div className={`tt ${exerciseNameClass(e)}`}>{isFav(S, e.id) && <Icon name="starFill" className="fav-star" />}<ExerciseName ex={e} /></div><div className="ss">{t(primary ? 'Primary target' : 'Also trains')} · <span className="capitalize">{t(MUSCLE_NAME[targetMuscleOf(e)] || targetMuscleOf(e))} · {t(e.eq)}</span></div></div>
             {onPick ? <Icon name="plus" className="chev" /> : <>
               {best > 0 && <span className="tag acc">{fmtNum(best)}</span>}
               <Button size="sm" variant="tinted" icon="plus" onClick={ev => { ev.stopPropagation(); onPlan(e) }}>{t('Plan')}</Button>

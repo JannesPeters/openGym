@@ -5,7 +5,7 @@
  * only what the worker's cache is missing. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { planMediaUrls, prefetchAllowed, prefetchMedia, startMediaPrefetch, installedApp, MEDIA_CACHE, PREFETCH_DELAY_MS } from './media-prefetch.js'
-import { EXIDX, imgSrc, gifSrc } from './exercises.js'
+import { EXIDX, imgSrc, gifSrc, registerCustom } from './exercises.js'
 
 const BASE = 'https://gym.test/app/'
 const abs = src => new URL(src, BASE).href
@@ -15,7 +15,7 @@ const other = Object.values(EXIDX).find(e => e.gif && e.id !== bench.id)
 const answer = (status = 200) => ({ ok: status < 400, status, arrayBuffer: async () => new ArrayBuffer(1) })
 const cacheWith = urls => ({ match: async u => (urls.includes(u) ? {} : undefined) })
 
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); registerCustom([]) })
 
 describe('planMediaUrls', () => {
   it('names the still and the animation of every exercise in the plan and the session in progress, once each', () => {
@@ -25,6 +25,14 @@ describe('planMediaUrls', () => {
     }
     const urls = planMediaUrls(S, BASE, { ...EXIDX, 'custom-1': { id: 'custom-1', n: 'Mine' } })
     expect(urls.sort()).toEqual([abs(gifSrc(bench)), abs(imgSrc(bench)), abs(gifSrc(other)), abs(imgSrc(other))].sort())
+  })
+
+  it('prefetches the base artwork for a variant without its own media', () => {
+    const base = EXIDX['0576']
+    const variant = { id: 'machine-a', n: 'lever chest press (Nautilus)', baseExerciseId: base.id, variantLabel: 'Nautilus', custom: true }
+    registerCustom([variant])
+    const urls = planMediaUrls({ routines: [{ ex: [{ id: variant.id }] }] }, BASE)
+    expect(urls.sort()).toEqual([abs(gifSrc(base)), abs(imgSrc(base))].sort())
   })
 
   it('an empty or missing plan needs nothing', () => {

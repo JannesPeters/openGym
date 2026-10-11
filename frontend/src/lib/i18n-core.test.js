@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, DATE_LOCALES, DERIVED_LOCALES,
-  baseLang, derivePack, dateLocale, getLang, t, _setLangState, exerciseNameClass, exerciseNameFor, CASED_NAME_LANGS
+  baseLang, derivePack, dateLocale, getLang, t, _setLangState, exerciseNameClass, exerciseNameFor, exerciseTitleFor, CASED_NAME_LANGS
 } from './i18n-core.js'
 import { EXDB } from './exercises-data.js'
 import de from '../locales/de.js'
@@ -114,7 +114,7 @@ describe('exerciseNameClass', () => {
     expect(exerciseNameClass(bench)).toBe('capitalize')
     _setLangState('de', {}, null, null)
     expect(exerciseNameClass(bench)).toBe('capitalize')
-    _setLangState('de', {}, null, { '0025': 'Bankdrücken mit Langhantel' })
+    _setLangState('de', {}, null, { '0025': 'Bankdrücken mit Langhantel' }, false)
     expect(exerciseNameClass(bench)).toBe('')
     _setLangState('en', {}, null, null)
     expect(exerciseNameClass(bench)).toBe('capitalize')
@@ -129,6 +129,16 @@ describe('exerciseNameClass', () => {
     expect(exerciseNameClass(custom)).toBe('capitalize')
     expect(exerciseNameClass(undefined)).toBe('capitalize')
     _setLangState('en', {}, null, null)
+  })
+
+  it('uses the base translation while keeping the variant label', () => {
+    const variant = { id: 'machine-a', n: 'barbell bench press (Nautilus)', baseExerciseId: '0025', variantLabel: 'Nautilus' }
+    _setLangState('de', {}, null, { '0025': 'Bankdrücken mit Langhantel' }, false)
+    expect(exerciseNameFor(variant)).toBe('Bankdrücken mit Langhantel · Nautilus')
+    expect(exerciseTitleFor(variant)).toBe('Bankdrücken mit Langhantel')
+    expect(exerciseNameClass(variant)).toBe('')
+    _setLangState('en', {}, null, null)
+    expect(exerciseNameFor(variant)).toBe('barbell bench press · Nautilus')
   })
 })
 

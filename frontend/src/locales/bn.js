@@ -623,6 +623,10 @@ export default {
   'wrists': 'কবজি',
   // --- custom exercises (#11) ---
   'Create your own exercise': 'নিজের ব্যায়াম তৈরি করুন',
+  'Create variant': 'ভ্যারিয়েন্ট তৈরি করুন',
+  'Original': 'মূল',
+  'Variants': 'ভ্যারিয়েন্ট',
+  'Variant of {0}': '{0}-এর ভ্যারিয়েন্ট',
   'Edit custom exercise': 'কাস্টম ব্যায়াম সম্পাদনা করুন',
   'Exercise name': 'ব্যায়ামের নাম',
   'name + body part, no animation': 'নাম + শরীরের অংশ, কোনো অ্যানিমেশন নেই',

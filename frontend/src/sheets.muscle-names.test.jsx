@@ -81,7 +81,7 @@ describe('muscle names in the rows and tags (QA C9)', () => {
     expect(tags(renderTop())).toEqual(['Glutes', 'barbell', 'Forearms', 'Hip flexors'])
     // #207 Olympic lifts list their secondaries as map ids ('forearm', 'deltoids').
     exConfigSheet(EXIDX['0648'], null, vi.fn())
-    expect(tags(renderTop())).toEqual(['hamstrings', 'barbell', 'Calves', 'Forearms', 'Shoulders'])
+    expect(tags(renderTop())).toEqual(['Hamstrings', 'barbell', 'Calves', 'Forearms', 'Shoulders'])
   })
 
   it('translates them in German too — "forearm" was staying English', () => {

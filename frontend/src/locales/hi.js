@@ -540,6 +540,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': 'अपनी एक्सरसाइज़ बनाएं',
+  'Create variant': 'वेरिएंट बनाएँ',
+  'Original': 'मूल',
+  'Variants': 'वेरिएंट',
+  'Variant of {0}': '{0} का वेरिएंट',
   'Edit custom exercise': 'कस्टम एक्सरसाइज़ संपादित करें',
   'Exercise name': 'एक्सरसाइज़ का नाम',
   'name + body part, no animation': 'नाम + बॉडी पार्ट, बिना एनिमेशन',

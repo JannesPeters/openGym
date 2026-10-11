@@ -153,6 +153,12 @@ function canonicalMuscle(value) {
   return ALIAS[name] || null
 }
 
+export const canonicalMuscleOf = value => canonicalMuscle(value)
+export const targetMuscleOf = ex => {
+  const target = String(ex?.tg || '').toLowerCase().trim()
+  return canonicalMuscle(target) || target || ex?.bp || ''
+}
+
 function canonicalUnique(values) {
   const out = []
   for (const value of values || []) {

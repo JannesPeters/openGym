@@ -540,6 +540,10 @@ export default {
 
   // --- custom exercises (#11) ---
   'Create your own exercise': 'Kendi egzersizini oluştur',
+  'Create variant': 'Varyasyon oluştur',
+  'Original': 'Orijinal',
+  'Variants': 'Varyasyonlar',
+  'Variant of {0}': '{0} varyasyonu',
   'Edit custom exercise': 'Özel egzersizi düzenle',
   'Exercise name': 'Egzersiz adı',
   'name + body part, no animation': 'ad + vücut bölgesi, animasyonsuz',

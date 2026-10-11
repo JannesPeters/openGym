@@ -2,8 +2,11 @@ import { EXDB, EXALIAS } from './exercises-data.js'
 import MUSCLE_MAP from './exercise-muscle-map.json' with { type: 'json' }
 import V13_IDS from './catalogue-v13-ids.json' with { type: 'json' }
 import { t, getVersion, exerciseNameSearchText } from './i18n-core.js'
+import { baseExerciseIdOf } from './exercise-variants.js'
+import { mediaOf, cleanUrl } from './media-refs.js'
 
 export { EXDB }
+export { baseExerciseIdOf, variantLabelOf, variantBaseName, variantName, groupExerciseVariants, referencedCustomExercises, EXERCISE_NAME_MAX, VARIANT_LABEL_MAX } from './exercise-variants.js'
 
 // EXDB carries each exercise as the catalogue describes it in words (target, secondary muscles).
 // Where someone has drawn the muscles more precisely (catalogue "muscleMap": the compound lifts,
@@ -116,6 +119,11 @@ export function healCustomEx(list) {
 }
 // Full searchable catalogue — customs first so your own exercises are easy to find.
 export const allExercises = st => [...(st.customEx || []), ...CATALOGUE]
+
+export function mediaExerciseOf(ex, index = EXIDX) {
+  const baseId = baseExerciseIdOf(ex)
+  return baseId && !mediaOf(ex) && !cleanUrl(ex.url) ? (index[baseId] || ex) : ex
+}
 
 function searchableText(value) {
   if (Array.isArray(value)) return value.map(searchableText).join(' ')

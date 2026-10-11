@@ -97,6 +97,19 @@ device is updated, nobody has to guess.
 FitNotes, Strong and Hevy work out of the box, Apple Health for body weight, and any CSV with a date,
 an exercise and something measured. See [DATA_IMPORTS.md](DATA_IMPORTS.md).
 
+### Can I track different machines for the same exercise separately?
+
+Yes. Open the exercise in the **Exercise Library**, choose **Create variant**, and give it a label
+such as **Nautilus** or **Gym80**. The variant starts with the base exercise's equipment and muscles;
+you can adjust these and add your own description, photo or video. Without its own media, it uses
+the base exercise's artwork and instructions.
+
+Variants are grouped with their base in the Library and exercise pickers, but each has its own
+exercise ID, workout history, progression and records. Select the specific variant when adding
+it to a routine or swapping an exercise. Previous sessions are not moved or combined.
+Variant relationships survive sync, backups and shared plans. Deleting a custom base does not
+delete its variants or their logged sets.
+
 ### Can I reuse the exercise images in my own project?
 
 No. They are © Aliaksandr Makatserchyk, Gym visual, licensed for use in openGym only and not covered

@@ -161,6 +161,26 @@ describe('Library header count', () => {
   })
 })
 
+describe('Library exercise variants', () => {
+  it('shows the machine label as separate metadata, not as part of the exercise title', () => {
+    const base = { id: 'custom-base', n: 'lever chest press', bp: 'chest', tg: 'pectorals', eq: 'leverage machine', custom: true }
+    const variant = {
+      id: 'custom-gym80', n: 'lever chest press (Gym80)', bp: 'chest', tg: 'chest', eq: 'leverage machine',
+      baseExerciseId: base.id, variantLabel: 'Gym80', custom: true,
+    }
+    mocks.S.customEx = [base, variant]
+    const rows = [...render().querySelectorAll('.item')]
+    const row = rows.find(el => el.querySelector('.ex-variant-meta'))
+    const baseRow = rows.find(el => el.querySelector('.tt')?.textContent === 'lever chest press')
+    expect(row.querySelector('.tt').textContent).toBe('lever chest press Gym80')
+    expect(row.querySelector('.ex-variant-meta').textContent).toBe('Gym80')
+    expect(row.querySelector('.tt').textContent).not.toContain('(')
+    expect(baseRow.querySelector('.ss').textContent).toContain('Chest')
+    expect(row.querySelector('.ss').textContent).toContain('Chest')
+    expect(row.querySelector('.ss').textContent).not.toContain('Pectorals')
+  })
+})
+
 describe('Library similar exercises', () => {
   const search = (host, text) => {
     const input = host.querySelector('.search input')
