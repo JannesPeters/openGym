@@ -15,6 +15,7 @@ export default {
   'Filters': 'Filter',
   'Diagram': 'Diagramm',
   'Advanced settings': 'Erweiterte Einstellungen',
+  'An update is ready. Finish editing, then reload openGym.': 'Ein Update ist bereit. Beende deine Eingaben und lade openGym dann neu.',
   'Type': 'Typ',
   'Muscle': 'Muskel',
   'Rest': 'Pause',

@@ -14,6 +14,7 @@ export default {
   'Filters': '필터',
   'Diagram': '신체도',
   'Advanced settings': '고급 설정',
+  'An update is ready. Finish editing, then reload openGym.': '업데이트가 준비되었습니다. 편집을 마친 후 openGym을 새로고침하세요.',
   'Type': '유형',
   'Muscle': '근육',
   'Rest': '휴식',

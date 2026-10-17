@@ -14,6 +14,7 @@ export default {
   'Filters': '筛选',
   'Diagram': '示意图',
   'Advanced settings': '高级设置',
+  'An update is ready. Finish editing, then reload openGym.': '更新已准备就绪。请完成编辑，然后重新加载 openGym。',
   'Type': '类型',
   'Muscle': '肌肉',
   'Rest': '休息',

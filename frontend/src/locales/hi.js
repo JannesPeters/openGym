@@ -14,6 +14,7 @@ export default {
   'Filters': 'फ़िल्टर',
   'Diagram': 'आरेख',
   'Advanced settings': 'उन्नत सेटिंग्स',
+  'An update is ready. Finish editing, then reload openGym.': 'अपडेट तैयार है। संपादन पूरा करें, फिर openGym दोबारा लोड करें।',
   'Type': 'प्रकार',
   'Muscle': 'मांसपेशी',
   'Rest': 'आराम',

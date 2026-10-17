@@ -14,6 +14,7 @@ export default {
   'Filters': 'Фильтры',
   'Diagram': 'Схема',
   'Advanced settings': 'Дополнительные настройки',
+  'An update is ready. Finish editing, then reload openGym.': 'Обновление готово. Завершите редактирование, затем перезагрузите openGym.',
   'Type': 'Тип',
   'Muscle': 'Мышца',
   'Rest': 'Отдых',

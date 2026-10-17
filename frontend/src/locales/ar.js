@@ -15,6 +15,7 @@ export default {
   'Filters': 'عوامل التصفية',
   'Diagram': 'رسم توضيحي',
   'Advanced settings': 'إعدادات متقدمة',
+  'An update is ready. Finish editing, then reload openGym.': 'التحديث جاهز. أكمل التعديل، ثم أعد تحميل openGym.',
   'Type': 'النوع',
   'Muscle': 'العضلة',
   'Rest': 'راحة',

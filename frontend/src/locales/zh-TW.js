@@ -13,6 +13,7 @@ export default {
   'Filters': '篩選',
   'Diagram': '示意圖',
   'Advanced settings': '進階設定',
+  'An update is ready. Finish editing, then reload openGym.': '更新已準備就緒。請完成編輯，再重新載入 openGym。',
   'Type': '類型',
   'Muscle': '肌肉',
   'Rest': '休息',

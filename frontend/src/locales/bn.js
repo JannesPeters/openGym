@@ -14,6 +14,7 @@ export default {
   'Filters': 'ফিল্টার',
   'Diagram': 'চিত্র',
   'Advanced settings': 'উন্নত সেটিংস',
+  'An update is ready. Finish editing, then reload openGym.': 'আপডেট প্রস্তুত। সম্পাদনা শেষ করে openGym আবার লোড করুন।',
   'Type': 'ধরন',
   'Muscle': 'পেশি',
   'Rest': 'বিশ্রাম',

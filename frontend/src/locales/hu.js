@@ -16,6 +16,7 @@ export default {
   'Filters': 'Szűrők',
   'Diagram': 'Ábra',
   'Advanced settings': 'Speciális beállítások',
+  'An update is ready. Finish editing, then reload openGym.': 'Elérhető egy frissítés. Fejezd be a szerkesztést, majd töltsd újra az openGymet.',
   'Type': 'Típus',
   'Muscle': 'Izom',
   'Rest': 'Pihenő',

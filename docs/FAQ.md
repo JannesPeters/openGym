@@ -38,6 +38,21 @@ profile plus the account list. Back up that folder and you've backed up everythi
 it's in the app's private storage. In guest mode it's only in that browser. You can export
 everything as one file at any time under **Settings → Data & backup**.
 
+### My home-screen web app still shows an older version.
+
+A home-screen app can resume an already-open page instead of loading the website again.
+While online, open **Settings → About & updates → Check for updates**. Once the update is ready,
+finish editing and choose **Reload openGym**. The web app also checks when it returns to the
+foreground; it never reloads an in-progress screen automatically. Reloading keeps saved workouts
+and the current workout on the device.
+
+On an older build without that control, save your edits and use the browser's Reload action
+inside the pinned app, if available, or close it from Android's recent apps and reopen it.
+Check that the pinned app opens the same address as the updated browser tab: a shortcut saved to
+an individual deployment URL will not follow updates to your production address.
+Do not clear site storage or uninstall as an update workaround: guest and unsynced workouts may
+exist only there. Export a backup under **Settings → Data & backup** before any storage reset.
+
 ### Does the app send anything anywhere?
 
 Your instance has no telemetry and phones home to nobody. The exercise pictures and animations ship

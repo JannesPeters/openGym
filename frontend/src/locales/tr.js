@@ -14,6 +14,7 @@ export default {
   'Filters': 'Filtreler',
   'Diagram': 'Şema',
   'Advanced settings': 'Gelişmiş ayarlar',
+  'An update is ready. Finish editing, then reload openGym.': 'Bir güncelleme hazır. Düzenlemeyi bitirin, ardından openGym’i yeniden yükleyin.',
   'Type': 'Tür',
   'Muscle': 'Kas',
   'Rest': 'Dinlenme',

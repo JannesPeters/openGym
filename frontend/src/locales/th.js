@@ -16,6 +16,7 @@ export default {
   'Filters': 'ตัวกรอง',
   'Diagram': 'แผนภาพ',
   'Advanced settings': 'การตั้งค่าขั้นสูง',
+  'An update is ready. Finish editing, then reload openGym.': 'อัปเดตพร้อมแล้ว แก้ไขให้เสร็จแล้วโหลด openGym ใหม่',
   'Type': 'ประเภท',
   'Muscle': 'กล้ามเนื้อ',
   'Rest': 'พัก',

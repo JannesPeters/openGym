@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => {
   })
   state.checkForUpdate = vi.fn(() => Promise.resolve({ hasUpdate: true, latestVersion: '9.9.9', apkUrl: 'https://x/opengym.apk', hashUrl: null }))
   state.confirmSheet = vi.fn()
+  state.webUpdate = { checking: false, available: false }
+  state.webSupported = false
+  state.webCheck = vi.fn(async () => false)
+  state.toast = vi.fn()
   return state
 })
 vi.mock('../store/useStore.js', () => {
@@ -33,7 +37,7 @@ vi.mock('../store/useStore.js', () => {
   return { useStore, DEF: { reminder: { time: '17:30' } }, hasData: () => false }
 })
 vi.mock('../store/useUI.js', () => {
-  const snap = () => ({ toast: vi.fn(), openSheet: vi.fn() })
+  const snap = () => ({ toast: mocks.toast, openSheet: vi.fn() })
   const useUI = selector => selector ? selector(snap()) : snap()
   useUI.getState = snap
   return { useUI }
@@ -54,6 +58,11 @@ vi.mock('../lib/update.js', () => ({
   checkForUpdate: (...a) => mocks.checkForUpdate(...a),
   downloadAndInstall: vi.fn(),
 }))
+vi.mock('../lib/web-update.js', () => ({
+  getWebUpdate: () => mocks.webUpdate, subscribeWebUpdate: () => () => {},
+  webUpdatesSupported: () => mocks.webSupported,
+  checkForWebUpdate: () => mocks.webCheck(),
+}))
 vi.mock('./MobileOnboarding.jsx', () => ({ ConnectSheet: () => null }))
 vi.mock('../sheets.jsx', () => ({
   starterPlanSheet: vi.fn(), confirmSheet: (...a) => mocks.confirmSheet(...a), importFromApp: vi.fn(),
@@ -72,6 +81,10 @@ beforeEach(() => {
   mocks.android = false
   mocks.checkForUpdate.mockClear()
   mocks.confirmSheet.mockClear()
+  mocks.webUpdate = { checking: false, available: false }
+  mocks.webSupported = false
+  mocks.webCheck.mockReset().mockResolvedValue(false)
+  mocks.toast.mockClear()
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
@@ -79,6 +92,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   host.remove()
+  vi.restoreAllMocks()
 })
 
 // The effect resolves two promises (isAndroid, then checkForUpdate) before the row can render.
@@ -97,6 +111,44 @@ describe('Settings — in-app update check', () => {
     expect(updateRow()).toBeUndefined()
     expect(checkRow()).toBeUndefined()
     expect(webRow()).toBeTruthy()
+  })
+
+  describe('Settings — web update check', () => {
+    it('checks the same-origin web worker without asking for APK releases', async () => {
+      mocks.webSupported = true
+      await mount()
+      expect(checkRow()).toBeTruthy()
+      await act(async () => checkRow().click())
+      expect(mocks.webCheck).toHaveBeenCalledOnce()
+      expect(mocks.checkForUpdate).not.toHaveBeenCalled()
+      expect(mocks.toast).toHaveBeenCalledWith('You have the latest version.')
+    })
+
+    it('does not say up to date when an update is ready or a check failed', async () => {
+      mocks.webSupported = true
+      mocks.webCheck.mockResolvedValueOnce(true)
+      await mount()
+      await act(async () => checkRow().click())
+      expect(mocks.toast).not.toHaveBeenCalled()
+      mocks.webCheck.mockRejectedValueOnce(new Error('offline'))
+      await act(async () => checkRow().click())
+      expect(mocks.toast).toHaveBeenCalledExactlyOnceWith('Couldn’t check for updates. Are you online?')
+    })
+
+    it('offers an explicit reload after activation and keeps the control out of native builds', async () => {
+      mocks.webSupported = true
+      mocks.webUpdate = { checking: false, available: true }
+      const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
+      await mount()
+      const row = [...host.querySelectorAll('.lrow')].find(r => r.querySelector('.lrow-t')?.textContent === 'Reload openGym')
+      expect(row).toBeTruthy()
+      expect(reload).not.toHaveBeenCalled()
+      act(() => row.click())
+      expect(reload).toHaveBeenCalledOnce()
+      mocks.MOBILE = true
+      await mount()
+      expect([...host.querySelectorAll('.lrow-t')].some(r => r.textContent === 'Reload openGym')).toBe(false)
+    })
   })
 
   it('mobile build on iOS: no check, no row, no section', async () => {

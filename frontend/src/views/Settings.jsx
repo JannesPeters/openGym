@@ -32,6 +32,7 @@ import { limitsFrom, fmtMB, MB } from '../lib/media-limits.js'
 import { setRestAccent } from '../lib/rest-alert.js'
 import { CUSTOM, accentKey, adjustedIn, applyAccent, cleanHex, inkOn, isGrey } from '../lib/accent.js'
 import { checkForUpdate, downloadAndInstall, fetchChecksum, RELEASES_PAGE } from '../lib/update.js'
+import { checkForWebUpdate, getWebUpdate, subscribeWebUpdate, webUpdatesSupported } from '../lib/web-update.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '../lib/duration.js'
 import { starterPlanSheet, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet, plateInventorySheet, dumbbellInventorySheet, menuSheet } from '../sheets.jsx'
@@ -152,6 +153,7 @@ export default function Settings({ page = null, find = null, via = null }) {
   const [updateInfo, setUpdateInfo] = useState(null) // { hasUpdate, latestVersion, apkUrl, hashUrl } | null
   const [android, setAndroid] = useState(false)
   const [checking, setChecking] = useState(false)
+  const webUpdate = useSyncExternalStore(subscribeWebUpdate, getWebUpdate)
   // Where auto-backup writes on this Android phone, for the Auto-backup row's own subtitle.
   const [backupDir] = useBackupFolder(MOBILE && android && !!S.autoBackup)
 
@@ -210,6 +212,15 @@ export default function Settings({ page = null, find = null, via = null }) {
       toast(t('Couldn’t check for updates. Are you online?'))
     }
     setChecking(false)
+  }
+
+  const checkWeb = async () => {
+    if (webUpdate.checking) return
+    try {
+      if (!(await checkForWebUpdate())) toast(t('You have the latest version.'))
+    } catch {
+      toast(t('Couldn’t check for updates. Are you online?'))
+    }
   }
 
   const onUpdateRowClick = () => {
@@ -395,6 +406,7 @@ export default function Settings({ page = null, find = null, via = null }) {
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
     pushOK: !MOBILE && pushSupported(), reminderOn: !!S.reminder?.on, nudge: !!S.reminder?.nudge,
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID,
+    webUpdates: !MOBILE && webUpdatesSupported(), webUpdateReady: webUpdate.available,
   }
   const mode = scheduleModeOf(S)
   const layout = ['list', 'compact', 'focus'].includes(S.workoutView) ? S.workoutView : 'cards'
@@ -813,11 +825,14 @@ export default function Settings({ page = null, find = null, via = null }) {
     </>,
 
     about: () => <>
-      {/* Updates. On Android the row is always there: it checks on demand and installs when a
-          release is newer (checksum verified, see onUpdateRowClick). On the web the app updates
-          with its server, so the row points at the APK for the phone instead. iOS has no APK. */}
+      {/* Web updates come from this server, independently of the native APK release check. */}
       <Section footer={MOBILE ? (android ? t('Releases are checked on GitHub. The download is verified against its checksum before the installer opens.') : null) : t('The web app updates together with your server. The Android app installs its own updates from here.')}>
         <Row icon="info" iconTint="var(--grey)" title={t('Version')} value={'v' + __APP_VERSION__} />
+        {ctx.webUpdates && <Row icon="download" iconTint="var(--green)"
+          title={webUpdate.available ? t('Reload openGym') : t('Check for updates')}
+          subtitle={webUpdate.checking ? t('Checking…') : null}
+          accessory="chevron"
+          onClick={() => webUpdate.available ? window.location.reload() : checkWeb()} />}
         {MOBILE
           ? android && <Row icon="download" iconTint="var(--green)"
               title={updateInfo?.hasUpdate ? t('Update to openGym v{0}', updateInfo.latestVersion) : t('Check for updates')}

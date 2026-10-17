@@ -185,6 +185,7 @@ export const PT_BR_OVERRIDES = {
   'Filters': 'Filtros',
   'Diagram': 'Diagrama',
   'Advanced settings': 'Configurações avançadas',
+  'An update is ready. Finish editing, then reload openGym.': 'Uma atualização está pronta. Termine de editar e recarregue o openGym.',
   'Type': 'Tipo',
   'Muscle': 'Músculo',
   'Saved': 'Salvo',
