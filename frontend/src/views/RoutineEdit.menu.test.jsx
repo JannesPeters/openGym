@@ -31,7 +31,11 @@ function mount(ex = fixture().ex) {
   document.body.appendChild(host)
   root = createRoot(host)
   act(() => root.render(<MemoryRouter initialEntries={['/plan/r/r1']}>
-    <Routes><Route path="/plan/r/:id" element={<RoutineEdit />} /><Route path="/plan" element={<div>Plan</div>} /></Routes>
+    <Routes>
+      <Route path="/plan/r/:id" element={<RoutineEdit />} />
+      <Route path="/plan/r/:id/exercise/:index/:exerciseId" element={<h1>Full-screen exercise</h1>} />
+      <Route path="/plan" element={<div>Plan</div>} />
+    </Routes>
     <Modals />
   </MemoryRouter>))
 }
@@ -139,6 +143,16 @@ describe('routine action menu', () => {
 
   describe('per-exercise action menu', () => {
     const entries = () => ['0025', '0009', '0025'].map((id, index) => ({ ...fixture().ex[0], id, note: `Occurrence ${index}` }))
+
+    it('keeps the menu separate from full-screen exercise navigation', () => {
+      mount()
+      openExerciseMenu(0)
+      expect(host.querySelector('.routine-list')).not.toBeNull()
+      key(document.activeElement, 'Escape')
+      act(() => host.querySelector('.item-open').click())
+      expect(host.querySelector('h1').textContent).toBe('Full-screen exercise')
+      expect(dialog()).toBeNull()
+    })
 
     it('offers state-aware first, middle and last actions without opening the exercise configuration', () => {
       mount(entries())

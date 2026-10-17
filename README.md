@@ -60,6 +60,8 @@ if you want to try it before installing anything.
 
 - A routine per weekday over a library of **over 5,600 exercises** with animated demos, searchable and
   browsable by muscle on a body map. Filter by the equipment you own.
+- Add, configure and edit exercises in Plan on full-screen pages with a Back button. Returning to
+  the exercise browser keeps your search and filters, and marks exercises already in that routine.
 - Four starter plans (Push/Pull/Legs, Upper/Lower, Full Body, 5×5) that load as ordinary,
   editable routines.
 - Move a session to another day without touching the weekly plan. The week starts on Monday or

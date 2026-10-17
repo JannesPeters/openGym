@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // Swipe actions in the routine editor (v1.3.11): toward the start takes an exercise out, with an
 // Undo, and there is nothing on the other side. The long press still reorders, and a row it has
-// picked up does not swipe. The exercise's sheet keeps Remove, with the same Undo.
+// picked up does not swipe. The exercise's page keeps Remove, with the same Undo.
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const sheets = vi.hoisted(() => ({
   exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(), menuSheet: vi.fn(),
 }))
+const navigate = vi.hoisted(() => vi.fn())
+vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal(), useNavigate: () => navigate }))
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})), beacon: vi.fn(), appBase: () => '/' }))
 vi.mock('../lib/sound.js', () => ({ beep: vi.fn(), chime: vi.fn(), vibrate: vi.fn(), alertBuzz: vi.fn(), unlock: vi.fn() }))
 vi.mock('../sheets.jsx', () => sheets)
@@ -57,6 +59,7 @@ const undo = () => act(() => useUI.getState().runToastAction())
 beforeEach(() => {
   vi.useFakeTimers()
   Object.values(sheets).forEach(mock => mock.mockReset())
+  navigate.mockReset()
   document.documentElement.dir = 'ltr'
   useUI.setState({ sheets: [], toastMsg: '', toastAction: null })
   widthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(360)
@@ -102,7 +105,7 @@ describe('swiping an exercise out of a routine', () => {
     expect(ex().map(e => e.id)).toEqual(['1001', '1002', '1003', '1004'])
   })
 
-  it('the name is the keyboard’s button (no button inside a button), and the sheet’s Remove has the same Undo', () => {
+  it('the name is the keyboard’s button (no button inside a button), and removal has the same Undo', () => {
     mount([configured('1001', { sg: 'g1' }), configured('1002', { sg: 'g1' })])
     // The row holds the actions menu, so it is no button itself: a screen
     // reader reads a button's insides as plain text (axe nested-interactive).
@@ -115,17 +118,16 @@ describe('swiping an exercise out of a routine', () => {
     const open = item.querySelector('button.item-open')
     expect(open.type).toBe('button')
     click(open)                              // Enter or Space on a <button> is this click
-    expect(sheets.exConfigSheet).toHaveBeenCalledOnce()
+    expect(navigate).toHaveBeenCalledWith('/plan/r/r1/exercise/1/1002', { state: { planBack: '/plan/r/r1' } })
     click(item.querySelector('[data-thumb]')) // a tap elsewhere on the row opens it too
-    expect(sheets.exConfigSheet).toHaveBeenCalledTimes(2)
-    const onDelete = sheets.exConfigSheet.mock.calls[0][3]
-    act(() => onDelete())
+    expect(navigate).toHaveBeenCalledTimes(2)
+    act(() => removeRoutineExercise('r1', 1))
     expect(ex().map(e => e.id)).toEqual(['1001'])
     undo()
     expect(ex().map(e => e.id)).toEqual(['1001', '1002'])
     click(swrows()[1].querySelector('button[data-exercise-menu]'))
     expect(sheets.menuSheet).toHaveBeenCalledOnce()
-    expect(sheets.exConfigSheet).toHaveBeenCalledTimes(2)
+    expect(navigate).toHaveBeenCalledTimes(2)
   })
 
   it('a long press on the name picks the row up, and a row it has picked up does not swipe', () => {

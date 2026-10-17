@@ -1142,7 +1142,7 @@ export const addToRoutineSheet = ex => ui().openSheet(close => <AddToRoutine ex=
 // (planning, logging, PRs, stats). A photo, GIF or video of your own, and a link to a video or
 // guide, are optional (components/CustomMediaField.jsx): the state keeps a small reference to the
 // file, never the file itself, and the link is cleaned on save and again whenever it is opened.
-function CustomExForm({ existing, base, prefill, onDone, close }) {
+export function CustomExForm({ existing, base, prefill, onDone, close, onDelete }) {
   const source = existing || base
   const baseId = baseExerciseIdOf(existing) || (base && (baseExerciseIdOf(base) || base.id))
   const isVariant = !!baseId
@@ -1289,7 +1289,7 @@ function CustomExForm({ existing, base, prefill, onDone, close }) {
     <CustomMediaField media={media} url={url} onChange={onMedia} />
     <div style={{ height: 14 }} />
     <Button variant="primary" onClick={save}>{existing ? t('Save') : isVariant ? t('Create variant') : t('Create exercise')}</Button>
-    {existing && <><div style={{ height: 8 }} /><Button variant="danger" icon="trash" onClick={() => { close(); deleteCustomEx(existing) }}>{t('Delete exercise')}</Button></>}
+    {existing && <><div style={{ height: 8 }} /><Button variant="danger" icon="trash" onClick={() => { if (onDelete) onDelete(existing); else { close(); deleteCustomEx(existing) } }}>{t('Delete exercise')}</Button></>}
   </>
 }
 export const customExSheet = (existing, onDone, prefill) => ui().openSheet(close => <CustomExForm existing={existing} prefill={prefill} onDone={onDone} close={close} />)
@@ -1576,8 +1576,8 @@ const intensifierToSave = x => (x.type === 'dropset'
     ? { ...x, totalReps: Math.max(1, Math.round(x.totalReps) || 0), restSec: Math.max(5, Number(x.restSec) || 0) }
     : x)
 
-function ExConfig({ ex: initialEx, existing, onSave, onDelete, onReplace, close, routine, initial, saveLabel, allowVariants = false }) {
-  const [selected, setSelected] = useState(initialEx)
+export function ExConfig({ ex: initialEx, existing, onSave, onDelete, onReplace, close, routine, initial, saveLabel, allowVariants = false, onCustomEdit, draft, onDraftChange }) {
+  const [selected, setSelected] = useState(draft?.selected || initialEx)
   const ex = EXIDX[selected.id] || selected
   const st = useStore(s => s.S)
   const baseId = baseExerciseIdOf(ex)
@@ -1589,6 +1589,7 @@ function ExConfig({ ex: initialEx, existing, onSave, onDelete, onReplace, close,
   const speedUnit = speedUnitOf(st)
   const seed = existing || initial || defaultConfig(ex.id)
   const [c, setC] = useState(() => {
+    if (draft?.config) return draft.config
     const cfg = { ...seed }
     // A session's target carries the meaning of its dumbbell weight as a stamp (lib/dumbbells.js);
     // one that only repeats the exercise's own default is not the slot's choice, so it is not kept.
@@ -1597,6 +1598,7 @@ function ExConfig({ ex: initialEx, existing, onSave, onDelete, onReplace, close,
       ? { ...cfg, ...normalizeRepRange(cfg.reps, cfg.repsMin, isPerSide(cfg) ? 2 : 1) }
       : cfg
   })
+  useEffect(() => { onDraftChange?.({ selected, config: c }) }, [selected, c, onDraftChange])
   // Cardio keeps its own duration+speed form; the reps/time choice (issue #16) is offered for
   // everything else, which is where the gap was — planks, hangs, wall sits, loaded carries.
   const mode = cardio ? 'cardio' : modeOf({ ...c, id: ex.id })
@@ -1969,7 +1971,7 @@ function ExConfig({ ex: initialEx, existing, onSave, onDelete, onReplace, close,
         Replace (#110) seeds this sheet with the slot it replaces, and saving puts the exercise
         into that slot. */}
     <Button variant="primary" disabled={progressionStepInvalid} onClick={save}>{saveLabel || (existing ? t('Save') : t('Add to routine'))}</Button>
-    {isCustomEx(ex) && <><div style={{ height: 8 }} /><Button icon="pencil" onClick={() => { close(); customExSheet(ex) }}>{t('Edit or delete this exercise')}</Button></>}
+    {isCustomEx(ex) && <><div style={{ height: 8 }} /><Button icon="pencil" onClick={() => { if (onCustomEdit) onCustomEdit(ex); else { close(); customExSheet(ex) } }}>{t('Edit or delete this exercise')}</Button></>}
     {/* The routine editor's counterpart to a workout's Swap (#110): another exercise in this
         slot, with the slot's sets, reps, weight, rule and note kept (lib/routines.js). What was
         changed on this sheet and not saved is left behind, as closing it would. */}
