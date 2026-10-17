@@ -1,5 +1,8 @@
 // Russian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'Неделя и Сегодня',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'Показывать неделю и карточку «Сегодня» вместе на Главной. Текущие тренировки остаются видимыми.',
+  'Show your five latest workouts on Home.': 'Показывать пять последних тренировок на Главной.',
   'Confirm': 'Подтвердить',
   'Cancel': 'Отмена',
   'Press back again to exit': 'Нажмите «Назад» ещё раз, чтобы выйти',

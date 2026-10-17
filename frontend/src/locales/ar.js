@@ -1,5 +1,8 @@
 // Arabic UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'الأسبوع واليوم',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'عرض الأسبوع وبطاقة اليوم معًا في الرئيسية. تبقى التمارين الجارية ظاهرة.',
+  'Show your five latest workouts on Home.': 'عرض آخر خمسة تمارين في الرئيسية.',
   'Confirm': 'تأكيد',
   'Cancel': 'إلغاء',
   'Press back again to exit': 'اضغط زر الرجوع مرة أخرى للخروج',

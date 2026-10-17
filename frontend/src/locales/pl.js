@@ -1,5 +1,8 @@
 // Polish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'Tydzień i Dzisiaj',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'Pokaż tydzień i kartę Dzisiaj razem na ekranie Start. Trwające treningi pozostają widoczne.',
+  'Show your five latest workouts on Home.': 'Pokaż pięć ostatnich treningów na ekranie Start.',
   'Confirm': 'Potwierdź',
   'Cancel': 'Anuluj',
   'Press back again to exit': 'Naciśnij wstecz ponownie, aby wyjść',

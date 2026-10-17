@@ -1,5 +1,8 @@
 // Simplified Chinese UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': '本周与今天',
+  'Show the week and Today card on Home. Active workouts stay visible.': '在首页同时显示本周概览和今天卡片。进行中的训练仍会显示。',
+  'Show your five latest workouts on Home.': '在首页显示最近五次训练。',
   'Confirm': '确认',
   'Cancel': '取消',
   'Press back again to exit': '再按一次返回退出',

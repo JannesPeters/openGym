@@ -1,5 +1,8 @@
 // Thai UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'สัปดาห์และวันนี้',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'แสดงสัปดาห์และการ์ดวันนี้ด้วยกันบนหน้าหลัก การฝึกที่กำลังดำเนินอยู่จะยังคงแสดงอยู่',
+  'Show your five latest workouts on Home.': 'แสดงการฝึกล่าสุดห้าครั้งของคุณบนหน้าหลัก',
   // --- generic ---
   'Confirm': 'ยืนยัน',
   'Cancel': 'ยกเลิก',
