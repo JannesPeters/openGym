@@ -7,7 +7,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import RoutineEdit from './RoutineEdit.jsx'
 import { DEF, useStore } from '../store/useStore.js'
-import { POLICY_DESC } from '../lib/progression.js'
 
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})) }))
 vi.mock('../sheets.jsx', () => ({ glyphPicker: vi.fn(), exercisePicker: vi.fn(), exConfigSheet: vi.fn(), confirmSheet: vi.fn() }))
@@ -35,7 +34,6 @@ function renderRoutine(routine) {
 }
 
 const rowTitled = title => [...container.querySelectorAll('.lrow')].find(r => r.querySelector('.lrow-t')?.textContent === title)
-const note = () => container.querySelector('.sect-b + .small.dim').textContent
 
 beforeEach(() => { localStorage.clear() })
 afterEach(() => {
@@ -51,21 +49,31 @@ describe('routine progression wording (#294)', () => {
     expect(rowTitled('Exclude from automatic progression')).toBeUndefined()
     const row = rowTitled('Deload routine')
     expect(row).toBeTruthy()
-    expect(row.querySelector('.lrow-s').textContent).toBe('Its workouts do not count toward progression. They still show in history and statistics.')
+    expect(row.querySelector('.lrow-s')).toBeNull()
+    expect(row.querySelector('.routine-setting-details').getAttribute('aria-label')).toBe('Deload routine: Details')
+    expect(row.querySelector('.lrow-i')).toBeNull()
+    expect(rowTitled('Progression').querySelector('.lrow-i')).toBeNull()
+    expect(rowTitled('Progression').querySelector('.lrow-c')).not.toBeNull()
+    expect(row.querySelector('[role="switch"]')).not.toBeNull()
   })
 
-  it('says under the section what the chosen progression does, "no automatic progression" included', () => {
+  it('keeps the progression selector without the redundant explanatory block', () => {
     renderRoutine({ prog: 'off' })
-    expect(note()).toBe(POLICY_DESC.off + ' Applies to every exercise in this routine that does not set its own rule.')
+    expect(rowTitled('Progression').textContent).toContain('No automatic progression')
+    expect(container.querySelector('.sect-b + .small.dim')).toBeNull()
+    expect(container.textContent).not.toContain('Applies to every exercise')
     act(() => root.unmount())
     container.remove()
     renderRoutine({})
-    expect(note().startsWith(POLICY_DESC.linear)).toBe(true)
+    expect(rowTitled('Progression').textContent).toContain('Linear')
+    expect(container.querySelector('.sect-b + .small.dim')).toBeNull()
   })
 
-  it('once it is a deload routine, says the progression choice does not apply to it', () => {
+  it('keeps the Deload details entry without a main-row explanation', () => {
     renderRoutine({ excludeFromProgression: true })
-    expect(note()).toBe('A deload routine opens at the numbers set here, so the progression above does not apply to it. The next regular target continues from the last included workout.')
+    expect(rowTitled('Deload routine').querySelector('.routine-setting-details')).not.toBeNull()
+    expect(container.textContent).not.toContain('do not count toward progression')
+    expect(container.querySelector('.sect-b + .small.dim')).toBeNull()
   })
 
   it('the switch still writes the same routine flag the session builder reads', () => {

@@ -450,7 +450,7 @@ function Routines({ S, update, nav }) {
               flash={flash?.id === r.id ? flash.n : 0}>{row}</SwipeRow>
             : row
         })}</div>}
-      <p className="sect-f">{edit ? t('Drag to reorder. Tap the minus to delete.') : t('Tap a routine to edit it. Reorder and delete are behind Edit.')}</p>
+      {edit && <p className="sect-f">{t('Drag to reorder. Tap the minus to delete.')}</p>}
     </> : <>
       <div className="empty"><div className="ico"><Icon name="clipboard" /></div>{t('No routines yet.')}<br />{t('Make one, or grab the starter plan to get going.')}</div>
       <Button icon="clipboard" onClick={starterPlanSheet}>{t('Load starter plan')}</Button>

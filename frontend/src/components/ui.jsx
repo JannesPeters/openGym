@@ -98,14 +98,14 @@ export const SearchField = forwardRef(function SearchField({ value, onChange, on
 
 /* ============================ switch ============================ */
 
-export function Switch({ checked, onChange, disabled, ...accessibility }) {
+export function Switch({ checked, onChange, disabled, compact = false, ...accessibility }) {
   return (
     <button
       {...accessibility}
       role="switch"
       aria-checked={!!checked}
       disabled={disabled}
-      className={'sw' + (checked ? ' on' : '')}
+      className={'sw' + (checked ? ' on' : '') + (compact ? ' compact' : '')}
       onClick={() => onChange(!checked)}
     >
       <span className="knob" />
@@ -355,10 +355,10 @@ export function SelectButton({ title, value, options, onChange, renderSheet }) {
   const open = event => {
     const trigger = event.currentTarget
     const { openSheet } = require_ui()
-    openSheet(close => <SelectDialog title={title} trigger={trigger}>
+    openSheet(close => <SheetDialog title={title} trigger={trigger}>
       {renderSheet ? renderSheet(close) :
         <SelectSheet title={title} value={value} options={options} onChange={onChange} close={close} />}
-    </SelectDialog>)
+    </SheetDialog>)
   }
   return <Button size="sm" variant={value ? 'tinted' : 'plain'} trailingIcon="chevronDown"
     aria-haspopup="dialog" onClick={open}>
@@ -366,17 +366,20 @@ export function SelectButton({ title, value, options, onChange, renderSheet }) {
   </Button>
 }
 
-function SelectDialog({ title, trigger, children }) {
+export function SheetDialog({ title, trigger, returnFocus, children }) {
   const ref = useRef(null)
   useEffect(() => {
     const content = ref.current
-    const selected = content.querySelector('[aria-pressed="true"]') || content.querySelector('button') || content
+    const selected = content.querySelector('[aria-pressed="true"]') || content.querySelector('button:not(:disabled),[tabindex="0"]:not([aria-disabled="true"])') || content
     selected.focus({ preventScroll: true })
-    return () => { if (trigger.isConnected) trigger.focus({ preventScroll: true }) }
-  }, [trigger])
+    return () => {
+      const target = returnFocus?.() || trigger
+      if (target.isConnected) target.focus({ preventScroll: true })
+    }
+  }, [trigger, returnFocus])
   const onKeyDown = event => {
     if (event.key !== 'Tab') return
-    const controls = [...ref.current.querySelectorAll('button:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length)
+    const controls = [...ref.current.querySelectorAll('button:not(:disabled),[tabindex="0"]:not([aria-disabled="true"])')].filter(el => el.getClientRects().length)
     const next = event.shiftKey ? controls.at(-1) : controls[0]
     const edge = event.shiftKey ? controls[0] : controls.at(-1)
     if (!controls.length || document.activeElement === edge || document.activeElement === ref.current) {
