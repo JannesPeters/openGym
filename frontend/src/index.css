@@ -535,6 +535,11 @@ h4.sec{
    buttons is no button itself. Reads as the plain text it replaced. */
 .item .item-open{display:flex;flex-direction:column;justify-content:center;align-self:stretch;text-align:start}
 .item .item-open>span{display:block}
+.routine-setting-details{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;width:100%;max-width:100%;text-align:start;color:inherit}
+.routine-setting-details>span{min-width:0;overflow-wrap:anywhere}
+.routine-setting-details>.icn{color:var(--label-3);font-size:15px;flex:none}
+.routine-details .routine-name-field{flex-wrap:wrap}
+.routine-details .routine-name-field>.input{flex:1 1 160px;min-width:0;background:var(--surface-2)}
 .chev{color:var(--label);flex:none;font-size:15px;--icon-stroke:2.4}
 .tag{
   display:inline-flex;align-items:center;gap:3px;background:var(--surface-2);
@@ -555,6 +560,9 @@ h4.sec{
 .fav-btn{margin-top:-4px;flex:none}
 /* One long word (a German custom name) wraps instead of pushing the star off the screen. */
 .exdetail-name{min-width:0;overflow-wrap:anywhere}
+.exercise-detail-actions{display:flex;gap:8px;margin:10px 0 4px}
+.exercise-detail-actions>.btn{flex:1;min-width:0;min-height:44px;padding-inline:10px}
+.exercise-detail-actions>.btn>span{min-width:0;overflow-wrap:anywhere}
 .fav-btn.on{color:var(--yellow)}
 /* Exercise cards (S.exerciseView 'cards', ExerciseViewToggle): the Library, the picker and the
    muscle explorer as a grid of pictures with the name underneath — two across on a phone, more
@@ -721,6 +729,12 @@ body.chips-dragging *{cursor:inherit}
 .sw:active .knob{width:31px}
 .sw.on:active .knob{transform:translateX(16px)}
 .sw:disabled{opacity:.4}
+.sw.compact{position:relative;width:40px;height:24px}
+.sw.compact::before{content:'';position:absolute;inset:-10px -2px}
+.sw.compact .knob{width:20px;height:20px}
+.sw.compact.on .knob{transform:translateX(16px)}
+.sw.compact:active .knob{width:24px}
+.sw.compact.on:active .knob{transform:translateX(12px)}
 
 /* --- segmented control --- */
 /* flex, not grid: an absolutely-positioned child of a GRID container is placed
@@ -2135,6 +2149,8 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
    way — the physical +20px would push it out of the track. */
 [dir="rtl"] .sw.on .knob{transform:translateX(-20px)}
 [dir="rtl"] .sw.on:active .knob{transform:translateX(-16px)}
+[dir="rtl"] .sw.compact.on .knob{transform:translateX(-16px)}
+[dir="rtl"] .sw.compact.on:active .knob{transform:translateX(-12px)}
 /* Chronological grids keep their left-to-right order: heatmap weeks and calendar
    weekdays would otherwise mirror. */
 [dir="rtl"] .hm-wrap,[dir="rtl"] .cal-grid{direction:ltr}

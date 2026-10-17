@@ -8,7 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sheets = vi.hoisted(() => ({
-  exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(),
+  exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(), menuSheet: vi.fn(),
 }))
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})), beacon: vi.fn(), appBase: () => '/' }))
 vi.mock('../lib/sound.js', () => ({ beep: vi.fn(), chime: vi.fn(), vibrate: vi.fn(), alertBuzz: vi.fn(), unlock: vi.fn() }))
@@ -104,14 +104,14 @@ describe('swiping an exercise out of a routine', () => {
 
   it('the name is the keyboard’s button (no button inside a button), and the sheet’s Remove has the same Undo', () => {
     mount([configured('1001', { sg: 'g1' }), configured('1002', { sg: 'g1' })])
-    // The row holds the superset link and the Move buttons, so it is no button itself: a screen
+    // The row holds the actions menu, so it is no button itself: a screen
     // reader reads a button's insides as plain text (axe nested-interactive).
     for (const el of host.querySelectorAll('.routine-list [role="button"], .routine-list button')) {
       expect(el.parentElement.closest('[role="button"], button')).toBeNull()
     }
     const item = swrows()[1].querySelector('.item')
     expect(item.hasAttribute('role')).toBe(false)
-    expect(item.querySelector('button[aria-label="Move up"]')).toBeTruthy()
+    expect(item.querySelector('button[data-exercise-menu]')).toBeTruthy()
     const open = item.querySelector('button.item-open')
     expect(open.type).toBe('button')
     click(open)                              // Enter or Space on a <button> is this click
@@ -123,7 +123,8 @@ describe('swiping an exercise out of a routine', () => {
     expect(ex().map(e => e.id)).toEqual(['1001'])
     undo()
     expect(ex().map(e => e.id)).toEqual(['1001', '1002'])
-    click(swrows()[1].querySelector('button[aria-label="Move up"]'))   // its own job, no sheet
+    click(swrows()[1].querySelector('button[data-exercise-menu]'))
+    expect(sheets.menuSheet).toHaveBeenCalledOnce()
     expect(sheets.exConfigSheet).toHaveBeenCalledTimes(2)
   })
 

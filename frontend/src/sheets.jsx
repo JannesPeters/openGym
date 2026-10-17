@@ -24,7 +24,7 @@ import { durationSheet } from './components/DurationWheel.jsx'
 import { SG_NAME_MAX } from './lib/superset-meta.js'
 import { REST_MAX, fmtRest } from './lib/duration.js'
 import Icon from './components/Icon.jsx'
-import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow } from './components/ui.jsx'
+import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow, SheetDialog } from './components/ui.jsx'
 import { glyphOf, GLYPH_GROUPS, DEFAULT_GLYPH } from './lib/glyphs.js'
 import BodyMap from './components/BodyMap.jsx'
 import ExerciseBrowser from './components/ExerciseBrowser.jsx'
@@ -149,8 +149,10 @@ function MenuSheet({ title, titleClass = '', subtitle, items, sections, close })
     </div>)}
   </>
 }
-export function menuSheet(opts) {
-  ui().openSheet(close => <MenuSheet {...opts} close={close} />)
+export function menuSheet({ trigger, returnFocus, ...opts }) {
+  ui().openSheet(close => trigger
+    ? <SheetDialog title={opts.title} trigger={trigger} returnFocus={returnFocus}><MenuSheet {...opts} close={close} /></SheetDialog>
+    : <MenuSheet {...opts} close={close} />)
 }
 
 // Themed replacement for window.confirm — callback-based (no blocking).
@@ -1016,13 +1018,15 @@ function ExerciseDetail({ ex: initialEx, close }) {
     </div>
     {descFor(ex) && <div className="exnote">{descFor(ex)}</div>}
     {best > 0 && <div className="small row" style={{ marginBottom: 6, gap: 5 }}><Icon name="trophy" style={{ fontSize: 14, color: 'var(--yellow)' }} />{t('Best:')} <b className="accent" style={{ whiteSpace: 'nowrap' }}>{fmtNum(best)} {st.unit}</b>{last ? ` · ${t('last')} ${fmtDate(last.d)}: ${last.sets.map(s => setLabel(ex.id, s, last.target, speedUnitOf(st))).join(', ')}` : ''}</div>}
-    <Button variant="primary" icon="plus" style={{ margin: '10px 0 4px' }} onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
+    <div className="exercise-detail-actions">
+      <Button variant="primary" icon="plus" onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
+      {!ex.missing && <Button icon="plusCircle" onClick={() => { close(); exerciseVariantSheet(ex) }}>{t('Create variant')}</Button>}
+    </div>
     {last && <Button icon="history" style={{ marginTop: 4 }} onClick={() => exerciseHistorySheet(ex.id)}>{t('History')}</Button>}
     {isCustomEx(ex) && <div className="row" style={{ gap: 8, marginTop: 8 }}>
       <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
     </div>}
-    {!ex.missing && <Button icon="plusCircle" style={{ marginTop: 8 }} onClick={() => { close(); exerciseVariantSheet(ex) }}>{t('Create variant')}</Button>}
     {(modeOf({ id: ex.id }) === 'reps' || isBellEx(ex) || (!isCardio(ex) && !isAssisted(ex))) &&
       <details className="exercise-advanced">
         <summary className="btn tinted"><span>{t('Advanced settings')}</span><Icon name="chevronDown" /></summary>
