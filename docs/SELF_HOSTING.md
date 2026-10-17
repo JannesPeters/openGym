@@ -46,6 +46,27 @@ curl http://localhost:8080/api/health      # {"ok":true,...}
 
 Logs: `docker compose logs -f`. Stop: `docker compose down`.
 
+### Static frontend hosting (Vercel)
+
+On Vercel, set the project's Root Directory to `frontend`. The checked-in
+`frontend/vercel.json` builds the app and then runs
+`node ../scripts/catalogue/stage-media.mjs dist` to include the catalogue's exercise
+stills, animations and license notice in `dist/exercise-media/`. A plain
+`npm run build` only builds the app shell; deploying that output alone leaves
+exercise pictures and animations missing.
+
+Enable access to source files outside the Root Directory: the build uses
+`scripts/`, `catalogue/media/` and `api/coach/core/` from the same repository.
+Ensure the effective Build Command matches the checked-in command, including the
+media-staging step, and redeploy after updating the configuration. No media CDN
+variables are needed for the bundled catalogue; existing `VITE_IMG_BASE` /
+`VITE_GIF_BASE` overrides must point to a working media host or be removed before
+rebuilding. Check that `exercise-media/still/0001.webp` and
+`exercise-media/clip/0001.mp4` return image/video content, not the app's HTML.
+
+This only hosts the frontend. Account sync, passkeys and server notifications
+still require the API; a static-only deployment can use guest mode.
+
 ## 2. Understand the passkey requirement (important)
 
 openGym signs you in with **passkeys** (WebAuthn). Browsers enforce two rules:
