@@ -67,9 +67,12 @@ rebuilding. Check that `exercise-media/still/0001.webp` and
 This only hosts the frontend. Account sync, passkeys and server notifications
 still require the API; a static-only deployment can use guest mode.
 
-Catalogue artwork is displayed at its natural dimensions or smaller, centered in
-the existing media frame. The bundled files are at most 180x180 pixels; preventing
+Catalogue artwork is displayed at its natural dimensions or smaller. Opened
+exercise details use a compact media frame aligned with the text, while workout controls keep
+their existing layout. The bundled files are at most 180x180 pixels; preventing
 enlargement avoids upscaling but cannot add detail on high-density screens.
+Catalogue media starts with the still image; tap it (or use Enter/Space while it
+is focused) to play the animation, and activate it again to return to the still.
 
 ## 2. Understand the passkey requirement (important)
 

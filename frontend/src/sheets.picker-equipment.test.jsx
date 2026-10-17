@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client'
 import { DEF, useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { exercisePicker } from './sheets.jsx'
+import { bindUI } from './components/ui.jsx'
 
 const mounted = []
 
@@ -22,15 +23,18 @@ function renderTop() {
   return host
 }
 
-// The two chip strips render in order: body parts first, then equipment. Grab a chip by its
-// visible label out of the whole picker.
-const chipByText = (host, text) =>
-  [...host.querySelectorAll('.chips .chip')].find(b => b.textContent.trim() === text)
-const isOn = el => el.className.split(/\s+/).includes('on')
+const filterButton = (host, title) => [...host.querySelectorAll('.library-filters button')].find(b => b.textContent.split(' · ')[0] === title)
+const choose = (host, title, label) => {
+  act(() => filterButton(host, title).click())
+  const menu = renderTop()
+  if (title === 'Muscle') act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+  act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === label).click())
+}
 
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   useUI.setState({ sheets: [], toastMsg: '' })
+  bindUI(useUI)
   useStore.setState({ S: structuredClone(DEF), user: null })
   document.body.innerHTML = ''
 })
@@ -40,25 +44,15 @@ afterEach(() => {
 })
 
 describe('exercise picker equipment filter', () => {
-  // The exact reproduction from issue #71: "lower arms" + "dumbbell", then switch to "upper arms".
-  // Both body parts have dumbbell exercises, so the filter must stay selected across the switch.
-  it('keeps the dumbbell filter when switching from lower arms to upper arms', () => {
+  it('keeps the dumbbell filter when switching between compatible muscles', () => {
     exercisePicker(vi.fn())
     const host = renderTop()
 
-    // lower arms → dumbbell
-    act(() => chipByText(host, 'lower arms').click())
-    const eqChip = chipByText(host, 'dumbbell')
-    expect(eqChip, 'dumbbell chip should be offered under lower arms').toBeTruthy()
-    act(() => eqChip.click())
-    expect(isOn(chipByText(host, 'dumbbell'))).toBe(true)
-
-    // switch to upper arms — dumbbell is still valid there, so it must remain selected
-    act(() => chipByText(host, 'upper arms').click())
-    expect(isOn(chipByText(host, 'upper arms'))).toBe(true)
-    const eqAfter = chipByText(host, 'dumbbell')
-    expect(eqAfter, 'dumbbell chip should still be present under upper arms').toBeTruthy()
-    expect(isOn(eqAfter)).toBe(true)
-    expect(isOn(chipByText(host, 'Any equipment'))).toBe(false)
+    choose(host, 'Muscle', 'Forearms')
+    choose(host, 'Equipment', 'dumbbell')
+    expect(filterButton(host, 'Equipment').textContent).toBe('Equipment · dumbbell')
+    choose(host, 'Muscle', 'Biceps')
+    expect(filterButton(host, 'Muscle').textContent).toBe('Muscle · Biceps')
+    expect(filterButton(host, 'Equipment').textContent).toBe('Equipment · dumbbell')
   })
 })

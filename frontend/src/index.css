@@ -238,13 +238,14 @@ button.conn:active{filter:brightness(1.12)}
 .hdr h1{font-size:34px;line-height:1.06;font-weight:700;letter-spacing:-.028em;overflow-wrap:break-word}
 @media (max-width:420px){.hdr h1{font-size:30px}}
 .hdr .sub{color:var(--label-2);font-size:15px;letter-spacing:-.006em;margin-top:4px}
-/* Library: the count line runs under the title row at full width instead of beside the "By muscle"
-   button, which left it ~200px on a phone: the catalogue count plus your own exercises stays one
-   line in every language. The ellipsis is only the safety net (the strings are kept short), and
-   text-overflow follows the text direction, so Arabic clips on its own end. */
-.hdr.lib-hdr{flex-wrap:wrap;align-items:center;row-gap:0}
-.hdr.lib-hdr>.sub.lib-count{flex:1 0 100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:360px){.hdr.lib-hdr>.sub.lib-count{white-space:normal;overflow:visible;text-overflow:clip}}
+.hdr.lib-hdr{align-items:center}
+.library-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.library-filters>.btn{max-width:100%;min-width:0;text-align:start}
+.library-filters>.btn>span{min-width:0;overflow-wrap:anywhere}
+.exercise-advanced{margin-top:12px}
+.exercise-advanced>summary{list-style:none;cursor:pointer;justify-content:space-between}
+.exercise-advanced>summary::-webkit-details-marker{display:none}
+.exercise-advanced[open]>summary>.icn{transform:rotate(180deg)}
 
 .iconbtn{
   width:36px;height:36px;border-radius:50%;flex:none;
@@ -916,6 +917,9 @@ body.chips-dragging *{cursor:inherit}
 .exmedia video.catvid,.exmedia:has(> video.catvid){background:#fff}
 /* Keep catalogue artwork at its natural size, or smaller, without moving the card controls. */
 .thumb.catalogue-thumb,.exmedia.catalogue-media img,.exmedia.catalogue-media video{object-fit:scale-down}
+.exmedia.catalogue-detail{width:180px;max-width:100%;margin-inline:0 auto}
+.exmedia.catalogue-detail img,.exmedia.catalogue-detail video{height:auto;aspect-ratio:auto 1/1}
+.exmedia.catalogue-detail .exmedia-x{height:auto;aspect-ratio:1}
 
 /* the link to a video or a guide (#246): a quiet action tile under the picture, or in its place.
    A <button>, so the reset of the browser's button look comes first. */

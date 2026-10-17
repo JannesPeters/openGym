@@ -8,7 +8,10 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Library from './Library.jsx'
 import { EXDB } from '../lib/exercises.js'
+import { MUSCLES, MUSCLE_NAME, musclesOf } from '../lib/muscles.js'
+import { bindUI } from '../components/ui.jsx'
 import { CASED_NAME_LANGS, EXERCISE_NAME_LANGS, _setLangState } from '../lib/i18n-core.js'
+import { addToRoutineSheet, customExSheet, exerciseDetailSheet } from '../sheets.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -36,10 +39,35 @@ function render() {
 }
 const names = host => [...host.querySelectorAll('.item .tt')].map(el => el.textContent).slice(1)   // drop "Create your own"
 const cssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+const openFilter = (host, title) => {
+  const button = [...host.querySelectorAll('.library-filters button')].find(b => b.textContent.split(' · ')[0] === title)
+  act(() => button.click())
+  return [...document.querySelectorAll('.test-filter-menu')].at(-1)
+}
+const chooseFilter = (host, title, label) => {
+  const menu = openFilter(host, title)
+  if (title === 'Muscle') act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+  const option = [...menu.querySelectorAll('button')].find(b => b.textContent === label)
+  expect(option, `${title}: ${label}`).toBeTruthy()
+  act(() => option.click())
+}
+const search = (host, text) => {
+  const input = host.querySelector('.search input')
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+  act(() => { setter.call(input, text); input.dispatchEvent(new Event('input', { bubbles: true })) })
+}
 
 beforeEach(() => {
   mocks.S = { unit: 'kg', lang: 'en', routines: [], workouts: [], customEx: [], exWeights: {}, equipProfiles: [], activeEquipId: null, equipFilterOn: false }
   document.body.innerHTML = ''
+  bindUI({ getState: () => ({ openSheet: content => {
+    const menu = document.createElement('div')
+    menu.className = 'test-filter-menu'
+    document.body.appendChild(menu)
+    const root = createRoot(menu)
+    mounted.push(root)
+    root.render(content(() => root.render(null)))
+  } }) })
 })
 afterEach(() => { act(() => { mounted.splice(0).forEach(root => root.unmount()) }) })
 
@@ -58,12 +86,7 @@ describe('Library favourites', () => {
     expect(rows[2].querySelector('.fav-star')).toBeNull()
   })
 
-  // The Library is the one page whose header puts a text button beside the title, so it leaves the
-  // title the least room of anywhere in the app — 95px for Polish, 125px for Russian on a 320px
-  // screen. The button must stay reachable (it is flex:none, the title block shrinks), but a title
-  // squeezed that far must not come apart: at 34px "Упражнения" broke into three lines, so the
-  // title drops a step on phone widths and breaks a word only as a last resort.
-  it('keeps the header button reachable without shredding the title', () => {
+  it('keeps the title readable without the duplicate By muscle entry point', () => {
     expect(cssSource).toContain('.hdr>div{min-width:0}')
     expect(cssSource).toContain('.hdr>.btn{flex:none}')
     expect(cssSource).toMatch(/@media \(max-width:420px\)\{\.hdr h1\{font-size:30px\}\}/)
@@ -71,15 +94,15 @@ describe('Library favourites', () => {
     expect(h1?.[1]).toContain('overflow-wrap:break-word')
     expect(h1[1]).not.toContain('overflow-wrap:anywhere')
     expect(h1[1]).not.toContain('hyphens:auto')
+    expect(render().querySelector('.hdr button')).toBeNull()
   })
 
-  it('keeps a favourite on top inside a body-part filter, but never pulls one in from elsewhere', () => {
-    const chest = EXDB.filter(e => e.bp === 'chest')
-    const legs = EXDB.find(e => e.bp !== 'chest')
+  it('keeps a favourite on top inside a muscle filter, but never pulls one in from elsewhere', () => {
+    const chest = EXDB.filter(e => musclesOf(e).chest)
+    const legs = EXDB.find(e => !musclesOf(e).chest)
     mocks.S.favEx = [chest[4].id, legs.id]
     const host = render()
-    const chip = [...host.querySelectorAll('.chips .chip')].find(b => b.textContent === 'chest')
-    act(() => chip.click())
+    chooseFilter(host, 'Muscle', 'Chest')
     const shown = names(host)
     expect(shown[0]).toBe(chest[4].n)
     expect(shown).not.toContain(legs.n)
@@ -107,57 +130,120 @@ describe('Library exercise-name casing per language', () => {
   }
 })
 
-// The header counts the catalogue, and from the first exercise of your own, those too (owner
-// request for v1.3.10): "1324 animated exercises + 5 of your own". It has to stay one line on a
-// phone, so it runs under the title row at full width, never wraps, and ellipsizes as a last resort.
-describe('Library header count', () => {
-  const sub = host => host.querySelector('.hdr .sub').textContent
-  const own = n => Array.from({ length: n }, (_, i) => ({ id: 'c' + i, n: 'my move ' + i, bp: 'chest', eq: '', custom: true }))
-  afterEach(() => _setLangState('en', {}, null, null))
-
-  it('shows only the catalogue while you have no exercises of your own', () => {
-    expect(sub(render())).toBe(`${EXDB.length} exercises with animations`)
+describe('Library simplified rows and header', () => {
+  it('omits the header count and new-exercise explanation, preserving exercise metadata', () => {
+    const host = render()
+    expect(host.querySelector('.hdr .sub')).toBeNull()
+    expect(host.querySelector('.lib-count')).toBeNull()
+    expect(host.querySelector('.ex-new .ss')).toBeNull()
+    expect(host.querySelector('.ex-new .tt').textContent).toBe('Create your own exercise')
+    expect(host.querySelector('.ex-new > .chev')).toBeNull()
+    expect(host.querySelector('.ex-new [data-icon="plusCircle"]')).not.toBeNull()
+    expect(host.querySelector('.item:not(.ex-new) .ss').textContent).toBeTruthy()
+    expect(cssSource).not.toContain('.sub.lib-count')
   })
 
-  it('adds "+ 1 of your own" for a single custom exercise', () => {
-    mocks.S.customEx = own(1)
-    expect(sub(render())).toBe(`${EXDB.length} animated exercises + 1 of your own`)
+  it('keeps the icon-only Plan action accessible without opening exercise details', () => {
+    const host = render()
+    const button = host.querySelector('.item:not(.ex-new) .btn')
+    expect(button.getAttribute('aria-label')).toBe('Plan')
+    expect(button.querySelector('[data-icon="plus"]')).not.toBeNull()
+    expect(button.querySelector('span')).toBeNull()
+    const detailCalls = exerciseDetailSheet.mock.calls.length
+    const planCalls = addToRoutineSheet.mock.calls.length
+    act(() => button.click())
+    expect(addToRoutineSheet.mock.calls.length).toBe(planCalls + 1)
+    expect(exerciseDetailSheet.mock.calls.length).toBe(detailCalls)
   })
 
-  it('adds the count for several custom exercises', () => {
-    mocks.S.customEx = own(5)
-    expect(sub(render())).toBe(`${EXDB.length} animated exercises + 5 of your own`)
+  it('retains the filtered search result count', () => {
+    const host = render()
+    const input = host.querySelector('.search input')
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    act(() => { setter.call(input, 'face pull'); input.dispatchEvent(new Event('input', { bubbles: true })) })
+    expect(host.querySelector('.search-count').textContent).toMatch(/^\d+$/)
   })
 
-  it('uses the language\'s own plural forms (Russian: 1 своё, 2 своих, 5 своих)', async () => {
-    const { default: ru } = await import('../locales/ru.js')
-    _setLangState('ru', ru, null, null)
-    const forms = ru['{1} animated exercises + {0} of your own']
-    expect(typeof forms).toBe('object')
-    mocks.S.customEx = own(1)
-    const one = sub(render())
-    act(() => { mounted.splice(0).forEach(root => root.unmount()) })
-    mocks.S.customEx = own(5)
-    const five = sub(render())
-    expect(one).toContain(String(EXDB.length))
-    expect(five).toBe(forms.many.replace('{0}', '5').replace('{1}', String(EXDB.length)))
-    expect(one).not.toBe(five.replace('5', '1'))
+  it('keeps the new-exercise action after removing its trailing icon', () => {
+    const host = render()
+    const calls = customExSheet.mock.calls.length
+    act(() => host.querySelector('.ex-new').click())
+    expect(customExSheet.mock.calls.length).toBe(calls + 1)
+  })
+})
+
+describe('Library filter menus', () => {
+  it('shows three wrapping filter buttons without expanded chips or duplicate muscle entry points', () => {
+    const host = render()
+    expect([...host.querySelectorAll('.library-filters button')].map(b => b.textContent)).toEqual(['Muscle', 'Type', 'Equipment'])
+    expect(host.querySelectorAll('[aria-haspopup="dialog"]')).toHaveLength(3)
+    expect(host.querySelector('.chips')).toBeNull()
+    expect(document.querySelector('.test-filter-menu')).toBeNull()
+    expect(cssSource).toMatch(/\.library-filters\{[^}]*flex-wrap:wrap/)
   })
 
-  it('keeps the subtitle on one line on wider screens, clipping with an ellipsis', () => {
-    expect(sub(render())).toBeTruthy()
-    const rule = cssSource.match(/^\.hdr\.lib-hdr>\.sub\.lib-count\{([^}]*)\}/m)?.[1] || ''
-    expect(rule).toContain('white-space:nowrap')
-    expect(rule).toContain('overflow:hidden')
-    expect(rule).toContain('text-overflow:ellipsis')
-    expect(rule).toContain('flex:1 0 100%')
-    expect(cssSource).toMatch(/^\.hdr\.lib-hdr\{[^}]*flex-wrap:wrap/m)
+  it('shows the selected muscle on its button, checks it in the list and clears with All', () => {
+    const host = render()
+    chooseFilter(host, 'Muscle', 'Chest')
+    const selected = names(host)
+    expect(selected.length).toBeGreaterThan(0)
+    expect(selected.every(name => EXDB.some(ex => ex.n === name && musclesOf(ex).chest))).toBe(true)
+    expect(host.querySelector('.library-filters button').textContent).toBe('Muscle · Chest')
+    const menu = openFilter(host, 'Muscle')
+    act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+    expect(menu.querySelector('.sect-b [aria-pressed="true"]').textContent).toBe('Chest')
+    expect(names(host)).toEqual(selected)
+    act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === 'All').click())
+    expect(host.querySelector('.library-filters button').textContent).toBe('Muscle')
+    expect(names(host)[0]).toBe(EXDB[0].n)
   })
 
-  it('lets the subtitle wrap on narrow phones so nothing is cut at 320 px', () => {
-    const narrow = cssSource.match(/@media \(max-width:360px\)\{\.hdr\.lib-hdr>\.sub\.lib-count\{([^}]*)\}\}/)?.[1] || ''
-    expect(narrow).toContain('white-space:normal')
-    expect(narrow).toContain('overflow:visible')
+  it('uses the existing muscle map names and includes supporting muscles', () => {
+    const host = render()
+    const menu = openFilter(host, 'Muscle')
+    expect(menu.querySelector('.seg [aria-pressed="true"]').textContent).toBe('Diagram')
+    act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+    expect([...menu.querySelectorAll('.sect-b button')].map(b => b.textContent)).toEqual(MUSCLES.map(m => MUSCLE_NAME[m]))
+    act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === 'Triceps').click())
+    const shown = names(host)
+    expect(shown.length).toBeGreaterThan(0)
+    expect(shown.every(name => EXDB.some(e => e.n === name && musclesOf(e).triceps))).toBe(true)
+    expect(shown.some(name => EXDB.some(e => e.n === name && musclesOf(e).triceps < 1))).toBe(true)
+    expect(host.querySelector('.search-count')).not.toBeNull()
+    chooseFilter(host, 'Muscle', 'All')
+    expect(names(host)[0]).toBe(EXDB[0].n)
+  })
+
+  it('combines all filters with search and resets filters without clearing the query', () => {
+    mocks.S.customEx = [
+      { id: 'filter-a', n: 'filterfixture dumbbell press', bp: 'chest', eq: 'dumbbell', cat: 'strength', tg: 'pectorals', sm: ['triceps'], custom: true },
+      { id: 'filter-b', n: 'filterfixture barbell press', bp: 'chest', eq: 'barbell', cat: 'strength', tg: 'pectorals', custom: true },
+      { id: 'filter-c', n: 'filterfixture dumbbell stretch', bp: 'chest', eq: 'dumbbell', cat: 'stretching', tg: 'pectorals', custom: true },
+      { id: 'filter-d', n: 'filterfixture dumbbell row', bp: 'back', eq: 'dumbbell', cat: 'strength', tg: 'lats', custom: true },
+    ]
+    const host = render()
+    search(host, 'filterfixture')
+    chooseFilter(host, 'Type', 'strength')
+    chooseFilter(host, 'Equipment', 'dumbbell')
+    chooseFilter(host, 'Muscle', 'Chest')
+    expect(names(host)).toEqual(['filterfixture dumbbell press'])
+    expect([...host.querySelectorAll('.library-filters [aria-haspopup]')].map(b => b.textContent)).toEqual([
+      'Muscle · Chest', 'Type · strength', 'Equipment · dumbbell',
+    ])
+    expect(host.querySelector('.search-count').textContent).toBe('1')
+    act(() => [...host.querySelectorAll('.library-filters button')].find(b => b.textContent === 'Reset').click())
+    expect(host.querySelector('.search input').value).toBe('filterfixture')
+    expect(names(host).sort()).toEqual(mocks.S.customEx.map(e => e.n).sort())
+    expect(host.querySelectorAll('.library-filters .tinted')).toHaveLength(0)
+  })
+
+  it('keeps equipment choices when selecting and clearing a compatible muscle', () => {
+    const host = render()
+    chooseFilter(host, 'Equipment', 'dumbbell')
+    chooseFilter(host, 'Muscle', 'Chest')
+    expect(host.querySelector('.library-filters').textContent).toContain('Equipment · dumbbell')
+    chooseFilter(host, 'Muscle', 'All')
+    expect(host.querySelector('.library-filters').textContent).toContain('Equipment · dumbbell')
   })
 })
 

@@ -420,7 +420,7 @@ export default function RoutineEdit() {
         const target = selectedEx || ex
         commit(target, current => ({ id: target.id, sg: current.sg, ...cfg }))
       }, null, r, null, null, t('Replace'), true)
-    }, { title: t('Replace exercise'), like: openedOn })
+    }, { title: t('Replace exercise'), like: openedOn, routineId: id })
   }
   // This routine on paper (#282): the weekly printout's page for one session, through the same
   // two print paths — the browser's print dialog (→ Save as PDF) on the web, the native Print
@@ -450,7 +450,7 @@ export default function RoutineEdit() {
         edit(x => { x.push({ id: target.id, ...cfg }) })
       }, null, r, null, null, null, true)
     }
-  })
+  }, { routineId: id })
 
   const units = supersetUnits(r.ex)
   const unitFirst = new Set(units.filter(u => u.length > 1).map(u => u[0]))

@@ -60,7 +60,7 @@ describe('BodyMap interaction semantics', () => {
 
     expect(onMuscle).toHaveBeenCalledTimes(1)
     expect(onMuscle).toHaveBeenCalledWith('chest')
-    expect(event.defaultPrevented).toBe(key === ' ')
+    expect(event.defaultPrevented).toBe(true)
   })
 
   it('labels the existing legend direction for assistive technology', () => {

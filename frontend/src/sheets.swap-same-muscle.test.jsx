@@ -21,10 +21,10 @@ function renderTop() {
   act(() => root.render(sheet.render(() => useUI.getState().closeSheet(sheet.id))))
   return host
 }
-const chips = host => [...host.querySelectorAll('.chips .chip')]
+const chips = host => [...host.querySelectorAll('.library-filters button')]
 const chipByText = (host, text) => chips(host).find(b => b.textContent.trim() === text)
 const sameChip = host => chips(host).find(b => b.textContent.trim().startsWith('Same muscle'))
-const isOn = el => el.className.split(/\s+/).includes('on')
+const isOn = el => el.getAttribute('aria-pressed') === 'true'
 const rows = host => [...host.querySelectorAll('.list .item:not(.ex-new)')].map(r => r.querySelector('.ss').textContent)
 
 // A cable triceps exercise: the catalogue has plenty of other triceps work, on cables and off.
@@ -71,7 +71,7 @@ describe('swap picker opens on the same muscle', () => {
     const chip = sameChip(host)
     expect(chip.textContent).toContain('Triceps')
     expect(isOn(chip)).toBe(true)
-    expect(isOn(chipByText(host, 'All'))).toBe(false)
+    expect(chipByText(host, 'Reset')).toBeTruthy()
 
     const listed = rows(host)
     expect(listed.length).toBeGreaterThan(1)
@@ -83,8 +83,8 @@ describe('swap picker opens on the same muscle', () => {
     // The exercise being swapped away is not offered as its own replacement.
     expect([...host.querySelectorAll('.list .item .tt')].map(x => x.textContent)).not.toContain(CABLE_TRI.n)
 
-    act(() => chipByText(host, 'All').click())
-    expect(isOn(chipByText(host, 'All'))).toBe(true)
+    act(() => chipByText(host, 'Reset').click())
+    expect(isOn(sameChip(host))).toBe(false)
     expect(rows(host).some(s => !s.startsWith('Triceps'))).toBe(true)
     // …and back again.
     act(() => sameChip(host).click())
@@ -104,7 +104,7 @@ describe('swap picker opens on the same muscle', () => {
     exercisePicker(vi.fn())
     const host = renderTop()
     expect(sameChip(host)).toBeUndefined()
-    expect(isOn(chipByText(host, 'All'))).toBe(true)
+    expect(chipByText(host, 'Reset')).toBeUndefined()
   })
 
   it('opens on All when nothing else trains that muscle, so a swap never starts on an empty list', () => {
@@ -115,7 +115,7 @@ describe('swap picker opens on the same muscle', () => {
     useStore.setState({ S, user: null })
     exercisePicker(vi.fn(), { like: 'cOnly' })
     const host = renderTop()
-    expect(isOn(chipByText(host, 'All'))).toBe(true)
+    expect(chipByText(host, 'Reset')).toBeUndefined()
     expect(sameChip(host)).toBeUndefined()
   })
 })

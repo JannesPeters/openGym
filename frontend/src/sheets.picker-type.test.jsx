@@ -10,6 +10,7 @@ import { useUI } from './store/useUI.js'
 import { EXDB } from './lib/exercises.js'
 import { exerciseNameFor } from './lib/i18n.js'
 import { exercisePicker } from './sheets.jsx'
+import { bindUI } from './components/ui.jsx'
 
 const mounted = []
 
@@ -23,9 +24,16 @@ function renderTop() {
   return host
 }
 
-const chipByText = (host, text) =>
-  [...host.querySelectorAll('.chips .chip')].find(b => b.textContent.trim() === text)
-const isOn = el => el.className.split(/\s+/).includes('on')
+const filterButton = (host, title) => [...host.querySelectorAll('.library-filters button')].find(b => b.textContent.split(' · ')[0] === title)
+const openMenu = (host, title) => {
+  act(() => filterButton(host, title).click())
+  return renderTop()
+}
+const choose = (host, title, label) => {
+  const menu = openMenu(host, title)
+  if (title === 'Muscle') act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+  act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === label).click())
+}
 // Every row's add button carries the exercise's name, so it tells which exercises are listed.
 const listed = host => [...host.querySelectorAll('.list .item button[aria-label]')]
   .map(b => b.getAttribute('aria-label'))
@@ -33,6 +41,7 @@ const listed = host => [...host.querySelectorAll('.list .item button[aria-label]
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   useUI.setState({ sheets: [], toastMsg: '' })
+  bindUI(useUI)
   useStore.setState({ S: structuredClone(DEF), user: null })
   document.body.innerHTML = ''
 })
@@ -42,22 +51,21 @@ afterEach(() => {
 })
 
 describe('exercise picker type filter', () => {
-  it('shows the Type row between the muscle groups and the equipment, like the Library', () => {
+  it('shares the Library menu buttons with Type between Muscle and Equipment', () => {
     exercisePicker(vi.fn())
     const host = renderTop()
-    const strips = [...host.querySelectorAll('.chips')]
-    expect(strips).toHaveLength(3)
-    expect(strips[1].querySelector('.chip').textContent.trim()).toBe('Any type')
-    expect(isOn(chipByText(host, 'Any type'))).toBe(true)
-    expect(chipByText(host, 'stretching')).toBeTruthy()
-    expect(strips[2].querySelector('.chip').textContent.trim()).toBe('Any equipment')
+    expect([...host.querySelectorAll('.library-filters [aria-haspopup]')].map(b => b.textContent)).toEqual(['Muscle', 'Type', 'Equipment'])
+    expect(host.querySelector('.chips')).toBeNull()
+    const menu = openMenu(host, 'Type')
+    expect(menu.querySelector('[aria-pressed="true"]').textContent).toBe('Any type')
+    expect([...menu.querySelectorAll('button')].some(b => b.textContent === 'stretching')).toBe(true)
   })
 
   it('narrows the list to the picked type', () => {
     exercisePicker(vi.fn())
     const host = renderTop()
-    act(() => chipByText(host, 'stretching').click())
-    expect(isOn(chipByText(host, 'stretching'))).toBe(true)
+    choose(host, 'Type', 'stretching')
+    expect(filterButton(host, 'Type').textContent).toBe('Type · stretching')
     const names = listed(host)
     expect(names.length).toBeGreaterThan(0)
     const catOf = new Map(EXDB.map(e => [`Add “${exerciseNameFor(e)}”`, e.cat]))
@@ -65,14 +73,20 @@ describe('exercise picker type filter', () => {
   })
 
   it('keeps the type across a muscle group that has none of it, and picks it back up', () => {
+    useStore.setState(s => ({ S: { ...s.S, customEx: [
+      { id: 'type-test-a', n: 'typetest wrist curl', tg: 'forearms', bp: 'lower arms', eq: 'dumbbell', cat: 'strength', custom: true },
+      { id: 'type-test-b', n: 'typetest yoga', tg: 'lats', bp: 'back', eq: 'body weight', cat: 'yoga', custom: true },
+    ] } }))
     exercisePicker(vi.fn())
     const host = renderTop()
-    act(() => chipByText(host, 'yoga').click())
-    // Lower arms have no yoga: the row drops the choice for this view instead of listing nothing.
-    act(() => chipByText(host, 'lower arms').click())
-    expect(chipByText(host, 'yoga')).toBeFalsy()
+    const input = host.querySelector('.search input')
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    act(() => { setter.call(input, 'typetest'); input.dispatchEvent(new Event('input', { bubbles: true })) })
+    choose(host, 'Type', 'yoga')
+    choose(host, 'Muscle', 'Forearms')
+    expect(filterButton(host, 'Type').textContent).toBe('Type')
     expect(listed(host).length).toBeGreaterThan(0)
-    act(() => chipByText(host, 'back').click())
-    expect(isOn(chipByText(host, 'yoga'))).toBe(true)
+    choose(host, 'Muscle', 'Upper back')
+    expect(filterButton(host, 'Type').textContent).toBe('Type · yoga')
   })
 })

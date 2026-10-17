@@ -83,7 +83,7 @@ describe('exercise picker', () => {
   it('offers a Favourites chip only when there are favourites, and it filters to them', () => {
     exercisePicker(vi.fn())
     let host = renderTop()
-    const chip = h => [...h.querySelectorAll('.chips .chip')].find(b => b.textContent.startsWith('Favourites'))
+    const chip = h => [...h.querySelectorAll('.library-filters button')].find(b => b.textContent.startsWith('Favourites'))
     expect(chip(host)).toBeUndefined()
     useUI.setState({ sheets: [] })
     useStore.setState(s => ({ S: { ...s.S, favEx: [EXDB[5].id, EXDB[9].id] } }))

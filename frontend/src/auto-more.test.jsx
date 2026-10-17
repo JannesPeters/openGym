@@ -11,7 +11,9 @@ import { useUI } from './store/useUI.js'
 import { exercisePicker } from './sheets.jsx'
 import Library from './views/Library.jsx'
 import MuscleExplorer from './components/MuscleExplorer.jsx'
-import { BODYPARTS, EXDB } from './lib/exercises.js'
+import { CATALOGUE } from './lib/exercises.js'
+import { MUSCLES, MUSCLE_NAME, musclesOf } from './lib/muscles.js'
+import { bindUI } from './components/ui.jsx'
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 
@@ -46,6 +48,7 @@ beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
   observers.length = 0
   useUI.setState({ sheets: [], toastMsg: '' })
+  bindUI(useUI)
   useStore.setState({ S: structuredClone(DEF), user: null })
   document.body.innerHTML = ''
 })
@@ -85,13 +88,15 @@ describe('lists load their next page as you scroll', () => {
   })
 
   it('stops watching once everything is shown', () => {
-    // a body part with a few pages, not the whole catalogue
-    const count = bp => EXDB.filter(e => e.bp === bp).length
-    const bp = BODYPARTS.filter(b => count(b) > 40).sort((a, b) => count(a) - count(b))[0]
+    const count = muscle => CATALOGUE.filter(e => musclesOf(e)[muscle]).length
+    const muscle = MUSCLES.filter(m => count(m) > 40).sort((a, b) => count(a) - count(b))[0]
     const host = render(<Library />)
-    act(() => [...host.querySelectorAll('.chips .chip')].find(c => c.textContent === bp).click())
+    act(() => [...host.querySelectorAll('.library-filters button')].find(b => b.textContent === 'Muscle').click())
+    const menu = renderTop()
+    act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+    act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === MUSCLE_NAME[muscle]).click())
     for (let i = 0; i < 10 && showMore(host); i++) comeIntoView()
-    expect(rows(host)).toBe(count(bp))
+    expect(rows(host)).toBe(count(muscle))
     expect(showMore(host)).toBeUndefined()
     expect(observers.every(o => o.els.size === 0)).toBe(true)
   })

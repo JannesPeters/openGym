@@ -13,6 +13,7 @@ import { useUI } from './store/useUI.js'
 import { exercisePicker } from './sheets.jsx'
 import Library from './views/Library.jsx'
 import Muscles from './views/Muscles.jsx'
+import { bindUI } from './components/ui.jsx'
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 
@@ -41,6 +42,7 @@ const setView = v => useStore.setState(s => ({ S: { ...s.S, exerciseView: v } })
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   useUI.setState({ sheets: [], toastMsg: '' })
+  bindUI(useUI)
   useStore.setState({ S: structuredClone(DEF), user: null })
   document.body.innerHTML = ''
 })
@@ -81,8 +83,10 @@ describe('exercise list or cards', () => {
     act(() => toggle(host).click())
     expect(view()).toBe('cards')
     expect(isCards(host)).toBe(true)
-    act(() => [...host.querySelectorAll('button')].find(b => b.textContent === 'By muscle').click())
-    pickMuscle(host)
+    act(() => [...host.querySelectorAll('.library-filters button')].find(b => b.textContent === 'Muscle').click())
+    const menu = renderTop()
+    act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+    act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === 'Chest').click())
     expect(isCards(host)).toBe(true)
     expect(besideSearch(toggle(host))).toBe(true)
     expect(toggle(host).getAttribute('aria-pressed')).toBe('true')

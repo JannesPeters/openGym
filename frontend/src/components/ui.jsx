@@ -350,6 +350,44 @@ export function SelectRow({ icon, iconTint, title, value, options, onChange, she
   )
 }
 
+export function SelectButton({ title, value, options, onChange, renderSheet }) {
+  const current = options.find(o => o.value === value)
+  const open = event => {
+    const trigger = event.currentTarget
+    const { openSheet } = require_ui()
+    openSheet(close => <SelectDialog title={title} trigger={trigger}>
+      {renderSheet ? renderSheet(close) :
+        <SelectSheet title={title} value={value} options={options} onChange={onChange} close={close} />}
+    </SelectDialog>)
+  }
+  return <Button size="sm" variant={value ? 'tinted' : 'plain'} trailingIcon="chevronDown"
+    aria-haspopup="dialog" onClick={open}>
+    {title}{value && <> · <span className="capitalize">{current?.label || value}</span></>}
+  </Button>
+}
+
+function SelectDialog({ title, trigger, children }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const content = ref.current
+    const selected = content.querySelector('[aria-pressed="true"]') || content.querySelector('button') || content
+    selected.focus({ preventScroll: true })
+    return () => { if (trigger.isConnected) trigger.focus({ preventScroll: true }) }
+  }, [trigger])
+  const onKeyDown = event => {
+    if (event.key !== 'Tab') return
+    const controls = [...ref.current.querySelectorAll('button:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length)
+    const next = event.shiftKey ? controls.at(-1) : controls[0]
+    const edge = event.shiftKey ? controls[0] : controls.at(-1)
+    if (!controls.length || document.activeElement === edge || document.activeElement === ref.current) {
+      event.preventDefault()
+      const target = next || ref.current
+      target.focus()
+    }
+  }
+  return <div role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1} onKeyDown={onKeyDown}>{children}</div>
+}
+
 function SelectSheet({ title, value, options, onChange, search, close }) {
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
@@ -424,7 +462,7 @@ function SelectSheet({ title, value, options, onChange, search, close }) {
       </div>}
       <div className="sect-b">
         {visible.map((o, index) => (
-          <button key={o.value} ref={index === 0 ? firstVisibleRef : undefined} className="lrow tap" onClick={() => { close(); onChange(o.value) }}>
+          <button key={o.value} ref={index === 0 ? firstVisibleRef : undefined} className="lrow tap" aria-pressed={o.value === value} onClick={() => { close(); onChange(o.value) }}>
             <span className="lrow-m"><span className="lrow-t">{o.label}</span>
               {o.subtitle && <span className="lrow-s">{o.subtitle}</span>}</span>
             {o.value === value && <Icon name="check" className="lrow-k" />}

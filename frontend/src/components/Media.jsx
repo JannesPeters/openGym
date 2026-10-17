@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore.js'
 import { t, exerciseNameFor } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
 import CustomMedia, { CustomThumb } from './CustomMedia.jsx'
+import { tappable } from '../lib/use-sheet-keyboard.js'
 
 // An exercise's picture, wherever one shows. A custom exercise goes to CustomMedia.jsx — its own
 // photo, GIF, video or link, from the local media store — and never through imgSrc/gifSrc, which
@@ -16,14 +17,14 @@ export default function Media(p) {
   return isCustomEx(ex) ? <CustomMedia {...p} ex={ex} /> : <BuiltinMedia {...p} ex={ex} />
 }
 
-// Big autoplaying animation; tap toggles to the still frame. `compact` shrinks it (superset cards).
+// Still first; tap plays the animation or returns to the still. `compact` shrinks it (superset cards).
 // `minimizable` (workout view) adds a persistent minimize/expand control so the animation stops
 // eating the screen; the chosen size is saved to settings and carries across exercises and
 // future workouts (issue #12). Settings can also turn workout media off entirely
 // (gifSize 'off') — then nothing renders here and the exercise card closes up, exactly like
 // an exercise without media. Any other/legacy value behaves as 'full'.
 function BuiltinMedia({ ex, id, compact, minimizable }) {
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(false)
   // 'gif' → the animation failed, the still is showing; 'all' → the still failed too. Media is
   // fetched from wherever the build points (a mount, a CDN): a dropped connection, an expired
   // session on a gated instance or a CDN hiccup used to leave the browser's broken-image glyph
@@ -46,7 +47,8 @@ function BuiltinMedia({ ex, id, compact, minimizable }) {
     setPlaying(p => !p)
   }
   return (
-    <div className={'exmedia catalogue-media' + (compact ? ' compact' : '') + (mini ? ' mini' : '') + (failed === 'all' ? ' broken' : '')} id={id} onClick={onTap}>
+    <div className={'exmedia catalogue-media' + (!minimizable ? ' catalogue-detail' : '') + (compact ? ' compact' : '') + (mini ? ' mini' : '') + (failed === 'all' ? ' broken' : '')} id={id}
+      {...tappable(onTap)} aria-label={playing ? t('tap to pause') : t('tap to play')} aria-pressed={playing}>
       {failed === 'all'
         ? <div className="exmedia-x"><Icon name="dumbbell" /></div>
         : showGif && clip && clipSrc

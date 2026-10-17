@@ -10,7 +10,9 @@ import { DEF, useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { exercisePicker } from './sheets.jsx'
 import Library from './views/Library.jsx'
-import { EXDB, searchExercises } from './lib/exercises.js'
+import { CATALOGUE, searchExercises } from './lib/exercises.js'
+import { musclesOf } from './lib/muscles.js'
+import { bindUI } from './components/ui.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const mounted = []
@@ -30,18 +32,24 @@ function type(el, value) {
   Object.getOwnPropertyDescriptor(el.constructor.prototype, 'value').set.call(el, value)
   el.dispatchEvent(new Event('input', { bubbles: true }))
 }
-const chip = (host, text) => [...host.querySelectorAll('.chips .chip')].find(b => b.textContent.trim() === text)
+const chooseMuscle = (host, label) => {
+  act(() => [...host.querySelectorAll('.library-filters button')].find(b => b.textContent.startsWith('Muscle')).click())
+  const menu = renderTopSheet()
+  act(() => [...menu.querySelectorAll('.seg button')].find(b => b.textContent === 'List').click())
+  act(() => [...menu.querySelectorAll('button')].find(b => b.textContent === label).click())
+}
 const count = host => host.querySelector('.search .search-count')
 
 beforeEach(() => {
   useUI.setState({ sheets: [], toastMsg: '' })
+  bindUI(useUI)
   useStore.setState({ S: structuredClone(DEF), user: null })
   document.body.innerHTML = ''
 })
 afterEach(() => { act(() => { mounted.splice(0).forEach(root => root.unmount()) }) })
 
 // The screens run the same search over the same catalogue, so the expected numbers come from it.
-const matches = q => searchExercises(EXDB, q).length
+const matches = q => searchExercises(CATALOGUE, q).length
 
 describe('exercise search result count', () => {
   for (const [where, open] of [
@@ -68,13 +76,12 @@ describe('exercise search result count', () => {
       expect(count(host)).toBeNull()
     })
 
-    it(`${where}: counts a body-part filter too, and reads "1 exercise" for one`, () => {
+    it(`${where}: counts a muscle filter too, and reads "1 exercise" for one`, () => {
       const host = open()
-      act(() => chip(host, 'neck').click())
-      const neck = EXDB.filter(e => e.bp === 'neck').length
-      expect(Number(count(host).textContent)).toBe(neck)
-      const one = EXDB.find(e => searchExercises(EXDB, e.n).length === 1)
-      act(() => chip(host, 'All').click())
+      chooseMuscle(host, 'Traps')
+      expect(Number(count(host).textContent)).toBe(CATALOGUE.filter(e => musclesOf(e).trapezius).length)
+      const one = CATALOGUE.find(e => searchExercises(CATALOGUE, e.n).length === 1)
+      chooseMuscle(host, 'All')
       act(() => type(host.querySelector('.search input'), one.n))
       expect(count(host).textContent).toBe('1')
       expect(count(host).getAttribute('aria-label')).toBe('1 exercise')

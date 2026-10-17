@@ -42,6 +42,8 @@ describe('catalogue media sizing', () => {
   it.each(['full', 'compact', 'mini'])('never enlarges the %s animation or paused still', size => {
     state.S.gifSize = size === 'mini' ? 'mini' : 'full'
     act(() => root.render(<Media ex={EXIDX['0001']} compact={size === 'compact'} minimizable />))
+    expect(getComputedStyle(host.querySelector('img')).objectFit).toBe('scale-down')
+    act(() => host.querySelector('.exmedia').click())
     expect(getComputedStyle(host.querySelector('video')).objectFit).toBe('scale-down')
     act(() => host.querySelector('.exmedia').click())
     expect(getComputedStyle(host.querySelector('img')).objectFit).toBe('scale-down')
@@ -49,8 +51,34 @@ describe('catalogue media sizing', () => {
 
   it('keeps a failed animation fallback at natural size', () => {
     act(() => root.render(<Media ex={EXIDX['0001']} />))
+    act(() => host.querySelector('.exmedia').click())
     act(() => host.querySelector('video').dispatchEvent(new Event('error')))
     expect(getComputedStyle(host.querySelector('img')).objectFit).toBe('scale-down')
+  })
+
+  it('fits opened exercise frames to the artwork without changing workout frames', () => {
+    act(() => root.render(<Media ex={EXIDX['0001']} />))
+    const frame = host.querySelector('.catalogue-detail')
+    expect(getComputedStyle(frame).width).toBe('180px')
+    expect(getComputedStyle(frame).maxWidth).toBe('100%')
+    expect(getComputedStyle(frame).getPropertyValue('margin-inline')).toBe('0 auto')
+    expect(getComputedStyle(host.querySelector('img')).height).toBe('auto')
+    act(() => frame.click())
+    expect(getComputedStyle(host.querySelector('video')).height).toBe('auto')
+    act(() => frame.click())
+    act(() => root.render(<Media ex={EXIDX['0001']} minimizable />))
+    expect(host.querySelector('.catalogue-detail')).toBeNull()
+    expect(['320px', '380px']).toContain(getComputedStyle(host.querySelector('img')).height)
+  })
+
+  it('keeps a failed opened-exercise placeholder inside the compact frame', () => {
+    act(() => root.render(<Media ex={EXIDX['0001']} />))
+    act(() => host.querySelector('.exmedia').click())
+    act(() => host.querySelector('video').dispatchEvent(new Event('error')))
+    act(() => host.querySelector('img').dispatchEvent(new Event('error')))
+    expect(host.querySelector('.catalogue-detail.broken')).toBeTruthy()
+    expect(getComputedStyle(host.querySelector('.exmedia-x')).height).toBe('auto')
+    expect(getComputedStyle(host.querySelector('.exmedia-x')).aspectRatio).toBe('1 / 1')
   })
 
   it('applies the same sizing to a variant inheriting catalogue artwork', () => {

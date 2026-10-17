@@ -29,7 +29,7 @@ function useBodyPaths() {
 function View({ view, levels, onMuscle, selected }) {
   const activate = (event, slug) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
-    if (event.key === ' ') event.preventDefault()
+    event.preventDefault()
     onMuscle(slug)
   }
   return (

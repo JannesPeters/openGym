@@ -43,7 +43,7 @@ afterEach(() => {
 const mount = props => act(() => root.render(<Media ex={EX} {...props} />))
 
 describe('Media gifSize', () => {
-  it('renders the full animation by default and toggles to mini in the workout', () => {
+  it('renders the full still by default and toggles to mini in the workout', () => {
     mount({ minimizable: true })
     expect(host.querySelector('.exmedia img')).toBeTruthy()
     expect(host.querySelector('.exmedia.mini')).toBeFalsy()
@@ -72,6 +72,35 @@ describe('Media gifSize', () => {
     mount({ minimizable: true })
     expect(host.querySelector('.exmedia img')).toBeTruthy()
     expect(host.querySelector('.exmedia.mini')).toBeFalsy()
+  })
+
+  it('shows a still until explicitly played, and returns to it on pause', () => {
+    mount({ ex: EXIDX['0001'] })
+    const frame = host.querySelector('.exmedia')
+    expect(frame.getAttribute('role')).toBe('button')
+    expect(frame.getAttribute('tabindex')).toBe('0')
+    expect(frame.getAttribute('aria-label')).toBe('tap to play')
+    expect(frame.getAttribute('aria-pressed')).toBe('false')
+    expect(host.querySelector('video')).toBeNull()
+    expect(host.querySelector('img').getAttribute('src')).toContain('0001.webp')
+    act(() => frame.click())
+    expect(frame.getAttribute('aria-pressed')).toBe('true')
+    expect(host.querySelector('video').getAttribute('src')).toBe(gifSrc(EXIDX['0001']))
+    act(() => frame.click())
+    expect(host.querySelector('video')).toBeNull()
+    expect(host.querySelector('img').getAttribute('src')).toContain('0001.webp')
+  })
+
+  it('supports keyboard play and pause without capturing keys from nested controls', () => {
+    mount({ ex: EXIDX['0001'], minimizable: true })
+    const frame = host.querySelector('.exmedia')
+    const key = (el, value) => act(() => el.dispatchEvent(new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true })))
+    key(host.querySelector('.giftoggle'), 'Enter')
+    expect(host.querySelector('video')).toBeNull()
+    key(frame, 'Enter')
+    expect(host.querySelector('video')).toBeTruthy()
+    key(frame, ' ')
+    expect(host.querySelector('video')).toBeNull()
   })
 })
 
@@ -120,6 +149,8 @@ describe('Media — a custom exercise', () => {
     registerCustom([variant])
     try {
       await mountCustom(variant)
+      expect(host.querySelector('video')).toBeNull()
+      act(() => host.querySelector('.catalogue-media').click())
       expect(host.querySelector('.exmedia video')?.getAttribute('src')).toBe(gifSrc(base))
     } finally { registerCustom([]) }
   })
