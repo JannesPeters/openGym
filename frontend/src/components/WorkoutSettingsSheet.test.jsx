@@ -78,6 +78,20 @@ describe('the in-workout settings sheet', () => {
     expect(S().active.workoutView).toBeUndefined()
   })
 
+  it('saves Custom for future workouts and clears the session override', () => {
+    act(() => [...row('Layout').querySelectorAll('button')].find(b => b.textContent === 'Custom').click())
+    expect(S().workoutView).toBe('custom')
+    expect(S().active.workoutView).toBeUndefined()
+    expect(row('Layout').querySelector('button.on').textContent).toBe('Custom')
+  })
+
+  it('accurately shows every existing session layout', () => {
+    for (const layout of ['custom', 'cards', 'list', 'compact', 'focus']) {
+      act(() => useStore.setState({ S: { ...S(), active: { ...S().active, workoutView: layout } } }))
+      expect(row('Layout').querySelector('button.on').textContent.toLowerCase()).toBe(layout)
+    }
+  })
+
   it('sets the rest timer on the wheel, 0:00 being off', () => {
     act(() => row('Rest timer').click())
     const sheet = useUI.getState().sheets.at(-1)

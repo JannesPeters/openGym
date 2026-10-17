@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, useSyncExternalStore } from 'react'
+import { workoutLayout } from '../lib/workout-layout.js'
 import { useNavigate, useParams, useLocation, Navigate } from 'react-router-dom'
 import { useStore, DEF, hasData } from '../store/useStore.js'
 import { healthStatus, loadHealth, enableHealth, disableHealth, openHealthConnect, onHealthChange } from '../lib/health-sync.js'
@@ -401,6 +402,7 @@ export default function Settings({ page = null, find = null, via = null }) {
   /* ---------------- what the pages and the search need to know about this device ---------------- */
   const canVibrate = vibrateSupported()
   const ctx = {
+    workoutView: S.workoutView,
     user, mobile: MOBILE, android, demo: DEMO, wakeOK, hasMedia, pwOn, webauthn: webauthnOK(),
     sound: !!S.sound, playOnSilent: playOnSilentSupported(), canVibrate, vibrate: S.vibrate !== false,
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
@@ -409,8 +411,8 @@ export default function Settings({ page = null, find = null, via = null }) {
     webUpdates: !MOBILE && webUpdatesSupported(), webUpdateReady: webUpdate.available,
   }
   const mode = scheduleModeOf(S)
-  const layout = ['list', 'compact', 'focus'].includes(S.workoutView) ? S.workoutView : 'cards'
-  const layoutLabel = { cards: t('Cards'), list: t('List'), compact: t('Compact') }[layout]
+  const layout = workoutLayout(S.workoutView)
+  const layoutLabel = { custom: t('Custom'), cards: t('Cards'), list: t('List'), compact: t('Compact'), focus: t('Focus') }[layout]
   const activeProfile = (S.equipProfiles || []).find(p => p.id === S.activeEquipId)
   const themeLabel = { dark: t('Dark'), light: t('Light'), system: t('System') }[S.theme || 'dark'] || t('Dark')
   // The value a root row shows, so most questions are answered without opening the page.
@@ -480,22 +482,21 @@ export default function Settings({ page = null, find = null, via = null }) {
             { value: 'last', label: t('Last time'), subtitle: t('What you did the last time, in that routine.') },
             { value: 'best', label: t('Best set'), subtitle: t('Your heaviest set of the exercise, from any workout.') },
           ]} />
-        {/* One exercise at a time (cards with Prev/Next), the whole session stacked as a
-            scrollable list, or that list stripped to just names and set rows (compact). Legacy or
-            unknown values read as cards. The workout's ⋯ menu can override it for one session. */}
+        {/* Custom starts with List parity. The workout menu can override the saved layout
+            for one session without changing it for future workouts. */}
         <Row icon="layout" iconTint="var(--blue)" title={t('Layout')}>
           <Segmented className="seg-inline"
-            options={[{ value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
+            options={[{ value: 'custom', label: t('Custom') }, { value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
             value={layout} onChange={v => update(s => { s.workoutView = v })} />
         </Row>
         {/* The saved side of the Layout menu's "Collapse completed exercises" (#241): on here, every
             session starts with it, and the menu still flips it for one session. Setting it here
             also drops a running session's own choice, so the switch does what it says right away. */}
-        <Row icon="minimize" iconTint="var(--teal)" title={t('Collapse completed exercises')}
+        {layout !== 'custom' && <Row icon="minimize" iconTint="var(--teal)" title={t('Collapse completed exercises')}
           subtitle={t('In List and Compact, a finished exercise folds into one line.')}>
           <Switch aria-label={t('Collapse completed exercises')} checked={!!S.collapseCompleted}
             onChange={v => update(s => { s.collapseCompleted = v; if (s.active) delete s.active.collapseCompleted })} />
-        </Row>
+        </Row>}
       </Section>
       <Section title={t('Before and during')}>
         {/* The quick weigh-in that opens on Start (sheets.jsx startFlow, issue #137); off skips

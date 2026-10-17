@@ -67,12 +67,12 @@ const mount = () => act(() => root.render(<Settings page="workout" />))
 const segButton = label => [...host.querySelectorAll('.seg button')].find(b => b.textContent === label)
 
 describe('Settings — workout view', () => {
-  it('offers Cards / List / Compact / Focus and writes workoutView to the store', () => {
+  it('offers Custom and all existing layouts and writes workoutView to the store', () => {
     mount()
-    expect(['Cards', 'List', 'Compact', 'Focus'].every(label => segButton(label))).toBe(true)
-    expect(segButton('Cards').getAttribute('aria-pressed')).toBe('true')
+    expect(['Custom', 'Cards', 'List', 'Compact', 'Focus'].every(label => segButton(label))).toBe(true)
+    expect(segButton('Custom').getAttribute('aria-pressed')).toBe('true')
 
-    for (const [label, value] of [['List', 'list'], ['Compact', 'compact'], ['Focus', 'focus'], ['Cards', 'cards']]) {
+    for (const [label, value] of [['List', 'list'], ['Compact', 'compact'], ['Focus', 'focus'], ['Cards', 'cards'], ['Custom', 'custom']]) {
       act(() => { segButton(label).click() })
       expect(mocks.S.workoutView).toBe(value)
       mount()
@@ -80,7 +80,7 @@ describe('Settings — workout view', () => {
     }
   })
 
-  it('shows a legacy/absent value as Cards', () => {
+  it('keeps the legacy unknown-value fallback as Cards', () => {
     mocks.S.workoutView = 'grid'
     mount()
     expect(segButton('Cards').getAttribute('aria-pressed')).toBe('true')

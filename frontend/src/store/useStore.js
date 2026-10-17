@@ -26,6 +26,7 @@ import { RTL_LANGS } from '../lib/i18n-core.js'
 import { DEFAULT_TEMPLATE_ID } from '../lib/structuralBalanceTemplates.js'
 
 import { WC_DEFAULT } from '../lib/workout-controls.js'
+import { DEFAULT_WORKOUT_LAYOUT } from '../lib/workout-layout.js'
 import { sanitizeAccent } from '../lib/accent.js'
 
 const KEY = 'gym_state_v1'
@@ -106,15 +107,12 @@ export const DEF = {
   exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
   // Stats activity heatmap metric. Profiles without this key continue to open on time.
   heatmapMetric: 'time',
-  // How the active workout is laid out — 'cards' (one exercise at a time with Prev/Next),
-  // 'list' (every exercise stacked and scrollable) or 'compact' (that stack stripped to just
-  // names and set rows — no media, tags, notes, last-time or progression line). Purely
-  // presentational: profiles written before this setting existed overlay onto DEF and keep the
-  // 'cards' behaviour. beginWorkout copies the value onto s.active, so the header ⋮ menu can
-  // override it for the running session without touching this saved default.
-  workoutView: 'cards',
-  // List and Compact fold a finished exercise into one line (Settings → Workout; #241). The
-  // workout's Layout menu can flip it for the running session (s.active.collapseCompleted).
+  // Custom starts with List presentation and can evolve independently. Only profiles without
+  // a saved choice take this default; explicit layouts survive the overlay onto DEF.
+  // beginWorkout snapshots it so the header menu changes only the running session.
+  workoutView: DEFAULT_WORKOUT_LAYOUT,
+  // Optional in List and Compact; Custom always folds finished exercises, without changing
+  // this saved preference or the running session's override for other layouts.
   collapseCompleted: false,
   // How the Library, the exercise picker and the muscle explorer show exercises — 'list' (rows
   // with a small thumbnail) or 'cards' (a grid of pictures with the name underneath). Switched

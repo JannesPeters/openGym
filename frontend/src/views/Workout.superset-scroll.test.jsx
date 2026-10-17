@@ -88,7 +88,7 @@ function installDom() {
 
 async function mount(entries, cur = 0, active = {}, prep = null) {
   mocks.S = {
-    unit: 'kg', restSec: 90, sound: false, effort: 'none', gifSize: 'full',
+    unit: 'kg', restSec: 90, sound: false, effort: 'none', gifSize: 'full', workoutView: 'cards',
     workouts: [], exWeights: {}, routines: [],
     active: { id: 'active', name: 'Test workout', start: Date.now(), cur, entries, ...active },
   }

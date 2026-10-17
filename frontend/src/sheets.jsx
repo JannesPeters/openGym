@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from './store/useStore.js'
+import { workoutLayout } from './lib/workout-layout.js'
 import { useUI } from './store/useUI.js'
 import { EXDB, EXIDX, BODYPARTS, CATEGORIES, isCardio, isBodyweightEq, allExercises, smOf, exOr, isAssisted, betterWeight, beatsWeight, isCustomEx, baseExerciseIdOf, variantLabelOf, variantBaseName, variantName, EXERCISE_NAME_MAX, VARIANT_LABEL_MAX } from './lib/exercises.js'
 import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile, profileEquipment, ACC_V } from './lib/equipment.js'
@@ -2743,7 +2744,7 @@ export function beginWorkout(routineIds, bw) {
       bw: bw || null, cur: 0, entries,
       // Snapshot the layout at start so the header ⋮ can change it for this session only —
       // changing the saved default (Settings → Workout view) mid-session leaves it alone.
-      workoutView: st.workoutView || 'cards',
+      workoutView: workoutLayout(st.workoutView),
     }
   })
   useUI.getState().stopRest()
@@ -2764,7 +2765,7 @@ export function repeatWorkout(w, close) {
       s.active = {
         id: uid(), d: todayISO(), start: Date.now(), routineIds: [],
         name: w.name || t('Freestyle'), bw: bw || null, cur: 0, entries,
-        workoutView: s.workoutView || 'cards',
+        workoutView: workoutLayout(s.workoutView),
       }
     })
     useUI.getState().stopRest()
@@ -2874,7 +2875,7 @@ function beginBackfill({ iso, time, durationMin, routineIds, replaceId }) {
       bw: null, cur: 0, entries,
       backfill: { durationMin, replaceId: replaceId || null },
       // Same layout snapshot as a live session (see beginWorkout).
-      workoutView: st.workoutView || 'cards',
+      workoutView: workoutLayout(st.workoutView),
     }
   })
   useUI.getState().stopRest()

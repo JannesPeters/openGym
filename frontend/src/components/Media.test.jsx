@@ -183,9 +183,9 @@ describe('Media — a custom exercise', () => {
     expect(host.querySelector('.gifhint').textContent).toContain('tap to pause')
   })
 
-  it('does not play by itself in the workout\'s list layout, nor under reduced motion', async () => {
+  it.each(['list', 'custom'])('does not autoplay in %s, nor under reduced motion', async workoutView => {
     await holding(MAIN, POSTER)
-    mocks.S = { gifSize: 'full', workoutView: 'list' }
+    mocks.S = { gifSize: 'full', workoutView }
     await mountCustom(custom({ media: clip(8) }), { minimizable: true })
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
     expect(host.querySelector('.gifhint').textContent).toContain('tap to play')

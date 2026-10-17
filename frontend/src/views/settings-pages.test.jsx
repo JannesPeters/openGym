@@ -90,7 +90,7 @@ describe('the root', () => {
     expect(host.querySelector('.sp-acct .lrow-s').textContent).toBe('Your data lives on this device. Sign in to sync.')
     // a guest in a browser has no reminders (no push server) and no Coach page (the server's Coach)
     expect(titles()).toEqual(['Guest', 'Workout', 'Timer alerts', 'Plan & schedule', 'Units & language', 'Equipment', 'Look & Home', 'Data & backup', 'About & updates'])
-    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:30 rest · Cards')
+    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:30 rest · Custom')
     expect(rowTitled('Timer alerts').querySelector('.lrow-v').textContent).toBe('Sound · Vibrate')
     expect(rowTitled('Plan & schedule').querySelector('.lrow-v').textContent).toMatch(/^Fixed Week · Mon/)
     expect(rowTitled('Units & language').querySelector('.lrow-v').textContent).toBe('kg · English')
@@ -117,10 +117,10 @@ describe('the root', () => {
   it('previews a rest that was never on the old list, and no timer at all', () => {
     mocks.S.restSec = 105
     mount()
-    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:45 rest · Cards')
+    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:45 rest · Custom')
     mocks.S.restSec = 0
     mount()
-    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('No rest timer · Cards')
+    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('No rest timer · Custom')
   })
 
   it('signed in, Reminders is there and the card names the account; on the phone app the Coach too', () => {
@@ -272,6 +272,7 @@ describe('the pages', () => {
   })
 
   it('every old row has a home: the Workout page holds the rest, logging and the before/during rows', () => {
+    mocks.S.workoutView = 'list'
     mount('workout')
     expect([...host.querySelectorAll('.sect-t')].map(e => e.textContent)).toEqual(['Rest', 'Logging', 'Before and during'])
     expect(titles()).toEqual(['Rest timer', 'Rest-pause rest', 'Effort per set', 'Shown under each exercise', 'Layout',
@@ -287,6 +288,7 @@ describe('the pages', () => {
   })
 
   it('Collapse completed exercises is saved for every session and drops a running session\'s own choice', () => {
+    mocks.S.workoutView = 'list'
     mount('workout')
     mocks.S.active = { collapseCompleted: false, entries: [] }
     const sw = rowTitled('Collapse completed exercises').querySelector('[role="switch"]')
@@ -294,6 +296,26 @@ describe('the pages', () => {
     act(() => sw.click())
     expect(mocks.S.collapseCompleted).toBe(true)
     expect('collapseCompleted' in mocks.S.active).toBe(false)
+  })
+
+  it.each([false, true])('hides the Custom collapse toggle/search without changing saved %s', collapseCompleted => {
+    mocks.S.workoutView = 'custom'
+    mocks.S.collapseCompleted = collapseCompleted
+    mocks.S.active = { workoutView: 'custom', collapseCompleted: false, entries: [] }
+    mount('workout')
+    expect(rowTitled('Collapse completed exercises')).toBeUndefined()
+    expect(searchSettings('collapse', { ...guestWeb, workoutView: 'custom' })).toEqual([])
+    expect(searchSettings('Custom', guestWeb).map(hit => hit.title)).toContain('Layout')
+    const pick = name => [...rowTitled('Layout').querySelectorAll('button')].find(b => b.textContent === name)
+    act(() => pick('List').click())
+    mount('workout')
+    expect(rowTitled('Collapse completed exercises').querySelector('[role=switch]').getAttribute('aria-checked')).toBe(String(collapseCompleted))
+    expect(searchSettings('collapse', { ...guestWeb, workoutView: 'list' }).map(hit => hit.title)).toContain('Collapse completed exercises')
+    act(() => pick('Custom').click())
+    mount('workout')
+    expect(rowTitled('Collapse completed exercises')).toBeUndefined()
+    expect(mocks.S.collapseCompleted).toBe(collapseCompleted)
+    expect(mocks.S.active.collapseCompleted).toBe(false)
   })
 
   it('the Fine-tuning switches write S.wc as the old Workout controls sheet did', () => {
