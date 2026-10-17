@@ -67,6 +67,10 @@ rebuilding. Check that `exercise-media/still/0001.webp` and
 This only hosts the frontend. Account sync, passkeys and server notifications
 still require the API; a static-only deployment can use guest mode.
 
+Catalogue artwork is displayed at its natural dimensions or smaller, centered in
+the existing media frame. The bundled files are at most 180x180 pixels; preventing
+enlargement avoids upscaling but cannot add detail on high-density screens.
+
 ## 2. Understand the passkey requirement (important)
 
 openGym signs you in with **passkeys** (WebAuthn). Browsers enforce two rules:

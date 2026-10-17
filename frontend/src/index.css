@@ -914,6 +914,8 @@ body.chips-dragging *{cursor:inherit}
 .exmedia:has(> video){background:#000}
 /* a catalogue animation: drawn on white, like the stills next to it */
 .exmedia video.catvid,.exmedia:has(> video.catvid){background:#fff}
+/* Keep catalogue artwork at its natural size, or smaller, without moving the card controls. */
+.thumb.catalogue-thumb,.exmedia.catalogue-media img,.exmedia.catalogue-media video{object-fit:scale-down}
 
 /* the link to a video or a guide (#246): a quiet action tile under the picture, or in its place.
    A <button>, so the reset of the browser's button look comes first. */

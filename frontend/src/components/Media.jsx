@@ -46,7 +46,7 @@ function BuiltinMedia({ ex, id, compact, minimizable }) {
     setPlaying(p => !p)
   }
   return (
-    <div className={'exmedia' + (compact ? ' compact' : '') + (mini ? ' mini' : '') + (failed === 'all' ? ' broken' : '')} id={id} onClick={onTap}>
+    <div className={'exmedia catalogue-media' + (compact ? ' compact' : '') + (mini ? ' mini' : '') + (failed === 'all' ? ' broken' : '')} id={id} onClick={onTap}>
       {failed === 'all'
         ? <div className="exmedia-x"><Icon name="dumbbell" /></div>
         : showGif && clip && clipSrc
@@ -142,5 +142,5 @@ function BuiltinThumb({ ex }) {
   const src = ex.img ? imgSrc(ex, body) : null
   const [broken, setBroken] = useState(null)
   if (!src || broken === src) return <div className="thumb thumb-x"><Icon name="dumbbell" /></div>
-  return <img className="thumb" loading="lazy" decoding="async" draggable={false} src={src} alt="" onError={() => setBroken(src)} />
+  return <img className="thumb catalogue-thumb" loading="lazy" decoding="async" draggable={false} src={src} alt="" onError={() => setBroken(src)} />
 }
