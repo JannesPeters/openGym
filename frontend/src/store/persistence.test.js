@@ -28,6 +28,20 @@ const pushToServer = S => { const b = clone(S); delete b.active; return JSON.str
 // useStore.js `pullState` → persist, same overlay-then-normalize as the import path.
 const pullFromServer = wire => normalizeMeasurementsState(Object.assign(clone(DEF), JSON.parse(wire).state))
 
+describe('persistence — workout layout', () => {
+  it('uses Custom only when a saved profile has no layout preference', () => {
+    expect(DEF.workoutView).toBe('custom')
+    expect(importBackup('{}').workoutView).toBe('custom')
+    expect(pullFromServer('{"state":{}}').workoutView).toBe('custom')
+  })
+
+  it.each(['custom', 'cards', 'list', 'compact', 'focus'])('keeps saved %s through backup and sync', workoutView => {
+    const before = { ...clone(DEF), workoutView }
+    expect(importBackup(exportBackup(before)).workoutView).toBe(workoutView)
+    expect(pullFromServer(pushToServer(before)).workoutView).toBe(workoutView)
+  })
+})
+
 // A profile that uses all three keys: a non-default field set, a custom field, two check-ins,
 // and a value recorded against that custom field.
 const KNEE = 'knee-1'

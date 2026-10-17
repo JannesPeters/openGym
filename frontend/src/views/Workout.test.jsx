@@ -6,6 +6,7 @@ import Workout from './Workout.jsx'
 import { api, beacon } from '../lib/api.js'
 import { nextPrescription } from '../lib/progression.js'
 import { buildCombinedEntries } from '../lib/session-merge.js'
+import { chooseWorkoutOption } from '../lib/workout-options.js'
 import { buildCompletedWorkout } from '../lib/finish-workout.js'
 import { isWarmupRow } from '../lib/workout-model.js'
 import { finishWorkout, finishWorkoutSheet } from '../sheets.jsx'
@@ -138,7 +139,7 @@ function exercise(id, sets, extra = {}) {
 function workout(entries, cur = 0, overrides = {}) {
   const { active: activeOverrides = {}, ...stateOverrides } = overrides
   return {
-    unit: 'kg', restSec: 90, sound: false, effort: 'none', gifSize: 'full',
+    unit: 'kg', restSec: 90, sound: false, effort: 'none', gifSize: 'full', workoutView: 'cards',
     workouts: [], exWeights: {}, routines: [],
     active: { id: 'active', name: 'Test workout', start: Date.now(), cur, entries, ...activeOverrides },
     ...stateOverrides,
@@ -288,7 +289,7 @@ describe('workout exercise alternatives', () => {
     ex: [{ id: '0025', mode: 'reps', sets: 3, reps: 8, weight: 20, slotId: 'chest-slot',
       alternatives: [{ id: '0009', mode: 'reps', sets: 2, reps: 12, weight: 45 }] }],
   })
-  it.each(['cards', 'list', 'compact', 'focus'])('chooses, logs and adds a second full prescription in %s', async layout => {
+  it.each(['custom', 'cards', 'list', 'compact', 'focus'])('chooses, logs and adds a second full prescription in %s', async layout => {
     const routine = groupedRoutine()
     const state = workout([], 0, { routines: [routine] })
     await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: layout, routineIds: [routine.id] } })
@@ -316,6 +317,32 @@ describe('workout exercise alternatives', () => {
     expect(mocks.S.active.entries[1]).toMatchObject({ id: '0025', slotId: 'chest-slot' })
     expect(mocks.S.active.entries[1].sets).toHaveLength(3)
     expect(mocks.S.active.entries[1].sets[0]).toMatchObject({ w: 20, r: 8, done: false })
+  })
+  it('uses Custom by default and collapses/reopens a completed option without changing either prescription', async () => {
+    const routine = groupedRoutine()
+    const state = workout([], 0, { routines: [routine] })
+    state.active.entries = buildCombinedEntries(state, [routine.id]).entries
+    chooseWorkoutOption(state, 0, '0009')
+    chooseWorkoutOption(state, 0, '0025', { add: true })
+    await mount(state.active.entries, 1, {
+      routines: [routine], workoutView: undefined, collapseCompleted: false,
+      active: { workoutView: undefined, collapseCompleted: false, routineIds: [routine.id] },
+    })
+    expect(container.querySelector('[data-layout="custom"]')).toBeTruthy()
+    await toggleSet(0)
+    await toggleSet(1)
+    await rerender()
+    const firstUnit = container.querySelector('.wl-unit')
+    expect(firstUnit.querySelector('.wl-summary')).toBeTruthy()
+    expect(mocks.S.active.entries[0].sets.every(s => s.done)).toBe(true)
+    await click(firstUnit.querySelector('.wl-summary'))
+    expect(firstUnit.querySelectorAll('.setrow')).toHaveLength(2)
+    expect(firstUnit.textContent).not.toContain('Change exercise')
+    expect(firstUnit.textContent).toContain('Add another exercise from this group')
+    expect(mocks.S.active.entries[0].target).toMatchObject({ weight: 45, reps: 12, sets: 2 })
+    expect(mocks.S.active.entries[1].target).toMatchObject({ weight: 20, reps: 8, sets: 3 })
+    expect(mocks.S.collapseCompleted).toBe(false)
+    expect(mocks.S.active.collapseCompleted).toBe(false)
   })
   it('reaches an unresolved superset member in Focus without treating its empty sets as complete', async () => {
     const routine = groupedRoutine()
@@ -719,7 +746,7 @@ describe('active workout weight controls', () => {
     expect(mocks.S.active.entries[0].sets[0].w).toBe(62.5)
   })
 
-  it.each(['list', 'cards', 'compact'])('keeps added weight editable at zero in %s view', async workoutView => {
+  it.each(['custom', 'list', 'cards', 'compact'])('keeps added weight editable at zero in %s view', async workoutView => {
     await mount([exercise('bodyweight-pull-up', [false], {
       target: { mode: 'reps', reps: 8, weight: 0, bodyweight: true, inc: 1 },
       sets: [{ w: 0, r: 8, done: false }],
@@ -2041,7 +2068,13 @@ describe('workout focus view', () => {
   })
 })
 
-describe('workout list view', () => {
+const mountWorkoutView = mount
+describe.each(['list', 'custom'])('workout %s view', layout => {
+  const mount = (entries, cur = 0, overrides = {}) => mountWorkoutView(entries, cur, {
+    ...overrides,
+    ...(overrides.workoutView === 'list' ? { workoutView: layout } : {}),
+    ...(overrides.active?.workoutView === 'list' ? { active: { ...overrides.active, workoutView: layout } } : {}),
+  })
   const units = () => [...container.querySelectorAll('.wl-unit')]
   const focusButton = unit => [...unit.querySelectorAll('button')].find(b => b.textContent.trim() === 'Set current')
 
@@ -2133,12 +2166,10 @@ describe('workout list view', () => {
     // Move/Swap/Remove below the list act on the exercise marked Current, so the tap picks their
     // target and jumping away to cards would take the buttons out from under the athlete.
     expect(mocks.S.active.cur).toBe(1)
-    expect(mocks.S.active.workoutView).toBe('list')
+    expect(mocks.S.active.workoutView).toBe(layout)
   })
 
-  // Since !92 finishing an exercise no longer moves the current marker on its own (cards use
-  // Next, the list uses "Set current"); completion still starts the rest like cards do.
-  it('completing a set in list mode starts the rest and leaves the current marker in place, like cards do', async () => {
+  it('completing an exercise starts rest and advances only when collapse is enabled', async () => {
     await mount([
       exercise('plain-bench', [false], { asked: true }),
       exercise('plain-row', [false], { asked: true }),
@@ -2147,7 +2178,7 @@ describe('workout list view', () => {
     await toggleSet(0)
 
     expect(mocks.S.active.entries[0].sets[0].done).toBe(true)
-    expect(mocks.S.active.cur).toBe(0)
+    expect(mocks.S.active.cur).toBe(layout === 'custom' ? 1 : 0)
     expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), { forSet: expect.any(Number) })
   })
 
@@ -2181,13 +2212,12 @@ describe('workout list view', () => {
     ])
   })
 
-  it('defaults to cards when the setting is absent (pre-existing profiles)', async () => {
-    await mount([exercise('plain-bench', [false]), exercise('plain-row', [false])])
+  it('defaults to Custom when the setting is absent', async () => {
+    await mount([exercise('plain-bench', [false]), exercise('plain-row', [false])], 0, { workoutView: undefined })
 
-    expect(container.querySelector('[data-testid="workout-list"]')).toBeNull()
-    expect(container.querySelector('[data-testid="workout-swipe-surface"]')).toBeTruthy()
-    // Only the current exercise's sets are on screen.
-    expect(container.querySelectorAll('[role="checkbox"]').length).toBe(1)
+    expect(container.querySelector('.workout-custom')?.getAttribute('data-layout')).toBe('custom')
+    expect(container.querySelector('[data-testid="workout-swipe-surface"]')).toBeNull()
+    expect(container.querySelectorAll('[role="checkbox"]').length).toBe(2)
   })
 
   it('reads the layout from s.active first, then the global default', async () => {
@@ -2417,7 +2447,7 @@ describe('workout view header menu', () => {
     expect(mocks.renameWorkoutSheet).toHaveBeenCalled()
 
     const layout = await openLayout(menu)
-    expect(menuItemsOf(layout).map(it => it.label)).toEqual(['Cards', 'List', 'Compact', 'Focus', 'Collapse completed exercises'])
+    expect(menuItemsOf(layout).map(it => it.label)).toEqual(['Custom', 'Cards', 'List', 'Compact', 'Focus', 'Collapse completed exercises'])
     expect(item(layout, 'List').on).toBe(true)
     expect(item(layout, 'Cards').on).toBe(false)
   })
@@ -2429,18 +2459,18 @@ describe('workout view header menu', () => {
     expect(item(menu, 'Layout').sub).toBe('Focus')
 
     const layout = await openLayout(menu)
-    expect(menuItemsOf(layout).map(it => it.label)).toEqual(['Cards', 'List', 'Compact', 'Focus'])
+    expect(menuItemsOf(layout).map(it => it.label)).toEqual(['Custom', 'Cards', 'List', 'Compact', 'Focus'])
     expect(item(layout, 'Focus').on).toBe(true)
     expect(item(layout, 'Cards').on).toBe(false)
   })
 
-  it('writes the layout pick onto s.active without touching the global default', async () => {
+  it.each(['Custom', 'List', 'Cards', 'Compact', 'Focus'])('writes %s onto s.active without touching the global default', async label => {
     await mount([exercise('plain-bench', [false])], 0, { workoutView: 'cards', active: { workoutView: 'cards', routineIds: [] } })
 
     const layout = await openLayout(await openMenu())
-    await act(async () => { item(layout, 'Compact').onClick() })
+    await act(async () => { item(layout, label).onClick() })
 
-    expect(mocks.S.active.workoutView).toBe('compact')
+    expect(mocks.S.active.workoutView).toBe(label.toLowerCase())
     expect(mocks.S.workoutView).toBe('cards')
   })
 
@@ -2464,6 +2494,25 @@ describe('workout view header menu', () => {
     await mount([exercise('bench', [true])], 0, { active: { workoutView: 'cards' } })
     expect(item(await openLayout(await openMenu()), 'Collapse completed exercises')).toBeUndefined()
   })
+
+  it.each([[false, undefined], [true, undefined], [false, false], [true, false]])('Custom preserves saved %s / session %s List preferences when switching', async (collapseCompleted, session) => {
+    await mount([exercise('bench', [true]), exercise('row', [false])], 1, {
+      workoutView: 'list', collapseCompleted, active: { workoutView: 'custom', collapseCompleted: session },
+    })
+    expect(container.querySelector('.wl-summary')).toBeTruthy()
+    let layout = await openLayout(await openMenu())
+    expect(item(layout, 'Collapse completed exercises')).toBeUndefined()
+    await act(async () => item(layout, 'List').onClick())
+    await rerender()
+    expect(!!container.querySelector('.wl-summary')).toBe(session ?? collapseCompleted)
+    layout = await openLayout(await openMenu())
+    expect(item(layout, 'Collapse completed exercises').on).toBe(session ?? collapseCompleted)
+    await act(async () => item(layout, 'Custom').onClick())
+    await rerender()
+    expect(container.querySelector('.wl-summary')).toBeTruthy()
+    expect(mocks.S.collapseCompleted).toBe(collapseCompleted)
+    expect(mocks.S.active.collapseCompleted).toBe(session)
+  })
 })
 
 describe('collapsing completed workout exercises', () => {
@@ -2474,7 +2523,27 @@ describe('collapsing completed workout exercises', () => {
     await rerender()
   }
 
-  it.each(['list', 'compact'])('folds the current exercise in %s the moment its last set is ticked, and opens it again on a tap', async workoutView => {
+  it.each([
+    [false, false], [false, true], [true, false], [true, true],
+  ])('Custom always collapses with saved %s and session %s, but allows reviewing/editing', async (saved, session) => {
+    await mount([exercise('bench', [true, false]), exercise('row', [false])], 0, {
+      workoutView: 'custom', collapseCompleted: saved, active: { workoutView: 'custom', collapseCompleted: session },
+    })
+    await toggleSet(1)
+    await rerender()
+    expect(mocks.S.active.cur).toBe(1)
+    expect(units()[0].querySelector('.wl-summary')).toBeTruthy()
+    await click(units()[0].querySelector('.wl-summary'))
+    expect(units()[0].querySelectorAll('.setrow').length).toBe(2)
+    await toggleSet(1)
+    await rerender()
+    expect(mocks.S.active.entries[0].sets[1].done).toBe(false)
+    expect(units()[0].querySelector('.wl-summary')).toBeNull()
+    expect(mocks.S.collapseCompleted).toBe(saved)
+    expect(mocks.S.active.collapseCompleted).toBe(session)
+  })
+
+  it.each(['custom', 'list', 'compact'])('folds the current exercise in %s the moment its last set is ticked, and opens it again on a tap', async workoutView => {
     await mount([exercise('bench', [true, false]), exercise('row', [false])], 0,
       { workoutView, active: { workoutView, collapseCompleted: true } })
     const loggedBefore = structuredClone(mocks.S.active.entries[0].sets)
@@ -2731,7 +2800,7 @@ describe('exercise chips at the top of the workout (#323)', () => {
     expect(chip(1).getAttribute('aria-current')).toBe('step')
   })
 
-  it.each(['list', 'compact'])('rides in the pinned header in %s and scrolls to the unit without moving Current', async workoutView => {
+  it.each(['custom', 'list', 'compact'])('rides in the pinned header in %s and scrolls to the unit without moving Current', async workoutView => {
     await mount(session(), 0, { active: { workoutView } })
     expect(container.querySelector('.whdr .wchips')).toBeTruthy()
     await flushFrame()   // the list's own open-at-current scroll

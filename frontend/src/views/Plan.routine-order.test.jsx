@@ -53,6 +53,7 @@ describe('routine order', () => {
     expect(host.querySelector('button[aria-label="Move down"]')).toBe(null)
     expect(handles()).toEqual([])
     expect(rows()[1].querySelector('.ss').textContent).toBe('1 exercise · Mo')
+    expect(host.textContent).not.toContain('Tap a routine to edit it.')
   })
 
   it('Edit shows a handle and a delete button per row; tapping a row then opens nothing', () => {

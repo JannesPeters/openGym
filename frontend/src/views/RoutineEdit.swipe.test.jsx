@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
 // Swipe actions in the routine editor (v1.3.11): toward the start takes an exercise out, with an
 // Undo, and there is nothing on the other side. The long press still reorders, and a row it has
-// picked up does not swipe. The exercise's sheet keeps Remove, with the same Undo.
+// picked up does not swipe. The exercise's page keeps Remove, with the same Undo.
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sheets = vi.hoisted(() => ({
-  exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(),
+  exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(), menuSheet: vi.fn(),
 }))
 const navigate = vi.hoisted(() => vi.fn())
 vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal(), useNavigate: () => navigate }))
@@ -107,14 +107,14 @@ describe('swiping an exercise out of a routine', () => {
 
   it('the name is the keyboard’s button (no button inside a button), and removal has the same Undo', () => {
     mount([configured('1001', { sg: 'g1' }), configured('1002', { sg: 'g1' })])
-    // The row holds the superset link and the Move buttons, so it is no button itself: a screen
+    // The row holds the actions menu, so it is no button itself: a screen
     // reader reads a button's insides as plain text (axe nested-interactive).
     for (const el of host.querySelectorAll('.routine-list [role="button"], .routine-list button')) {
       expect(el.parentElement.closest('[role="button"], button')).toBeNull()
     }
     const item = swrows()[1].querySelector('.item')
     expect(item.hasAttribute('role')).toBe(false)
-    expect(item.querySelector('button[aria-label="Move up"]')).toBeTruthy()
+    expect(item.querySelector('button[data-exercise-menu]')).toBeTruthy()
     const open = item.querySelector('button.item-open')
     expect(open.type).toBe('button')
     click(open)                              // Enter or Space on a <button> is this click
@@ -125,7 +125,8 @@ describe('swiping an exercise out of a routine', () => {
     expect(ex().map(e => e.id)).toEqual(['1001'])
     undo()
     expect(ex().map(e => e.id)).toEqual(['1001', '1002'])
-    click(swrows()[1].querySelector('button[aria-label="Move up"]'))   // its own job, no sheet
+    click(swrows()[1].querySelector('button[data-exercise-menu]'))
+    expect(sheets.menuSheet).toHaveBeenCalledOnce()
     expect(navigate).toHaveBeenCalledTimes(2)
   })
 

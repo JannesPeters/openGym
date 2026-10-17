@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from './store/useStore.js'
+import { workoutLayout } from './lib/workout-layout.js'
 import { useUI } from './store/useUI.js'
 import { EXDB, EXIDX, BODYPARTS, CATEGORIES, isCardio, isBodyweightEq, allExercises, smOf, exOr, isAssisted, betterWeight, beatsWeight, isCustomEx, baseExerciseIdOf, variantLabelOf, variantBaseName, variantName, EXERCISE_NAME_MAX, VARIANT_LABEL_MAX } from './lib/exercises.js'
 import { activeProfile, exAvailable, ALL_EQUIPMENT, newProfile, profileEquipment, ACC_V } from './lib/equipment.js'
@@ -24,7 +25,7 @@ import { durationSheet } from './components/DurationWheel.jsx'
 import { SG_NAME_MAX } from './lib/superset-meta.js'
 import { REST_MAX, fmtRest } from './lib/duration.js'
 import Icon from './components/Icon.jsx'
-import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow } from './components/ui.jsx'
+import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow, SheetDialog } from './components/ui.jsx'
 import { glyphOf, GLYPH_GROUPS, DEFAULT_GLYPH } from './lib/glyphs.js'
 import BodyMap from './components/BodyMap.jsx'
 import ExerciseBrowser from './components/ExerciseBrowser.jsx'
@@ -150,8 +151,10 @@ function MenuSheet({ title, titleClass = '', subtitle, items, sections, close })
     </div>)}
   </>
 }
-export function menuSheet(opts) {
-  ui().openSheet(close => <MenuSheet {...opts} close={close} />)
+export function menuSheet({ trigger, returnFocus, ...opts }) {
+  ui().openSheet(close => trigger
+    ? <SheetDialog title={opts.title} trigger={trigger} returnFocus={returnFocus}><MenuSheet {...opts} close={close} /></SheetDialog>
+    : <MenuSheet {...opts} close={close} />)
 }
 
 // Themed replacement for window.confirm — callback-based (no blocking).
@@ -1017,13 +1020,15 @@ function ExerciseDetail({ ex: initialEx, close }) {
     </div>
     {descFor(ex) && <div className="exnote">{descFor(ex)}</div>}
     {best > 0 && <div className="small row" style={{ marginBottom: 6, gap: 5 }}><Icon name="trophy" style={{ fontSize: 14, color: 'var(--yellow)' }} />{t('Best:')} <b className="accent" style={{ whiteSpace: 'nowrap' }}>{fmtNum(best)} {st.unit}</b>{last ? ` · ${t('last')} ${fmtDate(last.d)}: ${last.sets.map(s => setLabel(ex.id, s, last.target, speedUnitOf(st))).join(', ')}` : ''}</div>}
-    <Button variant="primary" icon="plus" style={{ margin: '10px 0 4px' }} onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
+    <div className="exercise-detail-actions">
+      <Button variant="primary" icon="plus" onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
+      {!ex.missing && <Button icon="plusCircle" onClick={() => { close(); exerciseVariantSheet(ex) }}>{t('Create variant')}</Button>}
+    </div>
     {last && <Button icon="history" style={{ marginTop: 4 }} onClick={() => exerciseHistorySheet(ex.id)}>{t('History')}</Button>}
     {isCustomEx(ex) && <div className="row" style={{ gap: 8, marginTop: 8 }}>
       <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
     </div>}
-    {!ex.missing && <Button icon="plusCircle" style={{ marginTop: 8 }} onClick={() => { close(); exerciseVariantSheet(ex) }}>{t('Create variant')}</Button>}
     {(modeOf({ id: ex.id }) === 'reps' || isBellEx(ex) || (!isCardio(ex) && !isAssisted(ex))) &&
       <details className="exercise-advanced">
         <summary className="btn tinted"><span>{t('Advanced settings')}</span><Icon name="chevronDown" /></summary>
@@ -2749,7 +2754,7 @@ export function beginWorkout(routineIds, bw) {
       bw: bw || null, cur: 0, entries,
       // Snapshot the layout at start so the header ⋮ can change it for this session only —
       // changing the saved default (Settings → Workout view) mid-session leaves it alone.
-      workoutView: st.workoutView || 'cards',
+      workoutView: workoutLayout(st.workoutView),
     }
   })
   useUI.getState().stopRest()
@@ -2770,7 +2775,7 @@ export function repeatWorkout(w, close) {
       s.active = {
         id: uid(), d: todayISO(), start: Date.now(), routineIds: [],
         name: w.name || t('Freestyle'), bw: bw || null, cur: 0, entries,
-        workoutView: s.workoutView || 'cards',
+        workoutView: workoutLayout(s.workoutView),
       }
     })
     useUI.getState().stopRest()
@@ -2880,7 +2885,7 @@ function beginBackfill({ iso, time, durationMin, routineIds, replaceId }) {
       bw: null, cur: 0, entries,
       backfill: { durationMin, replaceId: replaceId || null },
       // Same layout snapshot as a live session (see beginWorkout).
-      workoutView: st.workoutView || 'cards',
+      workoutView: workoutLayout(st.workoutView),
     }
   })
   useUI.getState().stopRest()

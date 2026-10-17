@@ -4,6 +4,7 @@ import SwipeRow from '../components/SwipeRow.jsx'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { workoutControls } from '../lib/workout-controls.js'
+import { activeWorkoutLayout, workoutLayout } from '../lib/workout-layout.js'
 import { useUI } from '../store/useUI.js'
 import { exOr, betterWeight } from '../lib/exercises.js'
 import { usesBar } from '../lib/bar.js'
@@ -941,17 +942,15 @@ function ActiveWorkout() {
   const unit = A.entries.length ? unitOf(units, cur) : []
   const unitIdx = units.findIndex(u => u === unit)
   const isSuperset = unit.length > 1
-  // Cards show one unit at a time with Prev/Next + swipe; list and compact stack every unit so
+  // Cards show one unit at a time with Prev/Next + swipe; custom, list and compact stack every unit so
   // the whole session is visible and scrollable (Settings → During a workout → Workout view,
   // seeded onto s.active and overridable for this session from the header ⋮). compact is list
   // with the per-exercise media, tag chips, note lines, "last time" and progression line
   // stripped — just names, the one-line plan and set rows. Every set handler below is already entry-index
   // parameterised, so these only change what is rendered — completion, rest, top-weight and
-  // auto-advance share one path. Unknown/absent values read as cards, keeping every
-  // pre-existing profile (and a session started before this field) as it was.
-  const requestedView = A.workoutView || S.workoutView
-  const workoutView = ['list', 'compact', 'focus'].includes(requestedView) ? requestedView : 'cards'
-  const listMode = workoutView === 'list' || workoutView === 'compact'
+  // auto-advance share one path. Missing preferences use Custom; explicit choices are preserved.
+  const workoutView = activeWorkoutLayout(S)
+  const listMode = ['custom', 'list', 'compact'].includes(workoutView)
   const focusMode = workoutView === 'focus'
   const dense = workoutView === 'compact'
   // A superset's heading: its own name and rest between rounds when it has them (#292).
@@ -963,9 +962,9 @@ function ActiveWorkout() {
   // Collapse finished exercises in the list (#241). The current unit stays open, superset
   // members included, until you move on (ticking its last set does that, see toggle); an empty
   // exercise or a half-done warm-up or side stays open too.
-  // The session's own choice (the Layout menu) wins over the saved one (Settings → Workout), the
-  // way the layout itself does, so someone who always wants it switches it on once.
-  const collapseOn = listMode && !!(A.collapseCompleted ?? S.collapseCompleted)
+  // Custom always collapses. Other stacked layouts prefer the session's choice over the saved
+  // one, without Custom overwriting either preference.
+  const collapseOn = workoutView === 'custom' || (listMode && !!(A.collapseCompleted ?? S.collapseCompleted))
   // A finished unit you tapped open again to look at or fix (Discord: "minimize completed exercises
   // so I view only what I have yet to do"). This screen's own memory: a reload folds it back.
   // Keyed by index like the units, so a different number of exercises starts over.
@@ -1342,13 +1341,14 @@ function ActiveWorkout() {
   const focusUnit = firstIdx => update(s => {
     if (!s.active) return
     s.active.cur = firstIdx
-    if (!workoutControls(s).exerciseButtons && (s.workoutView || 'cards') === 'cards') s.active.workoutView = 'cards'
+    if (!workoutControls(s).exerciseButtons && workoutLayout(s.workoutView) === 'cards') s.active.workoutView = 'cards'
   })
   // The header ⋮ re-lays-out the running session without touching the saved default
   // (Settings → During a workout → Workout view). It writes s.active.workoutView, which the
   // render above prefers over S.workoutView.
   const setWorkoutView = v => update(s => { if (s.active) s.active.workoutView = v })
   const LAYOUT_LABEL = {
+    custom: t('Custom'),
     cards: t('Cards'),
     list: t('List'),
     compact: t('Compact'),
@@ -1357,11 +1357,12 @@ function ActiveWorkout() {
   const openLayoutMenu = () => menuSheet({
     title: t('Layout'),
     items: [
+      { icon: 'list', label: t('Custom'), on: workoutView === 'custom', onClick: () => setWorkoutView('custom') },
       { icon: 'layout', label: t('Cards'), on: workoutView === 'cards', onClick: () => setWorkoutView('cards') },
       { icon: 'list', label: t('List'), on: workoutView === 'list', onClick: () => setWorkoutView('list') },
       { icon: 'compact', label: t('Compact'), on: workoutView === 'compact', onClick: () => setWorkoutView('compact') },
       { icon: 'target', label: t('Focus'), on: workoutView === 'focus', onClick: () => setWorkoutView('focus') },
-      listMode && { icon: 'minimize', label: t('Collapse completed exercises'),
+      listMode && workoutView !== 'custom' && { icon: 'minimize', label: t('Collapse completed exercises'),
         sub: t('Keep the current exercise open'), on: collapseOn,
         onClick: () => update(s => { if (s.active) s.active.collapseCompleted = !collapseOn }) },
     ],
@@ -1943,7 +1944,7 @@ function ActiveWorkout() {
     {A.backfill && <div className="muted small" style={{ marginBottom: 8 }}>{t('Logging a past workout, so no rest timers.')}</div>}
 
     {A.entries.length ? (listMode ? (
-      <div className="workout-list" data-testid="workout-list" ref={listRef}>
+      <div className={'workout-list' + (workoutView === 'custom' ? ' workout-custom' : '')} data-layout={workoutView} data-testid="workout-list" ref={listRef}>
         {units.map((u, ui) => {
           const multi = u.length > 1
           const isCur = u.includes(cur)

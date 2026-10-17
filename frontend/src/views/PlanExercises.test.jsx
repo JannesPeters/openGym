@@ -92,6 +92,22 @@ describe('Plan full-screen exercise navigation', () => {
     expect(stored()[0].slotId).toBe('new')
   })
 
+  it('keeps the polished row menu separate from full-screen group authoring', () => {
+    const group = { ...entries[0], slotId: 'group-slot', alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] }
+    mount('/plan/r/r1', { routines: [{ id: 'r1', name: 'Push', ex: [group] }] })
+    expect(host.querySelector('h1').textContent).toBe('Push')
+    expect(host.textContent).toContain('Choose one')
+    click(host.querySelector('[data-exercise-menu]'))
+    expect(location.pathname).toBe('/plan/r/r1')
+    expect(useUI.getState().sheets).toHaveLength(1)
+    act(() => useUI.getState().closeSheet(useUI.getState().sheets[0].id))
+    click(host.querySelector('[data-row-open]'))
+    expect(location.pathname).toBe('/plan/r/r1/exercise/0/0025')
+    expect(location.search).toContain('slotKey=group-slot')
+    expect(host.textContent).toContain('Exercise alternatives')
+    expect(stored()[0].alternatives).toEqual(group.alternatives)
+  })
+
   it('uses routed pages, keeps search and chosen markers, and returns to the routine through history', () => {
     mount()
     click(button('Add exercise'))
