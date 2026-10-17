@@ -25,6 +25,7 @@ import { speedUnitOf } from '../lib/speed.js'
 import { POLICIES_FOR, POLICY_NAME, POLICY_DESC } from '../lib/progression.js'
 import BodyMap from '../components/BodyMap.jsx'
 import { loadOfRoutine, rankOf, MUSCLE_NAME } from '../lib/muscles.js'
+import { optionsOf, hasOptions } from '../lib/exercise-options.js'
 
 export const ROUTINE_LONG_PRESS_MS = 380
 export const ROUTINE_DRAG_SLOP = 8
@@ -452,7 +453,7 @@ export default function RoutineEdit() {
   }
   const inSS = new Set(units.filter(u => u.length > 1).flat())
   const profile = activeProfile(S)
-  const missingCount = profile ? r.ex.filter(e => !exAvailable(S, exOr(e.id))).length : 0
+  const missingCount = profile ? r.ex.filter(e => optionsOf(e).every(option => !exAvailable(S, exOr(option.id)))).length : 0
   const swipe = workoutControls(S).swipeSets
 
   return <div className="narrow">
@@ -513,7 +514,7 @@ export default function RoutineEdit() {
       // An unresolvable id is shown rather than skipped — hiding it left an entry you
       // could neither see nor delete, but that still turned up in the workout.
       const ex = exOr(e.id)
-      const noEquip = profile && !exAvailable(S, ex)
+      const noEquip = profile && optionsOf(e).every(option => !exAvailable(S, exOr(option.id)))
       const linkedPrev = i > 0 && e.sg && r.ex[i - 1].sg === e.sg
       // At a superset's edge an arrow takes the exercise out of it rather than past a neighbour.
       const leavesUp = inSS.has(i) && !linkedPrev
@@ -548,7 +549,7 @@ export default function RoutineEdit() {
       // screen reader would lose inside one): the name is, a real <button> a click bubbles up
       // from. The long press treats it as the row (data-row-open, useRoutineReorder).
       const item = <div className={'item' + (inSS.has(i) ? ' in-ss' : '')} onClick={() => {
-          nav(`/plan/r/${encodeURIComponent(id)}/exercise/${i}/${encodeURIComponent(e.id)}`, { state: { planBack: `/plan/r/${id}` } })
+          nav(`/plan/r/${encodeURIComponent(id)}/exercise/${i}/${encodeURIComponent(e.id)}${e.slotId ? '?slotKey=' + encodeURIComponent(e.slotId) : ''}`, { state: { planBack: `/plan/r/${id}` } })
         }}>
           {/* Shown on pointer devices only (index.css .routine-grip); the action menu and the
               long press stay the way in for a keyboard and a finger. */}
@@ -556,6 +557,7 @@ export default function RoutineEdit() {
           {ssPos.has(i) && <span className="ss-pos" aria-label={t('Superset position {0}', ssPos.get(i))}>{ssPos.get(i)}</span>}
           <Thumb ex={ex} />
           <button type="button" className="grow item-open" data-row-open><span className={`tt ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></span><span className="ss">{exLine(e, S.unit, speedUnitOf(S))}</span>
+            {hasOptions(e) && <span className="small accent">{t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
             {e.note && <span className="small dim" style={{ marginTop: 2 }}>{e.note}</span>}</button>
           {noEquip && <span className="tag" style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }} title={t('Needs {0}, which isn’t in your active profile', t(ex.eq))}><Icon name="warning" /></span>}
           <button type="button" className="iconbtn" data-exercise-menu aria-haspopup="dialog"
@@ -591,6 +593,7 @@ export default function RoutineEdit() {
       const { worked } = rankOf(load)
       return <div className="card" role="group" aria-label={t('What this session hits')} style={{ marginTop: 12 }}>
         <BodyMap load={load} body={S.body} />
+        {r.ex.some(hasOptions) && <p className="small dim">{t('Planned muscle coverage uses the first option in each group. Your workout statistics use the exercises you actually perform.')}</p>}
         <div className="mchips">
           {worked.slice(0, 6).map(m => <span key={m} className="mchip">{t(MUSCLE_NAME[m])}</span>)}
         </div>

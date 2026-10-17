@@ -48,6 +48,7 @@ import { nextOpenSet, workoutKeyAction } from '../lib/workout-keys.js'
 import { MUSCLE_NAME, targetMuscleOf } from '../lib/muscles.js'
 import FocusView from './FocusView.jsx'
 import { withMeaning, historyAs, dbLoadFor, entryDbLoad, bellsIn, ownedWeightsFor, stepOwned } from '../lib/dumbbells.js'
+import WorkoutOptions from '../components/WorkoutOptions.jsx'
 
 // How long after a key starts a hold the same key is not yet its "Done" (#133). A USB button
 // that bounces, or a double press, sends two presses a moment apart: the first starts the hold,
@@ -105,7 +106,12 @@ const RTL_LETTER = /[֐-ࣿיִ-﷿ﹰ-﻿]/
 // enough to turn over, far shorter than the rest the set earns once both sides are held.
 const SWITCH_SIDES_SEC = 10
 
-function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSide, onField, onAddSet, onRemoveSet, onAddWarmup, onRemoveSetAt, onCopySetAt, onStartTimed, onPairPrev, onPairNext, onSetRowRef, onProgressionSettings, onRest, onNoProg, routineUpdate, onSwap, onMoveUp, onMoveDown, canMoveUp, canMoveDown, onRemoveExercise, busy }) {
+function ExerciseBlock(props) {
+  const entry = useStore(s => s.S.active.entries[props.entryIdx])
+  return entry?.choicePending ? <WorkoutOptions entryIdx={props.entryIdx} /> : <ResolvedExerciseBlock {...props} />
+}
+
+function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSide, onField, onAddSet, onRemoveSet, onAddWarmup, onRemoveSetAt, onCopySetAt, onStartTimed, onPairPrev, onPairNext, onSetRowRef, onProgressionSettings, onRest, onNoProg, routineUpdate, onSwap, onMoveUp, onMoveDown, canMoveUp, canMoveDown, onRemoveExercise, busy }) {
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
   const working = useUI(s => s.work)
@@ -631,6 +637,7 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
   return <>
     {/* Animations set to Small: a thumbnail beside the name instead of a strip above it, so the
         first set is on screen without scrolling; a tap brings the full animation back. */}
+    <WorkoutOptions entryIdx={entryIdx} />
     {!dense && !thumb && <Media ex={ex} key={entry.id} compact={compact} minimizable />}
     <div className="row between exhd" style={{ marginBottom: 6 }}>
       {thumb && <WorkoutThumb ex={ex} onExpand={() => update(s => { s.gifSize = 'full' })} />}
@@ -1225,7 +1232,8 @@ function ActiveWorkout() {
   const setNoProg = (idx, on) => update(s => setEntryNoProg(s.active, idx, on))
   // A deload or rehab routine keeps its own exercises out (RoutineEdit). That is the routine's
   // setting, so its entries get the marker but no switch.
-  const routineKeepsOut = e => !!e?.rid && S.routines.some(r => r.id === e.rid && r.excludeFromProgression === true)
+  const routineKeepsOut = e => e?.choiceRoutine ? e.choiceRoutine.excludeFromProgression === true
+    : !!e?.rid && S.routines.some(r => r.id === e.rid && r.excludeFromProgression === true)
   // The same for the whole session from the header ⋮ (Discord, asierlama: "exclude the current
   // workout" on an injury day): every exercise gets the marker, and one added later joins them.
   // Absent when a deload or rehab routine already keeps every exercise out, since nothing is left
@@ -1245,6 +1253,7 @@ function ActiveWorkout() {
     if (!found) return null
     const activeId = A.id
     const entryId = entry.id
+    const choiceId = entry.choiceId
     return {
       // A rest reads as the wheel shows it: "3:00", and 0 (no rest of its own) as the default.
       sub: found.changes.map(c => c.key === 'note' ? t('Note')
@@ -1259,7 +1268,8 @@ function ActiveWorkout() {
           update(s => {
             // The sheet can outlive the workout, or the exercise at this index: fail closed.
             const target = s.routines.find(r => r.id === routine.id)
-            if (!target || s.active?.id !== activeId || s.active.entries?.[idx]?.id !== entryId) return
+            if (!target || s.active?.id !== activeId || s.active.entries?.[idx]?.id !== entryId
+              || (choiceId && s.active.entries[idx].choiceId !== choiceId)) return
             applied = updateRoutineFromEntry(target, s.active.entries, idx)
           })
           if (applied) useUI.getState().toast(t('Routine updated'))
@@ -1277,7 +1287,7 @@ function ActiveWorkout() {
   }
   const blockProps = idx => ({
     editing,
-    onSwap: () => swapExercise(idx),
+    onSwap: A.entries[idx]?.choiceOptions ? undefined : () => swapExercise(idx),
     onMoveUp: () => moveUnitAt(idx, -1, true),
     onMoveDown: () => moveUnitAt(idx, 1, true),
     canMoveUp: canMoveActiveWorkoutEntry(A, idx, -1),
@@ -1480,7 +1490,7 @@ function ActiveWorkout() {
     const entryCount = state.active.entries.length
     // A combined session's entries each carry a `rid`; progression settings read from that
     // entry's own routine, not a session-wide one.
-    const routine = state.routines.find(r => r.id === entry.rid)
+    const routine = entry.choiceRoutine || state.routines.find(r => r.id === entry.rid)
     // The sheet opens at the plan's sets and reps rather than today's prescription (see
     // plannedConfigOf), so saving it unchanged rebuilds the rows the entry already has.
     const opened = plannedConfigOf(entry)
@@ -1503,7 +1513,7 @@ function ActiveWorkout() {
         // stamped as the plan, a later edit of the reps would restart from today's load as though
         // it had been typed in (nextPrescription), so the plan keeps its own.
         if ((cfg.weight || 0) === (opened.weight || 0) && activeEntry.planned?.weight != null) full.weight = activeEntry.planned.weight
-        const activeRoutine = s.routines.find(r => r.id === activeEntry.rid)
+        const activeRoutine = activeEntry.choiceRoutine || s.routines.find(r => r.id === activeEntry.rid)
         // A config without a set count keeps the rows the session already has.
         if (!(full.sets > 0)) full.sets = activeEntry.sets.filter(x => !isWarmupRow(x)).length || 1
         // The sheet edits sets, reps, weight and warm-ups as well as the rule — so the rows are
@@ -1649,7 +1659,10 @@ function ActiveWorkout() {
         // follows a finished exercise, and in list mode any exercise can be worked on, so judging
         // the marker's unit here declared the workout complete after one set elsewhere.
         const ownUnit = unitOf(units, idx)
-        const unitDone = ownUnit.every(ui => (ui === idx ? e : A.entries[ui]).sets.every(x => x.done))
+        const unitDone = ownUnit.every(ui => {
+          const member = ui === idx ? e : A.entries[ui]
+          return !member.choicePending && member.sets.every(x => x.done)
+        })
         if (unitDone) workoutDone = !nextUnfinishedUnit(A.entries, supersetUnits(A.entries), idx)
         if (e.sets.every(x => x.done)) {
           exJustDone = true
@@ -1673,7 +1686,7 @@ function ActiveWorkout() {
 
       const freshUnits = supersetUnits(fresh.entries)
       const freshUnit = freshUnits.find(u => u.includes(idx))
-      const freshUnitDone = freshUnit?.every(ui => fresh.entries[ui].sets.every(x => x.done))
+      const freshUnitDone = freshUnit?.every(ui => !fresh.entries[ui].choicePending && fresh.entries[ui].sets.every(x => x.done))
       const nextUnit = freshUnitDone ? nextUnfinishedUnit(fresh.entries, freshUnits, idx) : null
       const freshWorkoutDone = freshUnitDone && !nextUnit
       const restBeforeWarmup = nextUnit?.some(ui =>
@@ -2058,7 +2071,7 @@ function ActiveWorkout() {
       </div>
       <div style={{ height: 6 }} />
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <Button size="sm" icon="swap" aria-label={t('Swap exercise')} disabled={!!work}
+        <Button size="sm" icon="swap" aria-label={t('Swap exercise')} disabled={!!work || !!A.entries[cur]?.choiceOptions}
           onClick={() => swapExercise(cur)}>{t('Swap exercise')}</Button>
       </div>
       <div style={{ height: 6 }} />

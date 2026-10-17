@@ -15,6 +15,7 @@ import BodyMap from './BodyMap.jsx'
 import { tappable, useSheetKeyboard } from '../lib/use-sheet-keyboard.js'
 import { useAutoMore } from '../lib/use-auto-more.js'
 import { isFav, sortFavouritesFirst, sortYoursFirst, usageOf } from '../lib/favourites.js'
+import { optionsOf } from '../lib/exercise-options.js'
 import { sameMuscleFirst, swapMuscleOf } from '../lib/similar-exercises.js'
 
 function MuscleFilterMenu({ value, body, onChange, close }) {
@@ -76,7 +77,7 @@ export default function ExerciseBrowser({ onOpen, onAdd, onCreate, picking = fal
   const ranked = q.trim() ? sortYoursFirst(narrowedList, S, usage) : sortFavouritesFirst(narrowedList, S)
   const f = groupExerciseVariants(scope === 'same' ? sameMuscleFirst(ranked, likeEx) : ranked)
   const routine = routineId ? S.routines.find(r => r.id === routineId) : null
-  const selected = new Set((routine?.ex || []).map(e => e.id))
+  const selected = new Set((routine?.ex || []).flatMap(slot => optionsOf(slot).map(e => e.id)))
   const chosenCount = Object.keys(usage).length
   const favCount = (S.favEx || []).length
   const special = scope === 'chosen' || scope === 'favourites'

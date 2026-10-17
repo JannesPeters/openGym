@@ -22,6 +22,12 @@ import { ownedWeightsFor, stepOwned } from '../lib/dumbbells.js'
 import Icon from '../components/Icon.jsx'
 import { Button, Stepper } from '../components/ui.jsx'
 import './FocusView.css'
+import WorkoutOptions from '../components/WorkoutOptions.jsx'
+
+export default function FocusView(props) {
+  const entry = useStore(s => s.S.active.entries[props.entryIdx])
+  return entry?.choicePending ? <WorkoutOptions entryIdx={props.entryIdx} /> : <FocusExercise {...props} />
+}
 
 const firstIncomplete = entry => {
   const index = entry.sets.findIndex(set => !set.done)
@@ -107,7 +113,7 @@ function PlateBadge({ S, entry, set }) {
   return <span className="focus-badge plate"><Icon name="plate" />{text}{load.missing > 0 && <> · <span className="short">{t('{0} short', fmtPlate(load.missing) + ' ' + S.unit)}</span></>}</span>
 }
 
-export default function FocusView({
+function FocusExercise({
   entryIdx, unit, onToggle, onToggleSide, onField, onMutateSet, onStartTimed,
   onAddWarmup, onRemoveSetAt, onProgressionSettings, onSwap, onRemoveExercise,
   onNoProg, busy, onSelectEntry, onAdvanceUnit, onPairPrev, onPairNext, onUnpair, pointerEpoch,
@@ -124,7 +130,7 @@ export default function FocusView({
   const [pointerState, setPointerState] = useState(() => ({ epoch: pointerEpoch, pointers: new Map() }))
   const pointers = pointerState.epoch === pointerEpoch ? pointerState.pointers : new Map()
   const stored = pointers.get(entryIdx)
-  const setIdx = clampSet(entry, Number.isInteger(stored) ? stored : firstIncomplete(entry))
+  const setIdx = clampSet(entry, stored?.id === entry.id && stored?.choiceId === entry.choiceId ? stored.setIdx : firstIncomplete(entry))
   const set = entry.sets[setIdx]
   const firstOpenSet = firstIncomplete(entry)
   const locked = !set.done && setIdx > firstOpenSet
@@ -140,7 +146,7 @@ export default function FocusView({
   const stepLoad = owned ? (v, _step, dir) => stepOwned(owned, v, dir) : stepWeight
   const selectSet = index => setPointerState(current => {
     const next = new Map(current.epoch === pointerEpoch ? current.pointers : [])
-    next.set(entryIdx, clampSet(entry, index))
+    next.set(entryIdx, { id: entry.id, choiceId: entry.choiceId, setIdx: clampSet(entry, index) })
     return { epoch: pointerEpoch, pointers: next }
   })
   const sequence = unit.length > 1 ? supersetSequence(S.active.entries, unit) : []
@@ -157,7 +163,8 @@ export default function FocusView({
     if (!item) return
     setPointerState(current => {
       const next = new Map(current.epoch === pointerEpoch ? current.pointers : [])
-      next.set(item.entryIdx, item.setIdx)
+      const selected = S.active.entries[item.entryIdx]
+      next.set(item.entryIdx, { id: selected.id, choiceId: selected.choiceId, setIdx: item.setIdx })
       return { epoch: pointerEpoch, pointers: next }
     })
     onSelectEntry(item.entryIdx)
@@ -231,7 +238,7 @@ export default function FocusView({
       mode === 'reps' && { icon: 'plate', label: t('Plate loading'), onClick: () => barWeightSheet(entry.id, { ...(entry.target || {}), id: entry.id }) },
       onPairPrev && { icon: 'link', label: t('Make superset with previous'), onClick: onPairPrev },
       onPairNext && { icon: 'link', label: t('Make superset with next'), onClick: onPairNext },
-      { icon: 'shuffle', label: t('Swap exercise'), onClick: onSwap, disabled: busy },
+      onSwap && { icon: 'shuffle', label: t('Swap exercise'), onClick: onSwap, disabled: busy },
       { icon: 'trash', label: t('Remove exercise'), onClick: onRemoveExercise, danger: true, disabled: busy },
     ],
   })
@@ -248,6 +255,7 @@ export default function FocusView({
   })
 
   return <div className="focus-view" data-testid="focus-view">
+    <WorkoutOptions entryIdx={entryIdx} />
     <div className="focus-card">
       {unit.length > 1 && <div className="focus-superset-inline">
         <Icon name="reset" />

@@ -44,6 +44,7 @@ const convTarget = (cfg, from, to) => {
   if (Array.isArray(out.warmup)) out.warmup = out.warmup.map(w => (w && w.weight != null ? { ...w, weight: convertWeight(w.weight, from, to) } : w))
   // A pyramid's own weight per set; 0 ("no plan for this set") stays 0.
   if (Array.isArray(out.pyramidWeight)) out.pyramidWeight = out.pyramidWeight.map(w => (w > 0 ? convertWeight(w, from, to) : w))
+  if (Array.isArray(out.alternatives)) out.alternatives = out.alternatives.map(option => convTarget(option, from, to))
   return out
 }
 // A bar is a stamped object, not a number: the 45 lb bar IS the 20 kg bar (44.1 lb), so an
@@ -72,6 +73,7 @@ const convEntry = (e, from, to) => {
     ...(e.target ? { target: convTarget(e.target, from, to) } : {}),
     // The plan the entry was built from (lib/session-start.js) carries the routine's weight too.
     ...(e.planned ? { planned: convTarget(e.planned, from, to) } : {}),
+    ...(Array.isArray(e.choiceOptions) ? { choiceOptions: e.choiceOptions.map(option => convTarget(option, from, to)) } : {}),
     ...(Array.isArray(e.sets) ? { sets: e.sets.map(s => convSet(s, from, to)) } : {}),
   }
 }

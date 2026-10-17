@@ -6,6 +6,7 @@ import Workout from './Workout.jsx'
 import { api, beacon } from '../lib/api.js'
 import { nextPrescription } from '../lib/progression.js'
 import { buildCombinedEntries } from '../lib/session-merge.js'
+import { chooseWorkoutOption } from '../lib/workout-options.js'
 import { buildCompletedWorkout } from '../lib/finish-workout.js'
 import { isWarmupRow } from '../lib/workout-model.js'
 import { finishWorkout, finishWorkoutSheet } from '../sheets.jsx'
@@ -40,6 +41,7 @@ const mocks = vi.hoisted(() => {
     workoutSettingsSheet: vi.fn(),
     nav: vi.fn(),
     setNoteSheet: vi.fn(),
+    openSheet: vi.fn(),
   }
   state.stopRest = vi.fn(() => { state.timer = null })
   state.stopWork = vi.fn(() => { state.work = null })
@@ -61,6 +63,7 @@ const mocks = vi.hoisted(() => {
     shiftRestOwner: vi.fn(),
     startWork: state.startWork,
     toast: state.toast,
+    openSheet: state.openSheet,
   })
   return state
 })
@@ -278,6 +281,86 @@ it('edits a saved set without running live completion, rest or success feedback'
 
 afterEach(async () => {
   await unmount()
+})
+
+describe('workout exercise alternatives', () => {
+  const groupedRoutine = () => ({
+    id: 'chest-options', name: 'Chest options', prog: 'off',
+    ex: [{ id: '0025', mode: 'reps', sets: 3, reps: 8, weight: 20, slotId: 'chest-slot',
+      alternatives: [{ id: '0009', mode: 'reps', sets: 2, reps: 12, weight: 45 }] }],
+  })
+  it.each(['custom', 'cards', 'list', 'compact', 'focus'])('chooses, logs and adds a second full prescription in %s', async layout => {
+    const routine = groupedRoutine()
+    const state = workout([], 0, { routines: [routine] })
+    await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: layout, routineIds: [routine.id] } })
+    expect(container.textContent).toContain('Choose exercise')
+    expect(container.querySelector('[role="checkbox"]')).toBeNull()
+    await click(container.querySelector('[data-testid="workout-choice"] button:last-child'))
+    await rerender()
+    expect(mocks.S.active.entries[0].id).toBe('0009')
+    expect(mocks.S.active.entries[0].sets).toHaveLength(2)
+    expect(mocks.S.active.entries[0].sets[0]).toMatchObject({ w: 45, r: 12, done: false })
+    if (layout === 'focus') await click(buttonNamed('Complete set'))
+    else await toggleSet(0)
+    await rerender()
+    expect(container.textContent).not.toContain('Change exercise')
+    await click([...container.querySelectorAll('button')].find(b => b.textContent === 'Add another exercise from this group'))
+    const sheet = document.createElement('div')
+    container.appendChild(sheet)
+    const sheetRoot = createRoot(sheet)
+    await act(async () => { sheetRoot.render(mocks.openSheet.mock.calls.at(-1)[0](vi.fn())) })
+    await click(sheet.querySelector('.list button'))
+    await act(async () => { sheetRoot.unmount() })
+    await rerender()
+    expect(mocks.S.active.entries).toHaveLength(2)
+    expect(mocks.S.active.entries[0].sets[0].done).toBe(true)
+    expect(mocks.S.active.entries[1]).toMatchObject({ id: '0025', slotId: 'chest-slot' })
+    expect(mocks.S.active.entries[1].sets).toHaveLength(3)
+    expect(mocks.S.active.entries[1].sets[0]).toMatchObject({ w: 20, r: 8, done: false })
+  })
+  it('uses Custom by default and collapses/reopens a completed option without changing either prescription', async () => {
+    const routine = groupedRoutine()
+    const state = workout([], 0, { routines: [routine] })
+    state.active.entries = buildCombinedEntries(state, [routine.id]).entries
+    chooseWorkoutOption(state, 0, '0009')
+    chooseWorkoutOption(state, 0, '0025', { add: true })
+    await mount(state.active.entries, 1, {
+      routines: [routine], workoutView: undefined, collapseCompleted: false,
+      active: { workoutView: undefined, collapseCompleted: false, routineIds: [routine.id] },
+    })
+    expect(container.querySelector('[data-layout="custom"]')).toBeTruthy()
+    await toggleSet(0)
+    await toggleSet(1)
+    await rerender()
+    const firstUnit = container.querySelector('.wl-unit')
+    expect(firstUnit.querySelector('.wl-summary')).toBeTruthy()
+    expect(mocks.S.active.entries[0].sets.every(s => s.done)).toBe(true)
+    await click(firstUnit.querySelector('.wl-summary'))
+    expect(firstUnit.querySelectorAll('.setrow')).toHaveLength(2)
+    expect(firstUnit.textContent).not.toContain('Change exercise')
+    expect(firstUnit.textContent).toContain('Add another exercise from this group')
+    expect(mocks.S.active.entries[0].target).toMatchObject({ weight: 45, reps: 12, sets: 2 })
+    expect(mocks.S.active.entries[1].target).toMatchObject({ weight: 20, reps: 8, sets: 3 })
+    expect(mocks.S.collapseCompleted).toBe(false)
+    expect(mocks.S.active.collapseCompleted).toBe(false)
+  })
+  it('reaches an unresolved superset member in Focus without treating its empty sets as complete', async () => {
+    const routine = groupedRoutine()
+    routine.ex[0].sg = 'pair'
+    routine.ex.unshift({ id: '0968', mode: 'reps', sets: 1, reps: 5, weight: 10, sg: 'pair' })
+    const state = workout([], 0, { routines: [routine] })
+    await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: 'focus', routineIds: [routine.id] } })
+    await click(buttonNamed('Complete set'))
+    await rerender()
+    expect(mocks.S.active.cur).toBe(1)
+    expect(container.textContent).toContain('Choose exercise')
+    expect(mocks.workoutCompleteSheet).not.toHaveBeenCalled()
+    await click(container.querySelector('[data-testid="workout-choice"] button:last-child'))
+    await rerender()
+    expect(container.textContent).toContain('Exercise 2 of 2')
+    expect(buttonNamed('Complete set')).toBeTruthy()
+    expect(mocks.S.active.entries[1].target.sg).toBe('pair')
+  })
 })
 
 describe('Workout set completion flow', () => {

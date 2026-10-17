@@ -60,6 +60,54 @@ beforeEach(() => { localStorage.clear() })
 afterEach(() => { act(() => root.unmount()); host.remove() })
 
 describe('Plan full-screen exercise navigation', () => {
+  it('adds an independently configured alternative without adding a routine row', () => {
+    mount('/plan/r/r1/exercise/0/0025')
+    click(button('Add alternative'))
+    const params = location.search
+    expect(params).toContain('alternative=')
+    act(() => navigate('/plan/r/r1/exercises/0289' + params))
+    click(button('Add alternative'))
+    expect(location.pathname).toBe('/plan/r/r1')
+    expect(stored()).toHaveLength(1)
+    expect(stored()[0]).toMatchObject({ id: '0025', sets: 3, reps: 5, weight: 80 })
+    expect(stored()[0].alternatives).toHaveLength(1)
+    expect(stored()[0].alternatives[0].id).toBe('0289')
+    expect(stored()[0].alternatives[0].weight).not.toBe(80)
+    expect(host.textContent).toContain('Choose one')
+  })
+
+  it('preserves options on primary save and edits only the selected option', () => {
+    const group = { ...entries[0], slotId: 's', alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] }
+    mount('/plan/r/r1/exercise/0/0025?slotKey=s', { routines: [{ id: 'r1', name: 'Push', ex: [group] }] })
+    click(button('Save'))
+    expect(stored()[0].alternatives).toEqual(group.alternatives)
+    act(() => navigate('/plan/r/r1/exercise/0/0025?slotKey=s&option=0289'))
+    click(button('Save'))
+    expect(stored()[0]).toMatchObject({ id: '0025', reps: 5, weight: 80, alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] })
+  })
+
+  it('rejects grouped edit routes when another occurrence moved into that position', () => {
+    mount('/plan/r/r1/exercise/0/0025?slotKey=old', { routines: [{ id: 'r1', name: 'Push', ex: [{ ...entries[0], slotId: 'new' }] }] })
+    expect(location.pathname).toBe('/plan/r/r1')
+    expect(stored()[0].slotId).toBe('new')
+  })
+
+  it('keeps the polished row menu separate from full-screen group authoring', () => {
+    const group = { ...entries[0], slotId: 'group-slot', alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] }
+    mount('/plan/r/r1', { routines: [{ id: 'r1', name: 'Push', ex: [group] }] })
+    expect(host.querySelector('h1').textContent).toBe('Push')
+    expect(host.textContent).toContain('Choose one')
+    click(host.querySelector('[data-exercise-menu]'))
+    expect(location.pathname).toBe('/plan/r/r1')
+    expect(useUI.getState().sheets).toHaveLength(1)
+    act(() => useUI.getState().closeSheet(useUI.getState().sheets[0].id))
+    click(host.querySelector('[data-row-open]'))
+    expect(location.pathname).toBe('/plan/r/r1/exercise/0/0025')
+    expect(location.search).toContain('slotKey=group-slot')
+    expect(host.textContent).toContain('Exercise alternatives')
+    expect(stored()[0].alternatives).toEqual(group.alternatives)
+  })
+
   it('uses routed pages, keeps search and chosen markers, and returns to the routine through history', () => {
     mount()
     click(button('Add exercise'))

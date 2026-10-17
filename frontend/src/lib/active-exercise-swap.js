@@ -1,4 +1,5 @@
 import { supersetUnits, unitOf } from './history.js'
+import { hasLoggedWork } from './exercise-options.js'
 
 function hasLoggedSet(entry) {
   return Array.isArray(entry?.sets) && entry.sets.some(set => set?.done === true)
@@ -18,6 +19,7 @@ export function swapActiveExercise(active, index, replacement, {
   if (!active || !Array.isArray(active.entries) || !replacement || index < 0 || index >= active.entries.length) return null
 
   const current = active.entries[index]
+  if (current.choiceOptions && hasLoggedWork(current)) return { blocked: true, index }
   if (!hasLoggedSet(current)) {
     const metadata = Object.fromEntries(Object.entries(current).filter(([key]) => (
       !['id', 'target', 'plan', 'planned', 'carried', 'sets', 'sg'].includes(key)
