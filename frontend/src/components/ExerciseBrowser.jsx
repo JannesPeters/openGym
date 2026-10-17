@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { EXIDX, allExercises, equipmentOf, byCategory, searchExercises, similarExercises, groupExerciseVariants } from '../lib/exercises.js'
 import { MUSCLES, MUSCLE_NAME, musclesOf, targetMuscleOf } from '../lib/muscles.js'
@@ -36,21 +36,24 @@ function MuscleFilterMenu({ value, body, onChange, close }) {
   </>
 }
 
-export default function ExerciseBrowser({ onOpen, onAdd, onCreate, picking = false, embedded = false, routineId, like }) {
+export default function ExerciseBrowser({ onOpen, onAdd, onCreate, picking = false, embedded = false, routineId, like, initialState = {}, onStateChange }) {
   const S = useStore(s => s.S)
   const all = allExercises(S)
   const usage = useMemo(() => usageOf(S), [S.routines, S.workouts])
   const profile = activeProfile(S)
   const likeEx = like ? EXIDX[like] || all.find(e => e.id === like) : null
   const likeTg = swapMuscleOf(likeEx) && sameMuscleFirst(all, likeEx).length ? swapMuscleOf(likeEx) : ''
-  const [scope, setScope] = useState(() => likeTg && sameMuscleFirst(all, likeEx).some(e => !profile || exAvailable(S, e)) ? 'same' : '')
-  const [q, setQ] = useState('')
-  const [eq, setEq] = useState('')
-  const [cat, setCat] = useState('')
-  const [muscle, setMuscle] = useState('')
-  const [showAll, setShowAll] = useState(false)   // ignore the active equipment profile for this session
+  const [scope, setScope] = useState(() => initialState.scope ?? (likeTg && sameMuscleFirst(all, likeEx).some(e => !profile || exAvailable(S, e)) ? 'same' : ''))
+  const [q, setQ] = useState(initialState.q || '')
+  const [eq, setEq] = useState(initialState.eq || '')
+  const [cat, setCat] = useState(initialState.cat || '')
+  const [muscle, setMuscle] = useState(initialState.muscle || '')
+  const [showAll, setShowAll] = useState(initialState.showAll || false)
   const pageSize = picking ? 50 : 40
-  const [shown, setShown] = useState(pageSize)
+  const [shown, setShown] = useState(initialState.shown || pageSize)
+  useEffect(() => {
+    onStateChange?.({ scope, q, eq, cat, muscle, showAll, shown })
+  }, [scope, q, eq, cat, muscle, showAll, shown, onStateChange])
   const moreRef = useAutoMore(() => setShown(s => s + pageSize))
   const searchRef = useRef(null)
   const onSearchFocus = useSheetKeyboard(searchRef)

@@ -15,7 +15,6 @@ vi.mock('../components/BodyMap.jsx', () => ({ default: () => null }))
 import RoutineEdit from './RoutineEdit.jsx'
 import { DEF, useStore } from '../store/useStore.js'
 import { exercisePicker, exConfigSheet } from '../sheets.jsx'
-import { EXIDX } from '../lib/exercises.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 let root, host
@@ -27,10 +26,12 @@ function mount(ex) {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
-  act(() => root.render(<MemoryRouter initialEntries={['/plan/r/r1']}><Routes><Route path="/plan/r/:id" element={<RoutineEdit />} /></Routes></MemoryRouter>))
+  act(() => root.render(<MemoryRouter initialEntries={['/plan/r/r1']}><Routes>
+    <Route path="/plan/r/:id" element={<RoutineEdit />} />
+    <Route path="/plan/r/:id/exercises" element={<h1>Full-screen picker</h1>} />
+  </Routes></MemoryRouter>))
 }
 const addButton = () => [...host.querySelectorAll('button')].find(b => b.textContent.trim() === 'Add exercise')
-const stored = () => useStore.getState().S.routines[0].ex
 
 beforeEach(() => { vi.clearAllMocks() })
 afterEach(() => { act(() => root.unmount()); host.remove() })
@@ -52,18 +53,11 @@ describe('RoutineEdit — Add exercise at the top', () => {
     expect(host.textContent).toContain('No exercises yet.')
   })
 
-  it('adds at the defaults from "+", and through the settings from a tap', () => {
+  it('opens a picker page instead of a sheet', () => {
     mount([])
     act(() => addButton().click())
-    const onPick = exercisePicker.mock.calls[0][0]
-    const ex = EXIDX['0025']
-    act(() => onPick(ex, true))
-    expect(stored().map(e => e.id)).toEqual(['0025'])
-    act(() => onPick(ex, false))
-    expect(exConfigSheet).toHaveBeenCalledOnce()
-    const save = exConfigSheet.mock.calls[0][2]
-    act(() => save({ sets: 4, reps: 6, mode: 'reps', weight: 50 }))
-    expect(stored()).toHaveLength(2)
-    expect(stored()[1]).toMatchObject({ id: '0025', sets: 4, reps: 6 })
+    expect(host.querySelector('h1').textContent).toBe('Full-screen picker')
+    expect(exercisePicker).not.toHaveBeenCalled()
+    expect(exConfigSheet).not.toHaveBeenCalled()
   })
 })

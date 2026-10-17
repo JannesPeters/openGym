@@ -6,10 +6,10 @@ import { exOr } from '../lib/exercises.js'
 import { activeProfile, exAvailable } from '../lib/equipment.js'
 import { uid, exerciseNameText } from '../lib/format.js'
 import { t, exerciseNameClass } from '../lib/i18n.js'
-import { supersetUnits, moveRoutineEntry, cleanupSg, exLine, defaultConfig } from '../lib/history.js'
+import { supersetUnits, moveRoutineEntry, cleanupSg, exLine } from '../lib/history.js'
 import { Thumb } from '../components/Media.jsx'
 import ExerciseName from '../components/ExerciseName.jsx'
-import { glyphPicker, exercisePicker, exConfigSheet, confirmSheet, supersetSheet } from '../sheets.jsx'
+import { glyphPicker, confirmSheet, supersetSheet } from '../sheets.jsx'
 import { supersetMeta, setSupersetMeta } from '../lib/superset-meta.js'
 import { fmtRest } from '../lib/duration.js'
 import Icon from '../components/Icon.jsx'
@@ -17,7 +17,7 @@ import { glyphOf } from '../lib/glyphs.js'
 import { Button, Row, SelectRow, Switch } from '../components/ui.jsx'
 import SwipeRow from '../components/SwipeRow.jsx'
 import { workoutControls } from '../lib/workout-controls.js'
-import { copyRoutine, deleteRoutine, replaceSlotExercise } from '../lib/routines.js'
+import { copyRoutine, deleteRoutine } from '../lib/routines.js'
 import { planPrintHTML, printPlan } from '../lib/plan-share.js'
 import { markEntryUndone } from '../lib/sync-merge.js'
 import { MOBILE, printHtml } from '../lib/mobile.js'
@@ -368,7 +368,6 @@ export default function RoutineEdit() {
   const { id } = useParams()
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
-  const toast = useUI(s => s.toast)
   const r = S.routines.find(x => x.id === id)
   useEffect(() => { if (!r) nav('/plan') }, [!!r])
   // Editing here has no explicit "save" — every field change persists immediately. A single
@@ -392,36 +391,6 @@ export default function RoutineEdit() {
       cleanupSg(ex)
     })
   }
-  // Replace (#110): the picker chooses what goes into slot `i`, and the slot keeps its sets, reps,
-  // weight and the rest (lib/routines.js replaceSlotExercise). "+" on a picker row replaces at
-  // once; tapping the row opens the new exercise's settings at those numbers first, the way the
-  // add flow does. One pick and the picker closes — it is a chooser here, not a stack you keep
-  // adding from. A slot that is no longer the exercise the sheet was opened on is left alone.
-  const replace = i => {
-    const openedOn = r.ex[i]?.id
-    const commit = (ex, fn) => {
-      picker.close()
-      let done = false
-      edit(x => { if (x[i] && x[i].id === openedOn) { x[i] = fn(x[i]); done = true } })
-      if (done) toast(t('Replaced with “{0}”', exerciseNameText(ex)))
-    }
-    const picker = exercisePicker((ex, quick) => {
-      // The slot and the history as they are now, not as this render saw them: a sync can land
-      // while the picker is open, and the new exercise's weight comes from its own sessions.
-      const live = useStore.getState().S
-      const slot = live.routines.find(x => x.id === id)?.ex[i]
-      if (!slot || slot.id !== openedOn) { picker.close(); return }
-      // "+" on the exercise that is already in the slot: nothing to replace, and no toast that
-      // says something was.
-      if (quick && ex.id === openedOn) { picker.close(); return }
-      if (quick) { commit(ex, current => replaceSlotExercise(current, ex.id, live, id)); return }
-      const next = replaceSlotExercise(slot, ex.id, live, id)
-      exConfigSheet(ex, next, (cfg, selectedEx) => {
-        const target = selectedEx || ex
-        commit(target, current => ({ id: target.id, sg: current.sg, ...cfg }))
-      }, null, r, null, null, t('Replace'), true)
-    }, { title: t('Replace exercise'), like: openedOn, routineId: id })
-  }
   // This routine on paper (#282): the weekly printout's page for one session, through the same
   // two print paths — the browser's print dialog (→ Save as PDF) on the web, the native Print
   // plugin in the app, where the WebView has no window.print().
@@ -440,17 +409,7 @@ export default function RoutineEdit() {
     cleanupSg(ex)
   })
 
-  const addExercise = () => exercisePicker((ex, quick) => {
-    if (quick) {
-      edit(x => x.push({ id: ex.id, ...defaultConfig(ex.id) }))
-      toast(t('“{0}” added to {1}', exerciseNameText(ex), r.name))
-    } else {
-      exConfigSheet(ex, null, (cfg, selectedEx) => {
-        const target = selectedEx || ex
-        edit(x => { x.push({ id: target.id, ...cfg }) })
-      }, null, r, null, null, null, true)
-    }
-  }, { routineId: id })
+  const addExercise = () => nav(`/plan/r/${encodeURIComponent(id)}/exercises`, { state: { planBack: `/plan/r/${id}` } })
 
   const units = supersetUnits(r.ex)
   const unitFirst = new Set(units.filter(u => u.length > 1).map(u => u[0]))
@@ -528,18 +487,12 @@ export default function RoutineEdit() {
       const leavesDown = inSS.has(i) && r.ex[i + 1]?.sg !== e.sg
       const isDragging = reorder.drag && i >= reorder.drag.first && i <= reorder.drag.last
       const removeHere = () => removeRoutineExercise(id, i)
-      // A tap anywhere on the row opens the exercise's sheet; its Remove is the keyboard's way
+      // A tap anywhere on the row opens the exercise's page; its Remove is the keyboard's way
       // to take it out. The row itself is no button (it holds the link and Move buttons, which a
       // screen reader would lose inside one): the name is, a real <button> a click bubbles up
       // from. The long press treats it as the row (data-row-open, useRoutineReorder).
       const item = <div className={'item' + (inSS.has(i) ? ' in-ss' : '')} onClick={() => {
-          exConfigSheet(ex, e, (cfg, selectedEx) => {
-            const target = selectedEx || ex
-            edit(x => {
-              x[i] = { id: target.id, sg: x[i].sg, ...(x[i].sg ? { sgName: x[i].sgName, sgRest: x[i].sgRest } : {}), ...cfg }
-              cleanupSg(x)
-            })
-          }, removeHere, r, null, () => replace(i), null, true)
+          nav(`/plan/r/${encodeURIComponent(id)}/exercise/${i}/${encodeURIComponent(e.id)}`, { state: { planBack: `/plan/r/${id}` } })
         }}>
           {/* Shown on pointer devices only (index.css .routine-grip); the Move buttons and the
               long press stay the way in for a keyboard and a finger. */}

@@ -7,14 +7,18 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sheets = vi.hoisted(() => ({
-  exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(),
+  ExConfig: vi.fn(() => <div>Configuration page</div>), glyphPicker: vi.fn(), confirmSheet: vi.fn(),
+  CustomExForm: vi.fn(), deleteCustomEx: vi.fn(),
 }))
+const browser = vi.hoisted(() => vi.fn(() => <div>Picker page</div>))
+vi.mock('../components/ExerciseBrowser.jsx', () => ({ default: browser }))
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})) }))
 vi.mock('../sheets.jsx', () => sheets)
 vi.mock('../components/Media.jsx', () => ({ Thumb: () => null }))
 vi.mock('../components/BodyMap.jsx', () => ({ default: () => null }))
 
 import RoutineEdit from './RoutineEdit.jsx'
+import PlanExercises from './PlanExercises.jsx'
 import { DEF, useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { EXIDX } from '../lib/exercises.js'
@@ -22,9 +26,11 @@ import { EXIDX } from '../lib/exercises.js'
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const clone = value => JSON.parse(JSON.stringify(value))
 const BENCH = '0025', DB_BENCH = '0289', ROW = '0027'
-const benchSlot = { id: BENCH, sg: 'g1', sets: 4, mode: 'reps', reps: 6, weight: 80, prog: 'double', repsMin: 4, note: 'touch and go', restSec: 180 }
-const rowSlot = { id: ROW, sg: 'g1', sets: 3, mode: 'reps', reps: 10, weight: 50 }
-let root, host, picker
+const benchSlot = { id: BENCH, sg: 'g1', sgName: 'Push / pull', sgRest: 60, sets: 4, mode: 'reps', reps: 6, weight: 80, prog: 'double', repsMin: 4, note: 'touch and go', restSec: 180 }
+const rowSlot = { id: ROW, sg: 'g1', sgName: 'Push / pull', sgRest: 60, sets: 3, mode: 'reps', reps: 10, weight: 50 }
+let root, host
+const config = () => sheets.ExConfig.mock.calls.at(-1)[0]
+const pick = () => browser.mock.calls.at(-1)[0]
 
 function mount(workouts = [], routines = []) {
   const S = clone(DEF)
@@ -34,27 +40,29 @@ function mount(workouts = [], routines = []) {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
-  act(() => root.render(<MemoryRouter initialEntries={['/plan/r/r1']}><Routes><Route path="/plan/r/:id" element={<RoutineEdit />} /></Routes></MemoryRouter>))
+  act(() => root.render(<MemoryRouter initialEntries={['/plan/r/r1']}><Routes>
+    <Route path="/plan/r/:id" element={<RoutineEdit />} />
+    <Route path="/plan/r/:id/exercise/:index/:exerciseId" element={<PlanExercises editing />} />
+    <Route path="/plan/r/:id/exercises" element={<PlanExercises />} />
+    <Route path="/plan/r/:id/exercises/:exerciseId" element={<PlanExercises />} />
+  </Routes></MemoryRouter>))
 }
 const slots = () => useStore.getState().S.routines[0].ex
-// Tap the first row, then Replace on its settings sheet: the picker it opens is returned.
+// Tap the first row, then Replace on its configuration page.
 function openReplace() {
   act(() => host.querySelector('[data-routine-row] .item').click())
-  const onReplace = sheets.exConfigSheet.mock.calls[0][6]
+  const onReplace = config().onReplace
   expect(onReplace).toBeTypeOf('function')
   act(() => onReplace())
-  expect(sheets.exercisePicker).toHaveBeenCalledOnce()
-  const [onPick, opts] = sheets.exercisePicker.mock.calls[0]
   // #473: the picker is told what it replaces, so it opens on the same muscle.
-  expect(opts).toEqual({ title: 'Replace exercise', like: BENCH, routineId: 'r1' })
-  return onPick
+  expect(pick()).toMatchObject({ like: BENCH, routineId: 'r1' })
+  return (ex, quick) => quick ? pick().onAdd(ex) : pick().onOpen(ex)
 }
 
 beforeEach(() => {
   localStorage.clear()
-  Object.values(sheets).forEach(mock => mock.mockReset())
-  picker = { close: vi.fn() }
-  sheets.exercisePicker.mockImplementation(() => picker)
+  Object.values(sheets).forEach(mock => mock.mockClear())
+  browser.mockClear()
   useUI.setState({ toastMsg: '' })
 })
 afterEach(() => {
@@ -68,7 +76,7 @@ describe('RoutineEdit — Replace exercise', () => {
     const onPick = openReplace()
     act(() => onPick(EXIDX[DB_BENCH], true))
     expect(slots()).toEqual([{ ...benchSlot, id: DB_BENCH }, rowSlot])
-    expect(picker.close).toHaveBeenCalledOnce()
+    expect(host.querySelector('.routine-list')).toBeTruthy()
     expect(useUI.getState().toastMsg).toBe('Replaced with “Dumbbell Bench Press”')
   })
 
@@ -78,17 +86,17 @@ describe('RoutineEdit — Replace exercise', () => {
     act(() => onPick(EXIDX[DB_BENCH], false))
     // No replace yet: the settings sheet for the new exercise is open, seeded with the slot.
     expect(slots()[0].id).toBe(BENCH)
-    const [ex, seeded, onSave, onDelete, , , , saveLabel] = sheets.exConfigSheet.mock.calls[1]
+    const { ex, existing: seeded, onSave, onDelete, saveLabel } = config()
     expect(ex.id).toBe(DB_BENCH)
     expect(seeded).toEqual({ ...benchSlot, id: DB_BENCH })
-    expect(onDelete).toBeNull()
+    expect(onDelete).toBeUndefined()
     // Saving there puts the exercise into the slot, and the button says so.
     expect(saveLabel).toBe('Replace')
     act(() => onSave({ sets: 3, mode: 'reps', reps: 8, weight: 30 }))
     // Saved as the sheet left it, in the same place and the same superset.
-    expect(slots()[0]).toEqual({ id: DB_BENCH, sg: 'g1', sets: 3, mode: 'reps', reps: 8, weight: 30 })
+    expect(slots()[0]).toEqual({ id: DB_BENCH, sg: 'g1', sgName: 'Push / pull', sgRest: 60, sets: 3, mode: 'reps', reps: 8, weight: 30 })
     expect(slots()[1]).toEqual(rowSlot)
-    expect(picker.close).toHaveBeenCalledOnce()
+    expect(host.querySelector('.routine-list')).toBeTruthy()
   })
 
   it('"+" on the exercise already in the slot changes nothing and says nothing', () => {
@@ -96,7 +104,7 @@ describe('RoutineEdit — Replace exercise', () => {
     const onPick = openReplace()
     act(() => onPick(EXIDX[BENCH], true))
     expect(slots()).toEqual([benchSlot, rowSlot])
-    expect(picker.close).toHaveBeenCalledOnce()
+    expect(host.querySelector('.routine-list')).toBeTruthy()
     expect(useUI.getState().toastMsg).toBe('')
   })
 
@@ -120,7 +128,7 @@ describe('RoutineEdit — Replace exercise', () => {
     // Another device raises the bench while the picker is open.
     act(() => useStore.getState().update(s => { s.routines[0].ex[0].sets = 5 }))
     act(() => onPick(EXIDX[DB_BENCH], false))
-    expect(sheets.exConfigSheet.mock.calls[1][1]).toEqual({ ...benchSlot, id: DB_BENCH, sets: 5 })
+    expect(config().existing).toEqual({ ...benchSlot, id: DB_BENCH, sets: 5 })
   })
 
   it('leaves a slot alone that changed under the picker', () => {
@@ -128,7 +136,7 @@ describe('RoutineEdit — Replace exercise', () => {
     const onPick = openReplace()
     // Another device's routine arrives while the picker is open: the rows moved.
     act(() => useStore.getState().update(s => { s.routines[0].ex.reverse() }))
-    act(() => onPick(EXIDX[DB_BENCH], true))
+    expect(host.querySelector('.routine-list')).toBeTruthy()
     expect(slots().map(e => e.id)).toEqual([ROW, BENCH])
     expect(useUI.getState().toastMsg).toBe('')
   })

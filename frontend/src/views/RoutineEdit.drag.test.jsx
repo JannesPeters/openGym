@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const sheets = vi.hoisted(() => ({
   exConfigSheet: vi.fn(), exercisePicker: vi.fn(), glyphPicker: vi.fn(), confirmSheet: vi.fn(),
 }))
+const navigate = vi.hoisted(() => vi.fn())
+vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal(), useNavigate: () => navigate }))
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})) }))
 vi.mock('../sheets.jsx', () => sheets)
 vi.mock('../components/Media.jsx', () => ({ Thumb: ({ ex }) => <span data-thumb={ex.id} /> }))
@@ -79,6 +81,7 @@ beforeEach(() => {
   vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => window.clearTimeout(id))
   localStorage.clear()
   Object.values(sheets).forEach(mock => mock.mockReset())
+  navigate.mockReset()
   root = null; host = null
 })
 afterEach(() => {
@@ -98,7 +101,7 @@ describe('routine long-press reorder', () => {
     expect(host.querySelector('.is-dragging')).toBeNull()
     pointer(item, 'pointerup', { y: layout.centers[0] })
     act(() => item.click())
-    expect(sheets.exConfigSheet).toHaveBeenCalledOnce()
+    expect(navigate).toHaveBeenCalledWith('/plan/r/r1/exercise/0/1001', { state: { planBack: '/plan/r/r1' } })
     expect(exercises().map(e => e.id)).toEqual(['1001', '1002'])
   })
 
@@ -136,7 +139,7 @@ describe('routine long-press reorder', () => {
     pointer(item, 'pointercancel', { y: layout.centers[2] })
     expect(release).toHaveBeenCalledWith(7)
     act(() => item.click())
-    expect(sheets.exConfigSheet).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
     expect(exercises().map(e => e.id)).toEqual(['1001', '1002', '1003'])
   })
 
@@ -164,7 +167,7 @@ describe('routine long-press reorder', () => {
     expect(exercises().map(e => e.id)).toEqual(['b', 'c', 'a'])
 
     act(() => item.click())
-    expect(sheets.exConfigSheet).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
   })
 
   it('lets a real tap shortly after a drop open the row again', () => {
@@ -180,7 +183,7 @@ describe('routine long-press reorder', () => {
     pointer(target, 'pointerdown', { y: layout.centers[1] })
     pointer(target, 'pointerup', { y: layout.centers[1] })
     act(() => target.click())
-    expect(sheets.exConfigSheet).toHaveBeenCalledTimes(1)
+    expect(navigate).toHaveBeenCalledTimes(1)
   })
 
   it('never eats a tap that starts with its own pointerdown, even right after a drop', () => {
@@ -194,7 +197,7 @@ describe('routine long-press reorder', () => {
     pointer(target, 'pointerdown', { y: layout.centers[1] })
     pointer(target, 'pointerup', { y: layout.centers[1] })
     act(() => target.click())
-    expect(sheets.exConfigSheet).toHaveBeenCalledTimes(1)
+    expect(navigate).toHaveBeenCalledTimes(1)
   })
 
   it('moves a whole grouped unit, never splits another group, and preserves every occurrence payload', () => {

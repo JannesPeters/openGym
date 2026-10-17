@@ -34,6 +34,7 @@ import Home from './views/Home.jsx'
 import CheckIn from './views/CheckIn.jsx'
 import Plan from './views/Plan.jsx'
 import RoutineEdit from './views/RoutineEdit.jsx'
+import PlanExercises from './views/PlanExercises.jsx'
 import Workout from './views/Workout.jsx'
 import Stats from './views/Stats.jsx'
 import History from './views/History.jsx'
@@ -212,6 +213,12 @@ function Shell() {
               {S.checkIn !== false && <Route path="/checkin" element={<CheckIn />} />}
               <Route path="/plan" element={<Plan />} />
               <Route path="/plan/r/:id" element={<RoutineEdit />} />
+              <Route path="/plan/r/:id/exercises" element={<PlanExercises />} />
+              <Route path="/plan/r/:id/exercises/new" element={<PlanExercises custom />} />
+              <Route path="/plan/r/:id/exercises/:exerciseId" element={<PlanExercises />} />
+              <Route path="/plan/r/:id/exercises/:exerciseId/custom" element={<PlanExercises custom />} />
+              <Route path="/plan/r/:id/exercise/:index/:exerciseId" element={<PlanExercises editing />} />
+              <Route path="/plan/r/:id/exercise/:index/:exerciseId/custom" element={<PlanExercises editing custom />} />
               <Route path="/workout" element={<Workout />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />
