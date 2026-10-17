@@ -119,6 +119,30 @@ describe('editing a custom exercise named like a catalogue one', () => {
 })
 
 describe('the exercise detail sheet', () => {
+  it('groups the plan and variant actions without changing their appearance or destinations', () => {
+    exerciseDetailSheet(EXIDX['0025'])
+    const detail = renderTop()
+    const actions = detail.querySelector('.exercise-detail-actions')
+    const buttons = [...actions.querySelectorAll('button')]
+    expect(buttons.map(button => button.textContent)).toEqual(['Add to my plan', 'Create variant'])
+    expect(buttons[0].classList.contains('primary')).toBe(true)
+    expect(buttons[1].classList.contains('plain')).toBe(true)
+    expect(buttons.every(button => button.querySelector('.icn'))).toBe(true)
+    act(() => buttons[0].click())
+    expect(useUI.getState().sheets).toHaveLength(2)
+    expect(renderTop().textContent).toContain('Pick a routine.')
+    act(() => useUI.getState().closeSheet(useUI.getState().sheets.at(-1).id))
+    act(() => buttons[1].click())
+    expect(useUI.getState().sheets).toHaveLength(1)
+    expect(renderTop().querySelector('h3').textContent).toBe('Create variant')
+  })
+
+  it('keeps the plan action available without offering a variant for a missing exercise', () => {
+    exerciseDetailSheet({ id: 'missing-exercise', n: 'Missing exercise', missing: true })
+    const actions = renderTop().querySelector('.exercise-detail-actions')
+    expect([...actions.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Add to my plan'])
+  })
+
   it('shows the same canonical muscle metadata for catalogue and machine variants', () => {
     const base = EXIDX['1301']
     expect(base.tg).toBe('pectorals')

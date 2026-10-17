@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { LANGS, DERIVED_LOCALES } from '../lib/i18n-core.js'
 import { createRoot } from 'react-dom/client'
@@ -11,18 +9,19 @@ import { DEF, useStore } from '../store/useStore.js'
 import { _setLangState } from '../lib/i18n-core.js'
 import de from '../locales/de.js'
 import { buildPlanBundle, parsePlan } from '../lib/plan-share.js'
-
-const cssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+import { bindUI } from '../components/ui.jsx'
+import { useUI } from '../store/useUI.js'
 
 const mocks = vi.hoisted(() => ({ exConfigSheet: vi.fn() }))
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})) }))
-vi.mock('../sheets.jsx', () => ({
-  glyphPicker: vi.fn(), exercisePicker: vi.fn(), exConfigSheet: mocks.exConfigSheet, confirmSheet: vi.fn()
+vi.mock('../sheets.jsx', async importOriginal => ({
+  ...await importOriginal(), glyphPicker: vi.fn(), exercisePicker: vi.fn(), exConfigSheet: mocks.exConfigSheet, confirmSheet: vi.fn()
 }))
 vi.mock('../components/Media.jsx', () => ({ Thumb: () => null }))
 vi.mock('../components/BodyMap.jsx', () => ({ default: () => null }))
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+bindUI(useUI)
 const clone = value => JSON.parse(JSON.stringify(value))
 const custom = id => ({ id, n: id, bp: 'chest', eq: 'body weight', tg: 'chest', custom: true })
 const entry = (id, setup, sg) => ({
@@ -32,6 +31,10 @@ const entry = (id, setup, sg) => ({
 
 let root
 let container
+function MenuSheets() {
+  const sheets = useUI(s => s.sheets)
+  return sheets.map(sheet => <React.Fragment key={sheet.id}>{sheet.render(() => useUI.getState().closeSheet(sheet.id))}</React.Fragment>)
+}
 
 function setRoutine(ex) {
   const S = clone(DEF)
@@ -46,7 +49,7 @@ function renderRoutine() {
   root = createRoot(container)
   act(() => root.render(
     <MemoryRouter initialEntries={['/routine/r1']}>
-      <Routes><Route path="/routine/:id" element={<RoutineEdit />} /></Routes>
+      <Routes><Route path="/routine/:id" element={<RoutineEdit />} /></Routes><MenuSheets />
     </MemoryRouter>
   ))
 }
@@ -56,28 +59,29 @@ function itemFor(name) {
 }
 
 function moveButton(name, direction) {
-  return itemFor(name).querySelector(`button[aria-label="${direction}"]`)
+  act(() => useUI.setState({ sheets: [] }))
+  act(() => itemFor(name).querySelector('[data-exercise-menu]').click())
+  return [...container.querySelectorAll('.menu-item')].find(item => item.querySelector('.tt').textContent === direction)
+}
+const disabled = action => action.getAttribute('aria-disabled') === 'true'
+const actionTitle = action => action.querySelector('.ss')?.textContent || action.querySelector('.tt').textContent
+const clickMove = (name, direction) => {
+  const action = moveButton(name, direction)
+  act(() => action.click())
 }
 
 function pointerActivateArea(button) {
-  // Model browser hit-testing: pointer-events:none removes the disabled button
-  // from the target chain, exposing the clickable routine row underneath.
-  const disabledRule = cssSource.match(/\.iconbtn:disabled\s*\{[^}]*\}/)?.[0] || ''
-  const target = /pointer-events\s*:\s*none/.test(disabledRule)
-    ? button.closest('.item')
-    : button
   act(() => {
-    target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
-    target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
-    if (!(target instanceof HTMLButtonElement && target.disabled)) {
-      target.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    }
+    button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    button.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
   })
 }
 
 beforeEach(() => {
   localStorage.clear()
   mocks.exConfigSheet.mockClear()
+  useUI.setState({ sheets: [] })
   _setLangState('en', null, null, null)
   root = null
   container = null
@@ -100,7 +104,7 @@ describe('routine move controls', () => {
     ])
     renderRoutine()
 
-    act(() => moveButton('setup-10', 'Move down').click())
+    clickMove('setup-10', 'Move down')
 
     const moved = useStore.getState().S.routines[0].ex
     expect(moved).toEqual([
@@ -120,10 +124,10 @@ describe('routine move controls', () => {
       entry('c4', 40)
     ])
     renderRoutine()
-    expect(moveButton('setup-30', 'Move down').title).toBe('Move out of the superset')
-    expect(moveButton('setup-20', 'Move down').title).toBe('Move down')
+    expect(actionTitle(moveButton('setup-30', 'Move down'))).toBe('Move out of the superset')
+    expect(actionTitle(moveButton('setup-20', 'Move down'))).toBe('Move down')
 
-    act(() => moveButton('setup-30', 'Move down').click())
+    clickMove('setup-30', 'Move down')
     expect(useStore.getState().S.routines[0].ex).toEqual([
       entry('c1', 10, 'g'),
       entry('c2', 20, 'g'),
@@ -131,7 +135,7 @@ describe('routine move controls', () => {
       entry('c4', 40)
     ])
 
-    act(() => moveButton('setup-30', 'Move down').click())
+    clickMove('setup-30', 'Move down')
     expect(useStore.getState().S.routines[0].ex).toEqual([
       entry('c1', 10, 'g'),
       entry('c2', 20, 'g'),
@@ -148,8 +152,8 @@ describe('routine move controls', () => {
     ])
     renderRoutine()
     const up = moveButton('setup-10', 'Move up')
-    expect(up.disabled).toBe(false)
-    expect(up.title).toBe('Move out of the superset')
+    expect(disabled(up)).toBe(false)
+    expect(actionTitle(up)).toBe('Move out of the superset')
 
     act(() => up.click())
     expect(useStore.getState().S.routines[0].ex).toEqual([
@@ -157,7 +161,7 @@ describe('routine move controls', () => {
       entry('c2', 20),
       entry('c3', 30)
     ])
-    expect(moveButton('setup-10', 'Move up').disabled).toBe(true)
+    expect(disabled(moveButton('setup-10', 'Move up'))).toBe(true)
   })
 
   it('a single exercise jumps a whole superset and does not join it', () => {
@@ -168,7 +172,7 @@ describe('routine move controls', () => {
     ])
     renderRoutine()
 
-    act(() => moveButton('setup-30', 'Move down').click())
+    clickMove('setup-30', 'Move down')
     expect(useStore.getState().S.routines[0].ex).toEqual([
       entry('c1', 10, 'g'),
       entry('c2', 20, 'g'),
@@ -184,7 +188,7 @@ describe('routine move controls', () => {
     ])
     renderRoutine()
 
-    act(() => moveButton('setup-30', 'Move up').click())
+    clickMove('setup-30', 'Move up')
 
     expect(useStore.getState().S.routines[0].ex).toEqual([
       entry('c1', 10),
@@ -203,7 +207,7 @@ describe('routine move controls', () => {
     setRoutine([selected, entry('c2', 20), entry('c3', 30)])
     renderRoutine()
 
-    act(() => moveButton('setup-10', 'Move down').click())
+    clickMove('setup-10', 'Move down')
 
     expect(useStore.getState().S.routines[0].ex).toEqual([
       entry('c2', 20), selected, entry('c3', 30)
@@ -218,9 +222,9 @@ describe('routine move controls', () => {
     renderRoutine()
     const before = useStore.getState().S
 
-    expect(moveButton('c1', 'Move up').disabled).toBe(true)
-    expect(moveButton('c2', 'Move down').disabled).toBe(true)
-    act(() => moveButton('c1', 'Move up').click())
+    expect(disabled(moveButton('c1', 'Move up'))).toBe(true)
+    expect(disabled(moveButton('c2', 'Move down'))).toBe(true)
+    clickMove('c1', 'Move up')
 
     expect(useStore.getState().S).toBe(before)
     expect(useStore.getState().S.routines[0].ex[0].sg).toBe('orphan')
@@ -237,10 +241,10 @@ describe('routine move controls', () => {
     const firstUp = moveButton('c1', 'Move up')
     const lastDown = moveButton('c2', 'Move down')
 
-    expect(firstUp.disabled).toBe(true)
-    expect(lastDown.disabled).toBe(true)
-    pointerActivateArea(firstUp)
+    expect(disabled(firstUp)).toBe(true)
+    expect(disabled(lastDown)).toBe(true)
     pointerActivateArea(lastDown)
+    pointerActivateArea(moveButton('c1', 'Move up'))
 
     expect(mocks.exConfigSheet).not.toHaveBeenCalled()
     expect(useStore.getState().S).toBe(before)
@@ -254,7 +258,7 @@ describe('routine move controls', () => {
     renderRoutine()
     const button = moveButton('c2', 'Nach oben')
 
-    expect(button.title).toBe('Nach oben')
+    expect(actionTitle(button)).toBe('Nach oben')
     button.focus()
     act(() => button.click())
 
@@ -269,7 +273,7 @@ describe('routine move controls', () => {
       entry('c3', 30)
     ])
     renderRoutine()
-    act(() => moveButton('setup-10', 'Move down').click())
+    clickMove('setup-10', 'Move down')
 
     const parsed = parsePlan(JSON.stringify(buildPlanBundle(useStore.getState().S, 'Move test')))
     expect(parsed.routines[0].ex).toEqual([

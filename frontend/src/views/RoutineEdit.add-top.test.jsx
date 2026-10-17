@@ -42,7 +42,8 @@ describe('RoutineEdit — Add exercise at the top', () => {
     const add = addButton()
     const firstRow = host.querySelector('[data-routine-row]')
     expect(add.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(add.closest('.routine-ex-h').querySelector('h4').textContent).toBe('Exercises')
+    expect(add.closest('.routine-ex-h').querySelector('h4')).toBeNull()
+    expect(host.querySelector('.routine-list').getAttribute('aria-label')).toBe('Exercises')
     // and there is only the one
     expect([...host.querySelectorAll('button')].filter(b => b.textContent.trim() === 'Add exercise').length).toBe(1)
   })

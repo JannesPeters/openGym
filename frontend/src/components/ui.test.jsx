@@ -2,7 +2,7 @@
 import React, { act, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Slider, Stepper, NumberField, numWidthCh, SLIDER_GRAB_PX } from './ui.jsx'
+import { Slider, Stepper, NumberField, numWidthCh, SLIDER_GRAB_PX, Switch } from './ui.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -27,6 +27,38 @@ function pointer(target, type, { x = 0, y = 0, button = 0 } = {}) {
   act(() => target.dispatchEvent(event))
   return event
 }
+
+describe('Switch', () => {
+  it('keeps the default size and opts into compact styling only when requested', () => {
+    act(() => root.render(<><Switch checked={false} onChange={() => {}} /><Switch compact checked onChange={() => {}} aria-label="Deload routine" /></>))
+    const [normal, compact] = host.querySelectorAll('[role="switch"]')
+    expect(normal.className).toBe('sw')
+    expect(compact.classList.contains('compact')).toBe(true)
+    expect(compact.getAttribute('aria-checked')).toBe('true')
+    expect(compact.getAttribute('aria-label')).toBe('Deload routine')
+  })
+
+  it('retains button focus, activation and disabled behavior in compact mode', () => {
+    const onChange = vi.fn()
+    function Host() {
+      const [checked, setChecked] = useState(false)
+      return <Switch compact checked={checked} onChange={value => { setChecked(value); onChange(value) }} />
+    }
+    act(() => root.render(<Host />))
+    const control = host.querySelector('[role="switch"]')
+    control.focus()
+    act(() => control.click())
+    expect(onChange).toHaveBeenLastCalledWith(true)
+    expect(control.getAttribute('aria-checked')).toBe('true')
+    expect(document.activeElement).toBe(control)
+    act(() => control.click())
+    expect(onChange).toHaveBeenLastCalledWith(false)
+    act(() => root.render(<Switch compact checked={false} onChange={onChange} disabled />))
+    act(() => host.querySelector('[role="switch"]').click())
+    expect(onChange).toHaveBeenCalledTimes(2)
+    expect(host.querySelector('[role="switch"]').disabled).toBe(true)
+  })
+})
 
 describe('Slider', () => {
   // 300px track from x=100 to x=400 over 0..300 so 1px == 1 unit
