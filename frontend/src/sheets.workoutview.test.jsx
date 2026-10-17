@@ -35,16 +35,16 @@ describe('workout view is snapshot onto the active session', () => {
   })
   afterEach(() => { act(() => { mounted.splice(0).forEach(root => root.unmount()) }) })
 
-  it('beginWorkout copies the current default onto s.active', () => {
-    useStore.setState(s => ({ S: { ...s.S, workoutView: 'focus' } }))
+  it.each(['custom', 'cards', 'list', 'compact', 'focus'])('beginWorkout preserves explicit %s preference', layout => {
+    useStore.setState(s => ({ S: { ...s.S, workoutView: layout } }))
     act(() => beginWorkout(null, null))
-    expect(useStore.getState().S.active.workoutView).toBe('focus')
+    expect(useStore.getState().S.active.workoutView).toBe(layout)
   })
 
-  it('beginWorkout falls back to cards when the default is unset', () => {
+  it('beginWorkout falls back to Custom when the default is unset', () => {
     useStore.setState(s => { const S = { ...s.S }; delete S.workoutView; return { S } })
     act(() => beginWorkout(null, null))
-    expect(useStore.getState().S.active.workoutView).toBe('cards')
+    expect(useStore.getState().S.active.workoutView).toBe('custom')
   })
 
   it('later changes to the default leave the running session alone', () => {

@@ -7,6 +7,7 @@
 // and checks that each entry below really is a row there.
 import { t } from '../lib/i18n.js'
 import { ACCENT_NAMES } from '../lib/format.js'
+import { workoutLayout } from '../lib/workout-layout.js'
 
 export const PAGES = {
   workout: { title: 'Workout', icon: 'play', tint: 'var(--green)' },
@@ -55,8 +56,8 @@ export const SEARCH = [
   { page: 'workout', title: 'Rest-pause rest', icon: 'bolt', tint: 'var(--orange)', kw: 'burst cluster rest pause' },
   { page: 'workout', title: 'Effort per set', icon: 'gauge', tint: 'var(--purple)', kw: 'rir rpe effort reps in reserve difficulty', opts: ['RIR', 'RPE'] },
   { page: 'workout', title: 'Shown under each exercise', icon: 'history', tint: 'var(--blue)', kw: 'last time best set reference previous', opts: ['Last time', 'Best set'] },
-  { page: 'workout', title: 'Layout', icon: 'layout', tint: 'var(--blue)', kw: 'workout view cards list compact', opts: ['Cards', 'List', 'Compact'] },
-  { page: 'workout', title: 'Collapse completed exercises', icon: 'minimize', tint: 'var(--teal)', kw: 'collapse fold minimize hide done finished completed exercises list compact remaining left to do' },
+  { page: 'workout', title: 'Layout', icon: 'layout', tint: 'var(--blue)', kw: 'workout view custom cards list compact focus', opts: ['Custom', 'Cards', 'List', 'Compact', 'Focus'] },
+  { page: 'workout', title: 'Collapse completed exercises', icon: 'minimize', tint: 'var(--teal)', kw: 'collapse fold minimize hide done finished completed exercises list compact remaining left to do', when: c => workoutLayout(c.workoutView) !== 'custom' },
   { page: 'workout', title: 'Weigh in before workouts', icon: 'scale', tint: 'var(--green)', kw: 'body weight weigh scale start' },
   { page: 'workout', title: 'Keep screen awake', icon: 'phoneScreen', tint: 'var(--yellow)', kw: 'wake lock screen sleep display on', when: c => c.wakeOK || !c.mobile },
   { page: 'workout', title: 'Exercise animations', icon: 'image', tint: 'var(--teal)', kw: 'gif animation video media pictures images', opts: ['Full', 'Small', 'Hidden'] },

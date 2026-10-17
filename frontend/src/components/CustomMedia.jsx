@@ -19,6 +19,7 @@
 // referrer. Nothing fetches it: no thumbnail, no favicon, no embed.
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore.js'
+import { activeWorkoutLayout } from '../lib/workout-layout.js'
 import { t, exerciseNameFor } from '../lib/i18n.js'
 import { mediaOf, cleanUrl, linkKind } from '../lib/media-refs.js'
 import { mediaStore } from '../lib/media-store.js'
@@ -135,7 +136,7 @@ export default function CustomMedia({ ex, id, compact, minimizable }) {
   const gifSize = useStore(s => s.S.gifSize)
   const update = useStore(s => s.update)
   // The workout's list layout, from the store: only the workout card is minimizable.
-  const listLayout = useStore(s => !!minimizable && ((s.S.active?.workoutView || s.S.workoutView) === 'list'))
+  const listLayout = useStore(s => !!minimizable && ['list', 'custom'].includes(activeWorkoutLayout(s.S)))
   const m = mediaOf(ex)
   const link = cleanUrl(ex?.url)
   if (!m && !link) return null

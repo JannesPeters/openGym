@@ -3,6 +3,7 @@ import { useUI } from '../store/useUI.js'
 import { t } from '../lib/i18n.js'
 import { effortOf } from '../lib/history.js'
 import { workoutControls } from '../lib/workout-controls.js'
+import { activeWorkoutLayout } from '../lib/workout-layout.js'
 import { unlock, vibrateSupported, appleTouchDevice } from '../lib/sound.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { MOBILE } from '../lib/mobile.js'
@@ -23,7 +24,7 @@ export function WorkoutSettings({ close }) {
   const canVibrate = vibrateSupported()
   const iPhone = appleTouchDevice()
   const wakeOK = wakeLockSupported()
-  const layout = ['list', 'compact'].includes(S.active?.workoutView || S.workoutView) ? (S.active?.workoutView || S.workoutView) : 'cards'
+  const layout = activeWorkoutLayout(S)
   const gif = S.gifSize === 'mini' || S.gifSize === 'off' ? S.gifSize : 'full'
   const allSettings = () => closeThenNav(close, '/settings/workout')
   return <div className="ws-sheet">
@@ -58,7 +59,7 @@ export function WorkoutSettings({ close }) {
     <Section>
       <Row icon="layout" iconTint="var(--blue)" title={t('Layout')}>
         <Segmented className="seg-inline"
-          options={[{ value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }]}
+          options={[{ value: 'custom', label: t('Custom') }, { value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
           value={layout} onChange={v => update(s => { s.workoutView = v; if (s.active) delete s.active.workoutView })} />
       </Row>
       <Row icon="gauge" iconTint="var(--purple)" title={t('Effort per set')}>
