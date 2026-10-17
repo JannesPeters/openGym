@@ -1,5 +1,8 @@
 // Bengali UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'সপ্তাহ ও আজ',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'হোমে সপ্তাহ ও আজকের কার্ড একসঙ্গে দেখান। চলমান ওয়ার্কআউট দৃশ্যমান থাকবে।',
+  'Show your five latest workouts on Home.': 'হোমে আপনার সর্বশেষ পাঁচটি ওয়ার্কআউট দেখান।',
   'Confirm': 'নিশ্চিত করুন',
   'Cancel': 'বাতিল',
   'Press back again to exit': 'বের হতে আবার ব্যাক চাপুন',

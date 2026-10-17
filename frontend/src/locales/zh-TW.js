@@ -1,4 +1,7 @@
 export default {
+  'Week & Today': '本週與今天',
+  'Show the week and Today card on Home. Active workouts stay visible.': '在首頁同時顯示本週概覽和今天卡片。進行中的訓練仍會顯示。',
+  'Show your five latest workouts on Home.': '在首頁顯示最近五次訓練。',
   'Confirm': '確認',
   'Cancel': '取消',
   'Press back again to exit': '再按一次返回以退出',

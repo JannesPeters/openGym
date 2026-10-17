@@ -45,6 +45,16 @@ inside the web image, so not even those are downloaded. The AI coach, if an admi
 the training data it needs to the provider you configured; [AI_COACH.md](AI_COACH.md) lists exactly
 what. Push notifications go through your browser's push service, as all web push does.
 
+### Can I change the widgets on Home?
+
+Under **Settings → Look & Home → On Home**, switch **Week & Today** off to hide the combined
+week or rotation overview, Today's workout and **Choose a different workout**.
+Switch **Recent workouts** on independently to show your
+five latest saved workouts, newest first; tap one for its details or **History** for the full list.
+An active workout still shows its Resume control (or Edit when editing a saved workout).
+The combined Week & Today widget is on by default and recent workouts are off. These settings do not
+delete workouts or change your training plan.
+
 ### Was openGym written with AI?
 
 It's developed with [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, and a

@@ -1,5 +1,8 @@
 // French UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'Semaine et Aujourd’hui',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'Afficher la semaine et la carte Aujourd’hui ensemble sur l’Accueil. Les séances en cours restent visibles.',
+  'Show your five latest workouts on Home.': 'Afficher tes cinq derniers entraînements sur l’Accueil.',
   'Confirm': 'Confirmer',
   'Cancel': 'Annuler',
   'Press back again to exit': 'Appuie de nouveau pour quitter',

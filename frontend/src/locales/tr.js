@@ -1,5 +1,8 @@
 // Turkish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Week & Today': 'Hafta ve Bugün',
+  'Show the week and Today card on Home. Active workouts stay visible.': 'Ana sayfada haftayı ve Bugün kartını birlikte göster. Devam eden antrenmanlar görünür kalır.',
+  'Show your five latest workouts on Home.': 'Ana sayfada son beş antrenmanını göster.',
   'Confirm': 'Onayla',
   'Cancel': 'İptal',
   'Press back again to exit': 'Çıkmak için geri tuşuna tekrar basın',

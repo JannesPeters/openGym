@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore.js'
 import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, streakWeeks, lastBW, setsDoneActive } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, isoOf, weekStartOf, weekDayOffset, DAYS, DAYN } from '../lib/format.js'
 import { t, tn, dateLocale } from '../lib/i18n.js'
-import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet } from '../sheets.jsx'
+import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starterPlanSheet, bwDeltaColor, weighInsSheet, WorkoutRow, workoutDetailSheet } from '../sheets.jsx'
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
@@ -15,6 +15,7 @@ import { Button } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { glyphOf } from '../lib/glyphs.js'
 import { dayNoteOf } from '../lib/day-notes.js'
+import { recentWorkouts } from '../lib/history-feed.js'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -93,6 +94,8 @@ export default function Home() {
   // in a coach week, the queue's sessions and your own days together (lib/queue.js weekTally).
   const { done: doneThisWeek, planned: plannedPerWeek } = weekTally(S, todayISO())
   const bwPoints = S.bodyweight.slice(-30).map(b => ({ t: b.t || new Date(b.d).getTime(), y: b.w, d: b.d }))
+  const recent = S.showHistoryCard === true ? recentWorkouts(S) : []
+  const showSchedule = S.showWeekCard !== false
 
   // today's session shown right under the week strip
   const onToday = () => { if (S.active) nav('/workout'); else if (todayRoutines.length) startFlow(effectiveRoutineIds(S, todayISO())); else dayOverrideSheet(todayISO()) }
@@ -106,11 +109,11 @@ export default function Home() {
       <button className="iconbtn" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
     </div>
 
-    <div className="card">
+    {(showSchedule || S.active) && <div className="card">
       {/* A coach week runs by order, not by weekday, so its progress row stands in for the
           seven dots (components/QueueRow.jsx). The today row below stays as it is: the queue's
           next session reaches it through effectiveRoutineIds like any planned routine. */}
-      {rotating ? (queue ? <QueueRow S={S} today={todayISO()} onStart={onQueueStart} managed={managedQueue} /> : <div className="empty">
+      {showSchedule && (rotating ? (queue ? <QueueRow S={S} today={todayISO()} onStart={onQueueStart} managed={managedQueue} /> : <div className="empty">
         {t('No rotation yet. Add routines to it in Plan.')}
         <div style={{ marginTop: 10 }}><Button size="sm" variant="tinted" onClick={() => nav('/plan')}>{t('Set up in Plan')}</Button></div>
       </div>) : <>
@@ -120,13 +123,13 @@ export default function Home() {
           <button className="iconbtn" style={{ width: 30, height: 30, fontSize: 15 }} onClick={() => setWeekOffset(w => w + 1)} aria-label={t('Next week')}><Icon name="chevronRight" /></button>
         </div>
         <div className="week">{strip}</div>
-      </>}
+      </>)}
       {/* Once today's session is logged the row stops asking for it. The week strip already
           knew (its dot goes 'done'); this row did not, so a finished day kept showing the
           routine name behind a green Start tag and read as still outstanding (issue #4).
           An in-progress session still wins — that one is happening right now. Tapping the
           row keeps working, so a second session in one day is a tap away, just not urged. */}
-      <div className="today-row" {...tappable(onToday)}>
+      <div className="today-row" style={showSchedule ? undefined : { marginTop: 0 }} {...tappable(onToday)}>
         <div className="row" style={{ gap: 9, minWidth: 0 }}>
           <span className="lrow-i" style={{ background: S.active ? 'var(--orange)' : doneToday ? 'var(--surface-3)' : routine ? 'var(--acc)' : 'var(--surface-3)' }}>
             <Icon name={S.active ? (editingSaved ? 'pencil' : 'play') : doneToday ? 'checkCircle' : routine ? glyphOf(routine.emoji) : 'moon'}
@@ -156,7 +159,7 @@ export default function Home() {
           {t('Choose a different workout')}
         </Button>
       </div>}
-    </div>
+    </div>}
 
     {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
         arrival at the gym; folds away per user via the "Gym check-in" switch in Settings. */}
@@ -186,6 +189,16 @@ export default function Home() {
         <div style={{ height: 8 }} /><Button onClick={() => nav('/plan')}>{t('Build my own plan')}</Button>
       </div>
     )}
+
+    {S.showHistoryCard === true && <div className="card">
+      <h2 className="big" style={{ fontSize: 22, color: 'var(--label)', margin: '0 0 12px' }}>{t('Recent workouts')}</h2>
+      {recent.length ? <div className="list">{recent.map(w =>
+        <WorkoutRow key={w.id} w={w} onClick={() => workoutDetailSheet(w)} />
+      )}</div> : <div className="empty">{t('No workouts yet. Your first one will land here.')}</div>}
+      <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
+        <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={() => nav('/history')}>{t('History')}</Button>
+      </div>
+    </div>}
 
     {S.showWeightCard !== false && <div className="card">
       <div className="row between bw-head" style={{ marginBottom: 6 }}>

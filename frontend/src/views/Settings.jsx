@@ -751,6 +751,14 @@ export default function Settings({ page = null, find = null, via = null }) {
         </Row>
       </Section>
       <Section title={t('On Home')}>
+        <Row icon="calendar" iconTint="var(--orange)" title={t('Week & Today')}
+          subtitle={t('Show the week and Today card on Home. Active workouts stay visible.')}>
+          <Switch checked={S.showWeekCard !== false} onChange={v => update(s => { s.showWeekCard = v })} />
+        </Row>
+        <Row icon="history" iconTint="var(--blue)" title={t('Recent workouts')}
+          subtitle={t('Show your five latest workouts on Home.')}>
+          <Switch checked={S.showHistoryCard === true} onChange={v => update(s => { s.showHistoryCard = v })} />
+        </Row>
         {/* Membership QR codes on Home (views/CheckIn.jsx); off = no Home card, no route. */}
         <Row icon="qr" iconTint="var(--blue)" title={t('Gym check-in')}
           subtitle={t('Show a card on Home with your membership QR codes.')}>
