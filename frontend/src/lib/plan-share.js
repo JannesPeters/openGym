@@ -21,6 +21,7 @@ import { t, exerciseNameFor, exerciseNameClass, getLang, RTL_LANGS } from './i18
 import { convertWeight } from './units.js'
 import { fmtSpeed, speedUnitOf } from './speed.js'
 import { MUSCLES, inMuscleOrder } from './muscles.js'
+import { optionsOf, hasOptions, mapOptions, freshSlotIds } from './exercise-options.js'
 
 const PLAN_FMT = 1
 const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0]   // every getDay() index; only the reader's own
@@ -50,6 +51,7 @@ function convertedExercise(e, sourceUnit, destinationUnit) {
   // A timed increment is seconds, not a load. Rep-mode increments are load overrides.
   if (modeOf(out) === 'reps' && out.inc > 0) out.inc = convertWeight(out.inc, sourceUnit, destinationUnit)
   if (Array.isArray(out.pyramidWeight)) out.pyramidWeight = out.pyramidWeight.map(w => (w > 0 ? convertWeight(w, sourceUnit, destinationUnit) : w))
+  if (hasOptions(e)) out.alternatives = e.alternatives.map(option => convertedExercise(option, sourceUnit, destinationUnit))
   return out
 }
 
@@ -128,6 +130,10 @@ function cleanEx(e) {
   // silently — parsePlan's `dropped` counter only tracks exercises it cannot resolve at all.
   const intens = cleanIntensifier(e.intensifier)
   if (intens) o.intensifier = intens
+  if (hasOptions(e)) {
+    if (e.slotId) o.slotId = e.slotId
+    o.alternatives = e.alternatives.map(cleanEx)
+  }
   return o
 }
 
@@ -212,14 +218,14 @@ export function buildPlanBundle(S, name) {
     ...(r.excludeFromProgression === true ? { excludeFromProgression: true } : {}),
     ex: (r.ex || []).map(cleanEx)
   }))
-  const usedIds = new Set(routines.flatMap(r => r.ex.map(e => e.id)))
+  const usedIds = new Set(routines.flatMap(r => r.ex.flatMap(slot => optionsOf(slot).map(e => e.id))))
   const customEx = referencedCustomExercises(S.customEx || [], usedIds).map(cleanCustom)
   // A weekday can hold several routines (merge order preserved). `[].concat` normalises a
   // legacy scalar id to a one-element list, so a bundle written before this change and one
   // written after are read the same way at the other end.
   const week = {}
   WEEK_DAYS.forEach(d => { if (S.week?.[d]?.length) week[d] = [].concat(S.week[d]) })
-  return { opengym_plan: PLAN_FMT, exported: todayISO(), name: name || '', unit, week, routines, customEx }
+  return { opengym_plan: routines.some(r => r.ex.some(hasOptions)) ? 2 : PLAN_FMT, exported: todayISO(), name: name || '', unit, week, routines, customEx }
 }
 
 /**
@@ -239,17 +245,12 @@ export function parsePlan(raw, destinationUnit = 'kg') {
   if (!data || typeof data !== 'object' || Array.isArray(data) || !data.opengym_plan || !Array.isArray(data.routines) || !destination) {
     throw notPlan()
   }
+  if (![1, 2].includes(data.opengym_plan)) throw new Error(t('This plan format needs a newer version of openGym.'))
   const sourceUnit = declaredPlanUnit(data)
   const customEx = (Array.isArray(data.customEx) ? data.customEx : []).filter(c => c && c.id)
   const known = new Set(customEx.map(c => c.id))
   let dropped = 0
-  const routines = data.routines.filter(r => r && Array.isArray(r.ex)).map(r => ({
-    ...r,
-    ex: r.ex.filter(e => {
-      const ok = !!e && (known.has(e.id) || !!EXIDX[e.id])
-      if (!ok) dropped++
-      return ok
-    }).map(e => {
+  const parseExercise = e => {
       // The exercises pass through as written, so the fields that carry numbers into the
       // planner get the same clamps on the way in that they get on the way out. A drawing's id
       // (the female figure of an exercise) becomes the exercise's own.
@@ -263,7 +264,28 @@ export function parsePlan(raw, destinationUnit = 'kg') {
       const { warmupSets, intensifier, restSec, warmupRestSec, pyramid: _pyramid, pyramidRest: _pyramidRest, pyramidWeight: _pyramidWeight, ...passthrough } = e
       if (!known.has(passthrough.id)) passthrough.id = canonicalExId(passthrough.id)
       return convertedExercise({ ...passthrough, ...(pyramid.length ? { pyramid } : {}), ...(pyramidRest.length ? { pyramidRest } : {}), ...(pyramidWeight.length ? { pyramidWeight } : {}), ...(warm ? { warmupSets: warm } : {}), ...(intens ? { intensifier: intens } : {}), ...(rest ? { restSec: rest } : {}), ...(warmRest ? { warmupRestSec: warmRest } : {}) }, sourceUnit || destination, destination)
-    })
+  }
+  const parseSlot = slot => {
+    if (!slot || typeof slot !== 'object' || Array.isArray(slot)) { dropped++; return null }
+    if (slot.alternatives != null && !Array.isArray(slot.alternatives)) throw notPlan()
+    if (slot.alternatives?.some(option => !option || typeof option !== 'object' || Array.isArray(option) || option.alternatives != null)) throw notPlan()
+    if (!hasOptions(slot)) {
+      if (!known.has(slot.id) && !EXIDX[slot.id]) { dropped++; return null }
+      return parseExercise(slot)
+    }
+    const seen = new Set()
+    const configs = optionsOf(slot).filter(option => {
+      if ((!known.has(option.id) && !EXIDX[option.id]) || seen.has(option.id)) { dropped++; return false }
+      seen.add(option.id)
+      return true
+    }).map(parseExercise)
+    if (!configs.length) return null
+    const meta = Object.fromEntries(['sg', 'sgName', 'sgRest'].filter(key => slot[key] != null).map(key => [key, slot[key]]))
+    return { ...configs[0], ...meta, ...(configs.length > 1 ? { slotId: typeof slot.slotId === 'string' && slot.slotId ? slot.slotId : uid(), alternatives: configs.slice(1) } : {}) }
+  }
+  const routines = data.routines.filter(r => r && Array.isArray(r.ex)).map(r => ({
+    ...r,
+    ex: r.ex.map(parseSlot).filter(Boolean)
   }))
   return {
     name: (data.name || '').trim(),
@@ -321,7 +343,7 @@ export function mergePlan(s, bundle, { schedule } = {}) {
       emoji: r.emoji,
       ...(r.prog ? { prog: r.prog } : {}),
       ...(r.excludeFromProgression === true ? { excludeFromProgression: true } : {}),
-      ex: (r.ex || []).map(e => ({ ...e, id: exIdMap[e.id] || canonicalExId(e.id) }))
+      ex: freshSlotIds((r.ex || []).map(slot => mapOptions(slot, e => ({ ...e, id: exIdMap[e.id] || canonicalExId(e.id) }))))
     })
   })
   if (schedule) {
@@ -390,7 +412,11 @@ function routineHTML(r, unit, { bare = false, speedUnit } = {}) {
       // one word and printed "Curlupper Legs".
       const part = ex && ex.bp && ex.bp !== 'cardio' ? ` <span class="part">${esc(t(ex.bp))}</span>` : ''
       const note = e.note ? `<div class="ex-note">${esc(e.note)}</div>` : ''
-      return `<div class="ex"><div class="ex-row"><div class="ex-n ${ex ? exerciseNameClass(ex) : ''}">${esc(name)}${part}</div><div class="ex-s">${esc(scheme(e, unit, speedUnit))}</div></div>${note}</div>`
+      const alternatives = hasOptions(e) ? `<div class="ex-note">${esc(t('Choose one'))}: ${optionsOf(e).map(option => {
+        const exercise = EXIDX[option.id]
+        return `${esc(exercise ? exerciseNameFor(exercise) : t('Unknown exercise'))} (${esc(scheme(option, unit, speedUnit))})`
+      }).join(' / ')}</div>` : ''
+      return `<div class="ex"><div class="ex-row"><div class="ex-n ${ex ? exerciseNameClass(ex) : ''}">${esc(name)}${part}</div><div class="ex-s">${esc(scheme(e, unit, speedUnit))}</div></div>${note}${alternatives}</div>`
     }).join('')
     return u.length > 1
       ? `<div class="ss"><div class="ss-tag">${esc(t('Superset'))}</div><div class="ss-items">${items}</div></div>`

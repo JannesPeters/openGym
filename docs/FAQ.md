@@ -122,6 +122,27 @@ device is updated, nobody has to guess.
 FitNotes, Strong and Hevy work out of the box, Apple Health for body weight, and any CSV with a date,
 an exercise and something measured. See [DATA_IMPORTS.md](DATA_IMPORTS.md).
 
+### Can a routine let me choose between different exercises at the gym?
+
+Yes. Open an exercise in **Plan**, choose **Add alternative**, and configure the other exercise.
+The routine keeps one position with interchangeable options, not a superset. Each option has
+its own sets, reps, weight, progression and history; different equipment is fine.
+
+Choose an exercise when you reach that position in each workout. You can change your choice
+before logging, but cannot swap it after logging starts. To work across multiple options, use
+**Add another exercise from this group**: it adds the other exercise with its own full planned
+sets and leaves the original exercise and logged sets unchanged. These additions affect only
+the current workout, not the routine. Reloading resumes your choices.
+
+Plan muscle coverage uses the first option as its baseline, counting the position once.
+Workout statistics use only exercises actually performed. If the position is in a superset,
+its chosen exercise stays in that superset; an explicitly added option is placed after the
+superset, not automatically added to its round.
+
+Groups travel in backups, account sync and shared plans. Use an updated openGym on all devices
+and when importing a shared plan: older versions do not understand alternatives and may show
+only the first option or lose options when editing/re-exporting.
+
 ### Can I track different machines for the same exercise separately?
 
 Yes. Open the exercise in the **Exercise Library**, choose **Create variant**, and give it a label

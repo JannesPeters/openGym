@@ -17,7 +17,8 @@ import {
 } from '../../frontend/src/lib/onerm.js'
 import { loadOfWorkouts, rankOf, levelsOf } from '../../frontend/src/lib/muscles.js'
 import { policyFor } from '../../frontend/src/lib/progression.js'
-import { buildSessionEntries, startsFromLast } from '../../frontend/src/lib/session-start.js'
+import { buildSessionEntries, buildPlannedEntry, startsFromLast } from '../../frontend/src/lib/session-start.js'
+import { hasOptions, optionsOf } from '../../frontend/src/lib/exercise-options.js'
 
 /* ---------- helpers ---------- */
 
@@ -148,11 +149,12 @@ export const getRoutine = {
       policy_name: policyName(policyFor(null, r, 'reps')),
       exclude_from_progression: r.excludeFromProgression === true,
       unit: S.unit || 'kg',
-      exercises: (r.ex || []).map((cfg, i) => {
+      exercises: (r.ex || []).map(function describe(cfg, i) {
         const ex = exerciseOf(cfg.id, S)
         const mode = modeOf(cfg)
         return {
           position: i + 1,
+          ...(hasOptions(cfg) ? { choose_one: true, alternatives: optionsOf(cfg).map(option => describe(option, i)) } : {}),
           id: cfg.id,
           name: ex.n,
           body_part: ex.bp || null,
@@ -569,11 +571,16 @@ export const previewSession = {
     // prescription, step, progression-off targets, deload routines and warm-up ramps all come from
     // there, so the preview cannot drift from what the screen shows.
     const built = withCustomsIndexed(S, () => buildSessionEntries(S, r))
-    const exercises = (r.ex || []).map((cfg, i) => {
+    const preview = (cfg, i, entry = built[i]) => {
+      if (hasOptions(cfg)) return {
+        position: i + 1, choose_one: true,
+        alternatives: optionsOf(cfg).map(option => preview(option, i, withCustomsIndexed(S, () =>
+          buildPlannedEntry(S, option, r, { noProg: r.excludeFromProgression === true }))))
+      }
       const ex = exerciseOf(cfg.id, S)
       const mode = modeOf({ ...cfg, id: cfg.id })
-      const plan = built[i].plan
-      const rows = built[i].sets
+      const plan = entry.plan
+      const rows = entry.sets
       const work = rows.filter(s => !isWarmupRow(s))
       const openW = work.length ? (work[0].w || 0) : 0
       const openR = work.length ? (work[0].r || 0) : 0
@@ -636,9 +643,10 @@ export const previewSession = {
           (mode === 'time' && (cfg.sec || 0) > 0 && openSec !== cfg.sec) ||
           (mode === 'cardio' && (cfg.min || 0) > 0 && openMin !== cfg.min)
       }
-    })
+    }
+    const exercises = (r.ex || []).map((cfg, i) => preview(cfg, i))
 
-    const differing = exercises.filter(e => e.differs_from_plan)
+    const differing = exercises.flatMap(e => e.choose_one ? e.alternatives : [e]).filter(e => e.differs_from_plan)
     return {
       date: iso,
       routine_id: r.id,

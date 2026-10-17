@@ -77,6 +77,7 @@ export function buildCompletedWorkout(active, { end = Date.now(), prs = [], snap
       // only when set/true, so a single-routine non-excluded session is byte-for-byte the
       // shape it always was. Without this the whitelist drops both at finish.
       ...(entry.rid ? { rid: entry.rid } : {}),
+      ...(entry.slotId ? { slotId: entry.slotId } : {}),
       ...(entry.noProg === true ? { noProg: true } : {}),
       // What the routine asked for when the session was built (session-start.js), next to the
       // target the prescription moved — how the next session tells an edited plan (#275).

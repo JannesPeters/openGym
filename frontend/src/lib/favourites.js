@@ -5,6 +5,8 @@
 // personal, so it stays out of shared plan bundles (lib/plan-share.js) on purpose. Profiles
 // written before the field existed simply have no list, hence every reader tolerates undefined.
 
+import { optionsOf } from './exercise-options.js'
+
 export const favIds = S => (Array.isArray(S?.favEx) ? S.favEx : [])
 
 export const isFav = (S, id) => favIds(S).includes(id)
@@ -44,7 +46,7 @@ export function sortYoursFirst(list, S, usage) {
 /** How often each exercise sits in a routine or a logged workout: id -> count. */
 export function usageOf(S) {
   const u = {}
-  for (const r of S?.routines || []) for (const e of r.ex || []) u[e.id] = (u[e.id] || 0) + 1
+  for (const r of S?.routines || []) for (const slot of r.ex || []) for (const e of optionsOf(slot)) u[e.id] = (u[e.id] || 0) + 1
   for (const w of S?.workouts || []) for (const e of w.entries || []) u[e.id] = (u[e.id] || 0) + 1
   return u
 }

@@ -81,6 +81,13 @@ Nine read-only tools in v1:
 | `estimate_1rm` | All-time best 1RM for an exercise + the trend, or a PR table across all exercises. |
 | `muscle_balance` | Which muscles I've trained this week/month/all-time, ranked + which I've neglected. |
 
+An interchangeable exercise slot has `choose_one: true` and an `alternatives` list containing
+every option, including the first exercise. It counts as one planned position, not a superset
+or a request to perform all options. `get_routine` reports each option's saved configuration;
+`preview_session` reports each option's independent prescription and opening sets. The athlete
+chooses in the app and can explicitly add another option to the current workout. Completed
+workout tools report actual logged exercises, never unperformed options.
+
 `get_routine` and `preview_session` answer two different questions, and confusing them is the
 easiest way for a coach to give wrong advice. `get_routine` reports what the routine *stores*.
 `preview_session` reports what the athlete will actually *see*: a routine holding "squat 3×8 @

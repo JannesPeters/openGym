@@ -94,6 +94,33 @@ describe('list_routines', () => {
 /* ---------- get_routine ---------- */
 
 describe('get_routine', () => {
+  test('reports interchangeable options and previews each independently without adding planned positions', () => {
+    S.routines = [{ id: 'choices', name: 'Push', prog: 'off', ex: [{
+      id: '0025', slotId: 'slot', sets: 3, reps: 10, weight: 20,
+      alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }]
+    }] }]
+    const detail = call('get_routine', { routine_id: 'choices' })
+    expect(detail.exercises).toHaveLength(1)
+    expect(detail.exercises[0].choose_one).toBe(true)
+    expect(detail.exercises[0].alternatives.map(option => option.id)).toEqual(['0025', '0289'])
+    const preview = call('preview_session', { routine_id: 'choices' })
+    expect(preview.exercises).toHaveLength(1)
+    expect(preview.exercises[0].choose_one).toBe(true)
+    expect(preview.exercises[0].alternatives[1].opening_sets).toHaveLength(2)
+    expect(preview.exercises[0].alternatives[1].opening_sets[0].w).toBe(45)
+    S.routines[0].prog = 'linear'
+    S.routines[0].ex[0].alternatives[0].inc = 2.5
+    S.exWeights = {}
+    S.workouts = [{ d: '2026-07-20', entries: [{
+      id: '0289', rid: 'choices', target: { sets: 2, reps: 12, weight: 45 },
+      planned: { sets: 2, reps: 12, weight: 45 },
+      sets: [{ w: 45, r: 12, done: true }, { w: 45, r: 12, done: true }]
+    }] }]
+    const progressed = call('preview_session', { routine_id: 'choices' })
+    expect(progressed.exercises[0].alternatives[1].opening_sets[0].w).toBe(47.5)
+    expect(progressed.overridden_count).toBe(1)
+    expect(progressed.overridden[0].opening_weight).toBe(47.5)
+  })
   test('returns the full exercise list for Push Day with per-exercise summaries', () => {
     const push = call('list_routines').routines.find(x => x.name === 'Push Day')
     const r = call('get_routine', { routine_id: push.id })

@@ -47,6 +47,7 @@ import { isWarmupRow, hasCompletedWork } from './lib/workout-model.js'
 import { saveSessionAsRoutine } from './lib/session-routines.js'
 import { repeatSessionEntries } from './lib/session-repeat.js'
 import { swapActiveExercise } from './lib/active-exercise-swap.js'
+import { removeOption } from './lib/exercise-options.js'
 import { useSheetKeyboard, tappable } from './lib/use-sheet-keyboard.js'
 import { isFav, toggleFav } from './lib/favourites.js'
 import { buildSessionEntries, buildPlannedEntry, builtOutOfProgression } from './lib/session-start.js'
@@ -1295,7 +1296,7 @@ export const exerciseVariantSheet = (ex, onDone = exerciseDetailSheet) => {
 }
 
 export function deleteCustomEx(ex, afterDelete) {
-  if (S().active?.entries.some(e => e.id === ex.id)) { toast(t('Finish your current workout first')); return }
+  if (S().active?.entries.some(e => e.id === ex.id || e.choiceOptions?.some(option => option.id === ex.id))) { toast(t('Finish your current workout first')); return }
   confirmSheet({
     title: t('Delete “{0}”?', ex.n),
     message: t('It will be removed from your routines. Already-logged workouts keep their sets.'),
@@ -1310,7 +1311,7 @@ export function deleteCustomEx(ex, afterDelete) {
           if (!e.muscleSnapshot || !Object.keys(e.muscleSnapshot).length) e.muscleSnapshot = snapshot
         }))
         s.customEx = (s.customEx || []).filter(x => x.id !== ex.id)
-        s.routines.forEach(r => { r.ex = r.ex.filter(e => e.id !== ex.id); cleanupSg(r.ex) })
+        s.routines.forEach(r => { r.ex = r.ex.map(slot => removeOption(slot, ex.id)).filter(Boolean); cleanupSg(r.ex) })
         delete s.exWeights[ex.id]
         s.favEx = (s.favEx || []).filter(id => id !== ex.id)
       })
@@ -1338,6 +1339,10 @@ export const exercisePicker = (onPick, { title, like, routineId } = {}) => ui().
 export function swapActiveWorkoutExercise(index) {
   const active = S().active
   if (!active?.entries?.[index]) return
+  if (active.entries[index].choiceOptions) {
+    toast(t('Use this group’s exercise options instead. Logged exercises cannot be swapped.'))
+    return
+  }
 
   // The "+" on a picker row commits with the default config, exactly as it does in the add
   // flows; tapping the row still opens the config sheet first.
@@ -2085,12 +2090,13 @@ export const planHasRoutines = st => (st.routines || []).some(r => r.ex && r.ex.
 export async function exportPlanFile() {
   const st = S(), user = useStore.getState().user
   const bundle = buildPlanBundle(st, user?.name ? t('{0}’s plan', user.name) : '')
+  if (bundle.opengym_plan === 2) toast(t('This plan contains exercise alternatives. Import it only in an updated openGym.'))
   const json = JSON.stringify(bundle, null, 2)
   const name = 'opengym-plan-' + todayISO() + '.json'
   if (MOBILE) { try { await shareExport(json, name) } catch (e) { /* dismissed */ } return }
   const blob = new Blob([json], { type: 'application/json' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
-  toast(t('Plan file saved. Send it to a friend!'))
+  toast(bundle.opengym_plan === 2 ? t('Plan saved with exercise alternatives. The recipient needs an updated openGym.') : t('Plan file saved. Send it to a friend!'))
 }
 // Web: the browser's print dialog (→ Save as PDF). Mobile: the OS print flow via the native
 // Print plugin — Android WebView has no window.print(). Same printable HTML both ways.

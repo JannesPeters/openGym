@@ -93,6 +93,31 @@ describe('a custom exercise stored without the flag', () => {
     expect(S().workouts[0].entries[0].n).toBe('My row')
   })
 
+  it('deleting the primary option promotes its alternative without borrowing its settings', () => {
+    const ex = legacy()
+    seed(ex, { routines: [{ id: 'r1', ex: [{
+      id: 'cx1', sets: 3, reps: 8, weight: 40, note: 'old cues', slotId: 'slot', sg: 'pair',
+      alternatives: [{ id: '0027', sets: 2, reps: 12, weight: 30 }]
+    }, { id: '0025', sets: 3, reps: 8, sg: 'pair' }] }] })
+    exerciseDetailSheet(ex)
+    click(renderTop(), 'button', 'Delete')
+    click(renderTop(), 'button', 'Delete')
+    expect(S().routines[0].ex[0]).toEqual({ id: '0027', sets: 2, reps: 12, weight: 30, slotId: 'slot', sg: 'pair' })
+    expect(S().customEx).toEqual([])
+  })
+
+  it('protects a custom option retained by an active workout even when another option is selected', () => {
+    const ex = legacy()
+    seed(ex, { active: { id: 'active', entries: [{
+      id: '0027', sets: [], choiceOptions: [{ id: '0027' }, { id: 'cx1' }]
+    }] } })
+    exerciseDetailSheet(ex)
+    click(renderTop(), 'button', 'Delete')
+    expect(useUI.getState().toastMsg).toBe('Finish your current workout first')
+    expect(S().customEx.map(e => e.id)).toEqual(['cx1'])
+    expect(useUI.getState().sheets).toHaveLength(1)
+  })
+
   it('the routine exercise settings offer "Edit or delete this exercise"', () => {
     const ex = legacy()
     seed(ex)

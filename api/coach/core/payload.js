@@ -89,6 +89,7 @@ const num = v => ((typeof v === 'number' && Number.isFinite(v)) || (typeof v ===
 // A date is the ISO day every screen writes; anything else is not a date.
 const day = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
 const list = v => (Array.isArray(v) ? v : []);
+const planOptions = e => [e, ...list(e.alternatives).filter(option => option && typeof option === 'object')];
 // The equipment of the profile the app is filtering by, or nothing when filtering is off.
 function activeEquipment(S) {
   if (!S.equipFilterOn) return [];
@@ -217,6 +218,11 @@ function cleanEx(e) {
   if (e.side) o.side = true;
   // A superset tag is an id the app mints (sg-0-1, hs + uid()), so it is bounded like one.
   if (e.sg) o.sg = ident(e.sg);
+  if (Array.isArray(e.alternatives) && e.alternatives.length) {
+    o.chooseOne = true;
+    o.alternatives = e.alternatives.filter(option => option && typeof option === 'object')
+      .map(option => cleanEx({ ...option, alternatives: undefined }));
+  }
   return o;
 }
 /**
@@ -231,26 +237,25 @@ function cleanEx(e) {
 export function canonicalPlan(S) {
   const custom = new Map((S.customEx || []).map(c => [c.id, c]));
   const exOf = id => LIB_BY_ID.get(id) || custom.get(id);
+  const canonicalExercise = e => {
+    const mode = modeOf(e, exOf(e.id));
+    return {
+      id: e.id, mode, sets: e.sets || 0,
+      reps: mode === 'reps' ? (e.reps || 0) : 0,
+      sec: mode === 'time' ? (e.sec || 0) : 0,
+      min: mode === 'cardio' ? (e.min || 0) : 0,
+      speed: mode === 'cardio' ? (e.speed || 0) : 0,
+      weight: mode === 'cardio' ? 0 : (e.weight || 0),
+      prog: e.prog || '', inc: e.inc || 0, repsMin: e.repsMin || 0, repsMax: e.repsMax || 0,
+      bodyweight: isBw(e, exOf(e.id)), side: isPerSide(e),
+      sg: e.sg || '',
+      ...(Array.isArray(e.alternatives) && e.alternatives.length ? { alternatives: e.alternatives.map(canonicalExercise) } : {})
+    };
+  };
   return {
     routines: (S.routines || []).map(r => ({
       id: r.id, name: r.name || '', prog: r.prog || '',
-      ex: (r.ex || []).map(e => {
-        const mode = modeOf(e, exOf(e.id));
-        return {
-          id: e.id, mode, sets: e.sets || 0,
-          reps: mode === 'reps' ? (e.reps || 0) : 0,
-          sec: mode === 'time' ? (e.sec || 0) : 0,
-          min: mode === 'cardio' ? (e.min || 0) : 0,
-          speed: mode === 'cardio' ? (e.speed || 0) : 0,
-          weight: mode === 'cardio' ? 0 : (e.weight || 0),
-          prog: e.prog || '', inc: e.inc || 0, repsMin: e.repsMin || 0, repsMax: e.repsMax || 0,
-          // Resolved rather than copied: the fingerprint has to change when a plan starts
-          // disagreeing with the catalogue, and `bodyweight: undefined` and an exercise the
-          // dataset already calls bodyweight are the same plan and must hash the same.
-          bodyweight: isBw(e, exOf(e.id)), side: isPerSide(e),
-          sg: e.sg || ''
-        };
-      })
+      ex: (r.ex || []).map(canonicalExercise)
     })),
     // A weekday holds a routine-id list. `[].concat` folds a legacy bare string and a
     // one-element list to the same shape (so their fingerprint is identical); `?.length` keeps
@@ -299,7 +304,7 @@ function aggregates(S, workouts) {
   // Per-exercise stall/deload picture, computed over the same sessions the engine would see.
   const byEx = new Map();
   const planCfg = new Map();
-  (S.routines || []).forEach(r => (r.ex || []).forEach(e => planCfg.set(e.id, e)));
+  (S.routines || []).forEach(r => (r.ex || []).flatMap(planOptions).forEach(e => planCfg.set(e.id, e)));
   (S.workouts || []).forEach(w => (w.entries || []).forEach(en => {
     if (!en.sets?.some(s => s.done)) return;
     if (!byEx.has(en.id)) byEx.set(en.id, []);
@@ -343,7 +348,7 @@ function aggregates(S, workouts) {
  *  be able to refer to, so they ride in the library slice whatever the cap or the filter. */
 function trainedIds(S, workouts) {
   const ids = new Set();
-  (S.routines || []).forEach(r => (r.ex || []).forEach(e => ids.add(e.id)));
+  (S.routines || []).forEach(r => (r.ex || []).flatMap(planOptions).forEach(e => ids.add(e.id)));
   (workouts || []).forEach(w => (w.entries || []).forEach(en => ids.add(en.id)));
   return [...ids];
 }

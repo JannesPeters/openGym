@@ -17,6 +17,7 @@ import { modeOf, isBw, isPerSide, cleanupSg } from './history.js'
 import { uid, todayISO, DAYN } from './format.js'
 import { mergePlan } from './plan-share.js'
 import { deleteRoutine } from './routines.js'
+import { optionsOf, removeOption, hasOptions } from './exercise-options.js'
 import { POLICIES } from './progression.js'
 import { t, tn } from './i18n.js'
 
@@ -86,23 +87,25 @@ export const hasConsent = S => !!S?.coach?.consent?.agreedAt && S.coach.consent.
  * same. If you change one, change both; coach.test.js checks them against shared fixtures.
  */
 export function canonicalPlan(S) {
+  const canonicalExercise = e => {
+    const mode = modeOf(e)
+    return {
+      id: e.id, mode, sets: e.sets || 0,
+      reps: mode === 'reps' ? (e.reps || 0) : 0,
+      sec: mode === 'time' ? (e.sec || 0) : 0,
+      min: mode === 'cardio' ? (e.min || 0) : 0,
+      speed: mode === 'cardio' ? (e.speed || 0) : 0,
+      weight: mode === 'cardio' ? 0 : (e.weight || 0),
+      prog: e.prog || '', inc: e.inc || 0, repsMin: e.repsMin || 0, repsMax: e.repsMax || 0,
+      bodyweight: isBw(e), side: isPerSide(e),
+      sg: e.sg || '',
+      ...(hasOptions(e) ? { alternatives: e.alternatives.map(canonicalExercise) } : {})
+    }
+  }
   return {
     routines: (S.routines || []).map(r => ({
       id: r.id, name: r.name || '', prog: r.prog || '',
-      ex: (r.ex || []).map(e => {
-        const mode = modeOf(e)
-        return {
-          id: e.id, mode, sets: e.sets || 0,
-          reps: mode === 'reps' ? (e.reps || 0) : 0,
-          sec: mode === 'time' ? (e.sec || 0) : 0,
-          min: mode === 'cardio' ? (e.min || 0) : 0,
-          speed: mode === 'cardio' ? (e.speed || 0) : 0,
-          weight: mode === 'cardio' ? 0 : (e.weight || 0),
-          prog: e.prog || '', inc: e.inc || 0, repsMin: e.repsMin || 0, repsMax: e.repsMax || 0,
-          bodyweight: isBw(e), side: isPerSide(e),
-          sg: e.sg || ''
-        }
-      })
+      ex: (r.ex || []).map(canonicalExercise)
     })),
     // A weekday holds a routine-id list now. `[].concat` folds a legacy bare string and a
     // one-element list to the same shape, so their fingerprint is identical — no false-stale
@@ -117,7 +120,7 @@ export function hashPlan(plan) {
   const canon = JSON.stringify({
     routines: (plan?.routines || []).map(r => [r.id, r.name, r.prog, (r.ex || []).map(e =>
       [e.id, e.mode, e.sets, e.reps, e.sec, e.min, e.speed, e.weight, e.prog, e.inc,
-        e.repsMin, e.repsMax, e.bodyweight, e.side, e.sg].join(':')
+        e.repsMin, e.repsMax, e.bodyweight, e.side, e.sg].join(':') + (e.alternatives?.length ? '|options:' + JSON.stringify(e.alternatives) : '')
     )]),
     // `plan` is a canonicalPlan output, so each day is already an array. `{1:['r1']}` → "1=r1",
     // byte-identical to the pre-upgrade fingerprint; `{3:['r2','r3']}` → "3=r2+r3". Weekday
@@ -137,7 +140,7 @@ export const planHash = S => hashPlan(canonicalPlan(S))
 /* ============================ staleness ============================ */
 
 const findRoutine = (S, id) => (S.routines || []).find(r => r.id === id) || null
-const findEx = (routine, id) => (routine?.ex || []).find(e => e.id === id) || null
+const findEx = (routine, id) => (routine?.ex || []).flatMap(e => [e, ...(e.alternatives || [])]).find(e => e.id === id) || null
 
 // The Coach reads a routine's name cut at 80 characters (NAME_MAX in api/coach/core/payload.js),
 // and the server copies that cut name into a rename's `before`. Compared whole, a longer name
@@ -446,7 +449,7 @@ const CHANGE_APPLY = {
   },
   'remove-exercise': (s, c) => {
     const r = need(findRoutine(s, c.target.routineId))
-    r.ex = r.ex.filter(e => e.id !== c.target.exId)
+    r.ex = r.ex.map(slot => removeOption(slot, c.target.exId)).filter(Boolean)
     cleanupSg(r.ex)
   },
   'swap-exercise': (s, c) => {
@@ -454,6 +457,7 @@ const CHANGE_APPLY = {
     const i = r.ex.findIndex(e => e.id === c.target.exId)
     if (i < 0) throw new Error('missing exercise')
     const old = r.ex[i], a = c.after || {}
+    if (optionsOf(old).some(option => option.id === canonicalExId(a.id) && option.id !== old.id)) throw new Error('duplicate exercise option')
     // Keep the old prescription unless the Coach deliberately changed it: a swap is about the
     // movement, and silently resetting sets and reps would be a second change nobody approved.
     //
