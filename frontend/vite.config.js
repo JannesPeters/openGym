@@ -100,33 +100,21 @@ const flavor = {
 const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
 const appVersion = process.env.APP_BUILD ? `${pkgVersion}+${process.env.APP_BUILD}` : pkgVersion
 
-export default defineConfig(({ command, mode }) => {
-  const localPreview = command === 'serve' && mode === 'local-preview'
-  return {
-    define: { __APP_VERSION__: JSON.stringify(appVersion) },
-    plugins: [react(), umami, flavor, swStamp, catalogueMedia, ...(localPreview ? [{
-      name: 'opengym-local-preview',
-      transformIndexHtml(html) { return html.replace('/src/main.jsx', '/src/local-preview-entry.js') },
-      configureServer(server) {
-        server.middlewares.use('/api', (_req, res) => {
-          res.writeHead(403, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'Local previews have no backend.' }))
-        })
-      },
-    }] : [])],
-    base: './',
-    server: {
-      // The Coach's core (payload, validator, prompts, HTTP adapters) lives in ../api/coach/core
-      // and is imported by the phone build. vite build and vitest already reach it; the dev
-      // server needs to be told the workspace is wider than frontend/.
-      fs: { allow: ['..'] },
-      proxy: {
-        ...(!localPreview ? { '/api': { target: backend, changeOrigin: true, headers: { Origin: apiOrigin } } } : {}),
-        ...(media ? {
-          '/exercise-media': { target: media, changeOrigin: true }
-        } : {})
-      }
-    },
-    build: { chunkSizeWarningLimit: 1500 }
-  }
+export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
+  plugins: [react(), umami, flavor, swStamp, catalogueMedia],
+  base: './',
+  server: {
+    // The Coach's core (payload, validator, prompts, HTTP adapters) lives in ../api/coach/core
+    // and is imported by the phone build. vite build and vitest already reach it; the dev
+    // server needs to be told the workspace is wider than frontend/.
+    fs: { allow: ['..'] },
+    proxy: {
+      '/api': { target: backend, changeOrigin: true, headers: { Origin: apiOrigin } },
+      ...(media ? {
+        '/exercise-media': { target: media, changeOrigin: true }
+      } : {})
+    }
+  },
+  build: { chunkSizeWarningLimit: 1500 }
 })

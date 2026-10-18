@@ -32,29 +32,7 @@ cd api && npm test
 cd mcp && npm test
 ```
 
-### Seeded local previews
-
-Run `cd frontend && npm run dev:seed`, then open <http://localhost:5174/#/home>.
-This opt-in, development-only mode needs no API and never proxies `/api` to a real server.
-It reuses the public demo's 12 weeks of progressing Push/Pull/Leg sessions, mixed effort
-ratings, weigh-ins and measurements. Recent workouts is enabled and Jay's layout is selected;
-Push Day includes a bench exercise-choice group for previewing the pending card.
-
-The dedicated port uses a separate browser origin from normal development on `:5173`.
-Before importing the app, a guard refuses any origin with existing, unowned local storage
-or a signed-in account. It never clears or overwrites that data. If refused or the port is
-busy, choose a fresh port with `npm run dev:seed -- --port 5176`; do not reuse a real app origin.
-Keep preview origins exclusively for previews. Preview edits survive reloads; use
-**Settings > Account > Reset demo data** to restore the seed. To inspect the empty state,
-use **Settings > Data > Reset everything** on this preview only, then re-enable Recent workouts
-under Appearance. Reset demo data restores the populated example afterward.
-
-The local fixture is repeatable for a given local calendar date (anchored at noon, with stable
-IDs). Tests can `await buildLocalPreviewState(new Date('2026-10-18T12:00:00'))` from
-`frontend/src/lib/local-preview.js`; it returns fresh objects without touching storage.
-For other fixtures, `buildDemoState({ now, idFactory })` accepts an explicit clock and ID factory.
-The default public-demo generator and its training stream are unchanged. Normal builds,
-including `npm run build -- --mode local-preview`, do not enable the local-preview path.
+### Workout exercise-choice groups
 
 In a running workout or saved-workout editor, **Create new group** (below the exercises or
 in the Add menu) opens a draft exercise-choice group. Add at least two different exercises,

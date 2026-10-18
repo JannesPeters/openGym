@@ -43,12 +43,12 @@ const PLANS = {
   '5x5': { routines: FIVE_BY_FIVE, schedule: [[1, '5x5-a'], [3, '5x5-b'], [5, '5x5-c']] }
 }
 
-const build = (routines, idFactory = uid) =>
-  routines.map(([, name, emoji, list]) => ({ id: idFactory(), name, emoji, ex: list.map(([id, sets, reps]) => ({ id, sets, reps, weight: 0 })) }))
+const build = routines =>
+  routines.map(([, name, emoji, list]) => ({ id: uid(), name, emoji, ex: list.map(([id, sets, reps]) => ({ id, sets, reps, weight: 0 })) }))
 
 // Fresh routine objects (new ids) — [push, pull, legs]. The demo build seeds a history on
 // top of exactly these three, so this entry point keeps its shape.
-export const starterRoutines = (idFactory = uid) => build(PPL, idFactory)
+export const starterRoutines = () => build(PPL)
 
 // [{ id, days }] for the chooser. The day count is read off the schedule rather than stored
 // beside it, so the two can never disagree.

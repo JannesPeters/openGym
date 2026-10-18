@@ -60,7 +60,7 @@ const monday = date => { const d = new Date(date); d.setDate(d.getDate() - ((d.g
 // A full example profile: 12 weeks of Mon/Wed/Fri sessions on the starter plan, with linear
 // progression, the odd missed session, twice-weekly weigh-ins trending toward the goal, and
 // per-set effort ratings on most (not all) of it.
-export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
+export function buildDemoState() {
   const rnd = rng(20260723)
   // Measurements draw from their own stream. They are logged on a different cadence than the
   // training they sit next to, so taking them from `rnd` would slide every later draw along —
@@ -68,11 +68,11 @@ export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
   // and silently rewrite the demo history that mcp/test/tools.test.js pins exact values against.
   // Anything added here later wants its own generator too, not a share of this one.
   const mrnd = rng(20260724)
-  const [push, pull, legs] = starterRoutines(idFactory)
+  const [push, pull, legs] = starterRoutines()
   const byWeekday = { 1: push, 3: pull, 5: legs }
 
-  const nowH = now.getHours()
-  const today = new Date(now); today.setHours(12, 0, 0, 0)
+  const nowH = new Date().getHours()
+  const today = new Date(); today.setHours(12, 0, 0, 0)
   const start = new Date(today); start.setDate(start.getDate() - WEEKS * 7)
 
   const workouts = []
@@ -159,7 +159,7 @@ export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
     const bw = bodyweight.length ? bodyweight[bodyweight.length - 1].w : BW_FROM
     const startMs = at(day, 18, 5 + Math.floor(rnd() * 25))
     const w = {
-      id: idFactory(), d: iso, start: startMs, end: startMs + (46 + Math.floor(rnd() * 26)) * 60000,
+      id: uid(), d: iso, start: startMs, end: startMs + (46 + Math.floor(rnd() * 26)) * 60000,
       routineId: routine.id, name: routine.name, bw,
       entries,
       prs: weekIdx === 0 ? [] : prs   // the very first session isn't a PR party

@@ -6,7 +6,6 @@ import { DEF, freshState, restoredStateFor, useStore } from '../store/useStore.j
 import Home from './Home.jsx'
 import Settings from './Settings.jsx'
 import { workoutDetailSheet } from '../sheets.jsx'
-import { buildLocalPreviewState } from '../lib/local-preview.js'
 
 const nav = vi.hoisted(() => vi.fn())
 vi.mock('react-router-dom', () => ({ useNavigate: () => nav }))
@@ -158,14 +157,15 @@ describe('Home display settings', () => {
     expect(useStore.getState().S.workouts).toEqual([])
   })
 
-  it('shows five real seeded sessions inside the recent-workouts surface', async () => {
-    const preview = await buildLocalPreviewState(new Date('2026-10-18T12:00:00'))
-    useStore.setState(s => ({ S: { ...s.S, ...preview } }))
+  it('contains populated workout rows within the recent-workouts surface', () => {
+    const workouts = ['Push Day', 'Pull Day', 'Leg Day', 'Push Day', 'Pull Day', 'Leg Day']
+      .map((name, i) => ({ ...workout(`w${i}`, `2026-10-${10 + i}`), name }))
+    useStore.setState(s => ({ S: { ...s.S, workouts, showHistoryCard: true } }))
     mountHome()
     const rows = [...host.querySelectorAll('.home-recent .item')]
     expect(rows).toHaveLength(5)
-    expect(rows.map(row => row.querySelector('.tt').textContent)).toEqual(preview.workouts.slice(-5).reverse().map(w => w.name))
+    expect(rows.map(row => row.querySelector('.tt').textContent)).toEqual(workouts.slice(-5).reverse().map(w => w.name))
     act(() => rows[0].click())
-    expect(workoutDetailSheet).toHaveBeenCalledWith(preview.workouts.at(-1))
+    expect(workoutDetailSheet).toHaveBeenCalledWith(workouts.at(-1))
   })
 })
