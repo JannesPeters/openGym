@@ -40,6 +40,9 @@ optionally configuring each prescription, then create it and choose which option
 Cancelling leaves the workout unchanged. This creates a separate slot in this workout, not
 a superset or an edit to its routine. Only chosen, logged exercises enter the finished history.
 
+Jay's exercise cards use a short measured-height transition when folded or expanded. They
+return to natural sizing afterward, and reduced-motion preferences skip the transition.
+
 ## Guidelines
 
 - **Keep it dependency-light.** The frontend uses React, React Router and Zustand; `api/` has two
