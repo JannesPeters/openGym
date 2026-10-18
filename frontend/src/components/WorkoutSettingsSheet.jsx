@@ -59,7 +59,7 @@ export function WorkoutSettings({ close }) {
     <Section>
       <Row icon="layout" iconTint="var(--blue)" title={t('Layout')}>
         <Segmented className="seg-inline"
-          options={[{ value: 'custom', label: t('Custom') }, { value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
+          options={[{ value: 'custom', label: t("Jay's layout") }, { value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
           value={layout} onChange={v => update(s => { s.workoutView = v; if (s.active) delete s.active.workoutView })} />
       </Row>
       <Row icon="gauge" iconTint="var(--purple)" title={t('Effort per set')}>

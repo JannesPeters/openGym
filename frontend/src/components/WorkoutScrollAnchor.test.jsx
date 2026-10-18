@@ -72,18 +72,36 @@ it('reserves only enough space to avoid a page-end clamp, then reclaims it on ex
   expect(container.firstChild.style.paddingBottom).toBe('')
 })
 
-it('holds the next tile at the page start when shrinking would require a negative scroll offset', async () => {
+it('closes the gap at the page start when shrinking would require a negative scroll offset', async () => {
   scrollY = 400
   await render('', [['0', 100, 700], ['1', 800, 650]])
-  const top = tileTop('1')
   await render('0', [['0', 100, 100], ['1', 200, 650]])
-  expect(tileTop('1')).toBe(top)
+  expect(tileTop('1')).toBe(200)
   expect(window.scrollY).toBe(0)
-  expect(container.querySelector('[data-unit-key="1"]').style.marginTop).toBe('200px')
+  expect(container.querySelector('[data-unit-key="1"]').style.marginTop).toBeFalsy()
   const firstTop = tileTop('0')
   await render('', [['0', 100, 700], ['1', 800, 650]])
   expect(tileTop('0')).toBe(firstTop)
-  expect(container.querySelector('[data-unit-key="1"]').style.marginTop).toBe('')
+  expect(container.querySelector('[data-unit-key="1"]').style.marginTop).toBeFalsy()
+})
+
+it('does not insert space when collapsing from the page start', async () => {
+  scrollY = 0
+  await render('', [['0', 100, 300], ['1', 400, 650]])
+  await render('0', [['0', 100, 100], ['1', 200, 650]])
+  expect(tileTop('1') - (tileTop('0') + 100)).toBe(0)
+  expect(container.querySelector('[data-unit-key="1"]').style.marginTop).toBeFalsy()
+  expect(container.firstChild.style.paddingBottom).toBeFalsy()
+})
+
+it('closes the gap at the page start while the Layout sheet locks the body', async () => {
+  document.body.style.position = 'fixed'; document.body.style.top = '-400px'
+  await render('', [['0', 100, 700], ['1', 800, 650]])
+  await render('0', [['0', 100, 100], ['1', 200, 650]])
+  expect(tileTop('1')).toBe(200)
+  expect(document.body.style.top).toBe('0px')
+  expect(container.querySelector('[data-unit-key="1"]').style.marginTop).toBeFalsy()
+  expect(window.scrollTo).not.toHaveBeenCalled()
 })
 
 it('updates the locked body offset while the Layout sheet is open', async () => {

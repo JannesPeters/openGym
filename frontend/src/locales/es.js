@@ -1615,6 +1615,7 @@ export default {
   'Change exercise': 'Cambiar ejercicio',
   'Use default exercise': 'Usar ejercicio por defecto',
   'Custom': 'Personalizado',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'Registra tu peso corporal para evaluar este ejercicio.',
   'Log the anchor lift to score this one.': 'Registra el ejercicio ancla para evaluar este.',
   'Not scored': 'Sin evaluar',

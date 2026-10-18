@@ -412,7 +412,7 @@ export default function Settings({ page = null, find = null, via = null }) {
   }
   const mode = scheduleModeOf(S)
   const layout = workoutLayout(S.workoutView)
-  const layoutLabel = { custom: t('Custom'), cards: t('Cards'), list: t('List'), compact: t('Compact'), focus: t('Focus') }[layout]
+  const layoutLabel = { custom: t("Jay's layout"), cards: t('Cards'), list: t('List'), compact: t('Compact'), focus: t('Focus') }[layout]
   const activeProfile = (S.equipProfiles || []).find(p => p.id === S.activeEquipId)
   const themeLabel = { dark: t('Dark'), light: t('Light'), system: t('System') }[S.theme || 'dark'] || t('Dark')
   // The value a root row shows, so most questions are answered without opening the page.
@@ -486,7 +486,7 @@ export default function Settings({ page = null, find = null, via = null }) {
             for one session without changing it for future workouts. */}
         <Row icon="layout" iconTint="var(--blue)" title={t('Layout')}>
           <Segmented className="seg-inline"
-            options={[{ value: 'custom', label: t('Custom') }, { value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
+            options={[{ value: 'custom', label: t("Jay's layout") }, { value: 'cards', label: t('Cards') }, { value: 'list', label: t('List') }, { value: 'compact', label: t('Compact') }, { value: 'focus', label: t('Focus') }]}
             value={layout} onChange={v => update(s => { s.workoutView = v })} />
         </Row>
         {/* The saved side of the Layout menu's "Collapse completed exercises" (#241): on here, every

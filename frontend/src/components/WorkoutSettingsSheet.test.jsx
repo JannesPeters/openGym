@@ -79,16 +79,16 @@ describe('the in-workout settings sheet', () => {
   })
 
   it('saves Custom for future workouts and clears the session override', () => {
-    act(() => [...row('Layout').querySelectorAll('button')].find(b => b.textContent === 'Custom').click())
+    act(() => [...row('Layout').querySelectorAll('button')].find(b => b.textContent === "Jay's layout").click())
     expect(S().workoutView).toBe('custom')
     expect(S().active.workoutView).toBeUndefined()
-    expect(row('Layout').querySelector('button.on').textContent).toBe('Custom')
+    expect(row('Layout').querySelector('button.on').textContent).toBe("Jay's layout")
   })
 
   it('accurately shows every existing session layout', () => {
     for (const layout of ['custom', 'cards', 'list', 'compact', 'focus']) {
       act(() => useStore.setState({ S: { ...S(), active: { ...S().active, workoutView: layout } } }))
-      expect(row('Layout').querySelector('button.on').textContent.toLowerCase()).toBe(layout)
+      expect(row('Layout').querySelector('button.on').textContent.toLowerCase()).toBe(layout === 'custom' ? "jay's layout" : layout)
     }
   })
 

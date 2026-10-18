@@ -26,7 +26,7 @@ let container
 
 function renderWorkout(entries, cur = 0, extra = {}) {
   const S = clone(DEF)
-  S.active = { id: 'keys-test', d: '2026-09-23', start: Date.now(), routineId: null, name: 'Keys', bw: null, cur, entries, ...extra }
+  S.active = { id: 'keys-test', d: '2026-09-23', start: Date.now(), routineId: null, name: 'Keys', bw: null, cur, entries, workoutView: 'cards', ...extra }
   useStore.setState({ S, user: null })
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -60,6 +60,18 @@ afterEach(() => {
 })
 
 describe('workout keys (issue #133)', () => {
+  it("does not select exercises or log a hidden current set in Jay's layout", () => {
+    renderWorkout([entry('1001', [false]), entry('1002', [false])], 1, { workoutView: 'custom' })
+    for (const key of ['ArrowRight', 'ArrowLeft', ' ', 'Enter']) {
+      expect(press(key).defaultPrevented).toBe(false)
+    }
+    expect(active().cur).toBe(1)
+    expect(doneOf(0)).toEqual([false])
+    expect(doneOf(1)).toEqual([false])
+    expect(useUI.getState().timer).toBeNull()
+    expect(container.querySelector('[aria-current], .wl-unit.cur, .wchip.cur')).toBeNull()
+  })
+
   it('Space ticks the next open set of the current exercise and starts its rest', () => {
     renderWorkout([entry('1001', [true, false, false]), entry('1002', [false])])
     const event = press(' ')

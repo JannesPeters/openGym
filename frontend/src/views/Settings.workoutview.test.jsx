@@ -69,10 +69,10 @@ const segButton = label => [...host.querySelectorAll('.seg button')].find(b => b
 describe('Settings — workout view', () => {
   it('offers Custom and all existing layouts and writes workoutView to the store', () => {
     mount()
-    expect(['Custom', 'Cards', 'List', 'Compact', 'Focus'].every(label => segButton(label))).toBe(true)
-    expect(segButton('Custom').getAttribute('aria-pressed')).toBe('true')
+    expect(["Jay's layout", 'Cards', 'List', 'Compact', 'Focus'].every(label => segButton(label))).toBe(true)
+    expect(segButton("Jay's layout").getAttribute('aria-pressed')).toBe('true')
 
-    for (const [label, value] of [['List', 'list'], ['Compact', 'compact'], ['Focus', 'focus'], ['Cards', 'cards'], ['Custom', 'custom']]) {
+    for (const [label, value] of [['List', 'list'], ['Compact', 'compact'], ['Focus', 'focus'], ['Cards', 'cards'], ["Jay's layout", 'custom']]) {
       act(() => { segButton(label).click() })
       expect(mocks.S.workoutView).toBe(value)
       mount()

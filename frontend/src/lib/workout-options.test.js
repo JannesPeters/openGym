@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildCombinedEntries } from './session-merge.js'
-import { chooseWorkoutOption } from './workout-options.js'
+import { chooseWorkoutOption, resetWorkoutOption } from './workout-options.js'
 import { buildCompletedWorkout } from './finish-workout.js'
 import { routineChangesFromEntry, updateRoutineFromEntry } from './routines.js'
 import { nextUnfinishedUnit, supersetFlowStep } from './supersetFlow.js'
@@ -17,6 +17,55 @@ const makeState = () => {
 }
 
 describe('workout choices', () => {
+  it.each([false, true])('clears selected sets and restores the original pending slot (logged: %s)', logged => {
+    const state = makeState()
+    state.active.workoutView = 'custom'
+    state.active.cur = 1
+    chooseWorkoutOption(state, 0, '0009')
+    chooseWorkoutOption(state, 0, '0025', { add: true })
+    const entry = state.active.entries[0]
+    entry.sets[0].done = logged
+    entry.sets[0].w = 99
+    entry.note = 'session-only note'
+    entry.noProg = true
+    entry.target.sgName = 'Pair'
+    entry.target.sgRest = 45
+    const before = structuredClone(state)
+    resetWorkoutOption(state, 0)
+    expect(state.active.entries[0]).toMatchObject({
+      id: '0025', rid: 'r', slotId: 'slot', sg: 'pair', choicePending: true, sets: [], noProg: true,
+      target: { weight: 20, reps: 10, sets: 3, sgName: 'Pair', sgRest: 45 },
+      choiceOptions: before.active.entries[0].choiceOptions,
+      choiceRoutine: before.active.entries[0].choiceRoutine,
+    })
+    expect(state.active.entries[0].choiceId).not.toBe(before.active.entries[0].choiceId)
+    expect(state.active.entries[0].note).toBeUndefined()
+    expect(state.active.entries.slice(1)).toEqual(before.active.entries.slice(1))
+    expect(state.routines).toEqual(before.routines)
+    expect(state.active.cur).toBe(1)
+    chooseWorkoutOption(state, 0, '0009')
+    expect(state.active.entries[0].sets).toHaveLength(2)
+    expect(state.active.entries[0].sets.every(set => set.w === 45 && !set.done)).toBe(true)
+  })
+
+  it('rejects resetting pending or missing choices without changing state', () => {
+    const state = makeState()
+    const before = structuredClone(state)
+    expect(() => resetWorkoutOption(state, 0)).toThrow('no longer available')
+    expect(() => resetWorkoutOption(state, 1)).toThrow('no longer available')
+    expect(state).toEqual(before)
+  })
+
+  it.each(['custom', 'list', 'cards', 'compact', 'focus'])('only selects an exercise option in layouts with a current exercise (%s)', layout => {
+    const state = makeState()
+    state.active.workoutView = layout
+    state.active.cur = 1
+    chooseWorkoutOption(state, 0, '0025')
+    expect(state.active.cur).toBe(layout === 'custom' ? 1 : 0)
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+    expect(state.active.cur).toBe(layout === 'custom' ? 1 : 2)
+  })
+
   it('starts with an unresolved slot that cannot be logged as the primary', () => {
     const state = makeState()
     expect(state.active.entries).toHaveLength(2)

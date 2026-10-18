@@ -1662,6 +1662,7 @@ export default {
   'Change exercise': 'ব্যায়াম বদলান',
   'Use default exercise': 'ডিফল্ট ব্যায়াম ব্যবহার করুন',
   'Custom': 'কাস্টম',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'এই লিফটের স্কোর পেতে আপনার শরীরের ওজন লগ করুন।',
   'Log the anchor lift to score this one.': 'এটির স্কোর পেতে ভিত্তি লিফটটি লগ করুন।',
   'Not scored': 'স্কোর করা হয়নি',

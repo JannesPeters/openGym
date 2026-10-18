@@ -1615,6 +1615,7 @@ export default {
   'Change exercise': '更换动作',
   'Use default exercise': '使用默认动作',
   'Custom': '自定义',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': '记录你的体重以评估这个动作。',
   'Log the anchor lift to score this one.': '记录锚点动作以评估这个动作。',
   'Not scored': '未评估',

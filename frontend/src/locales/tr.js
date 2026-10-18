@@ -1615,6 +1615,7 @@ export default {
   'Change exercise': 'Egzersizi değiştir',
   'Use default exercise': 'Varsayılan egzersizi kullan',
   'Custom': 'Özel',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'Bu hareketin değerlendirilmesi için vücut ağırlığını kaydet.',
   'Log the anchor lift to score this one.': 'Bunu değerlendirmek için referans hareketi kaydet.',
   'Not scored': 'Değerlendirilmedi',
