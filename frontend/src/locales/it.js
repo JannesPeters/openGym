@@ -1,5 +1,7 @@
 // Italian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Create new group': 'Crea nuovo gruppo',
+  'Choose at least two exercise options.': 'Scegli almeno due opzioni di esercizio.',
   'Week & Today': 'Settimana e Oggi',
   'Show the week and Today card on Home. Active workouts stay visible.': 'Mostra la settimana e la scheda Oggi insieme nella Home. Gli allenamenti in corso restano visibili.',
   'Show your five latest workouts on Home.': 'Mostra i tuoi cinque allenamenti più recenti nella Home.',

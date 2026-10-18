@@ -6,6 +6,7 @@ import { DEF, freshState, restoredStateFor, useStore } from '../store/useStore.j
 import Home from './Home.jsx'
 import Settings from './Settings.jsx'
 import { workoutDetailSheet } from '../sheets.jsx'
+import { buildLocalPreviewState } from '../lib/local-preview.js'
 
 const nav = vi.hoisted(() => vi.fn())
 vi.mock('react-router-dom', () => ({ useNavigate: () => nav }))
@@ -132,6 +133,7 @@ describe('Home display settings', () => {
     expect(rows.map(row => row.querySelector('.tt').textContent)).toEqual(['Session 6', 'Session 5', 'Session 4', 'Session 3', 'Session 2'])
     const heading = [...host.querySelectorAll('h2')].find(h => h.textContent === 'Recent workouts')
     const card = heading.closest('.card')
+    expect(card.classList.contains('home-recent')).toBe(true)
     expect(heading.classList.contains('big')).toBe(true)
     expect(heading.style.fontSize).toBe('22px')
     expect(card.firstElementChild).toBe(heading)
@@ -148,10 +150,22 @@ describe('Home display settings', () => {
     expect(host.textContent).toContain('No workouts yet. Your first one will land here.')
     const empty = [...host.querySelectorAll('.empty')].find(el => el.textContent === 'No workouts yet. Your first one will land here.')
     expect(empty.nextElementSibling.querySelector('button').textContent).toBe('History')
+    expect(empty.closest('.home-recent').querySelectorAll('.item')).toHaveLength(0)
     act(() => empty.nextElementSibling.querySelector('button').click())
     expect(nav).toHaveBeenCalledWith('/history')
     act(() => useStore.getState().update(s => { s.showHistoryCard = false }))
     expect(host.textContent).not.toContain('No workouts yet. Your first one will land here.')
     expect(useStore.getState().S.workouts).toEqual([])
+  })
+
+  it('shows five real seeded sessions inside the recent-workouts surface', async () => {
+    const preview = await buildLocalPreviewState(new Date('2026-10-18T12:00:00'))
+    useStore.setState(s => ({ S: { ...s.S, ...preview } }))
+    mountHome()
+    const rows = [...host.querySelectorAll('.home-recent .item')]
+    expect(rows).toHaveLength(5)
+    expect(rows.map(row => row.querySelector('.tt').textContent)).toEqual(preview.workouts.slice(-5).reverse().map(w => w.name))
+    act(() => rows[0].click())
+    expect(workoutDetailSheet).toHaveBeenCalledWith(preview.workouts.at(-1))
   })
 })

@@ -491,6 +491,8 @@ h4.sec{
   transition:background var(--fast);text-align: start;width:100%;
 }
 .item:active{background:var(--surface-2)}
+.home-recent .item{background:var(--surface-2)}
+.home-recent .item:active{background:var(--surface-3)}
 .routine-list{position:relative}
 /* One column at every width (#277), whatever page it is on. The desktop layout puts the #app
    lists outside a .narrow page in two columns, and before the .narrow rule below won on
@@ -1876,7 +1878,17 @@ body.no-tabbar.resting #toast{bottom:calc(100px + var(--sab))}
 .wl-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .wl-icon{width:32px;height:32px;background:none;color:var(--label-2)}
 .wl-icon .icn{width:16px;height:16px}
-.workout-custom .wl-unit{background:var(--surface)}
+.workout-list.workout-custom{margin-inline:calc(-1 * var(--pad))}
+.workout-custom .wl-unit{width:100%;border-radius:0;background:var(--surface)}
+.workout-custom .workout-choice{padding:0;margin:0 0 10px;background:none}
+.workout-custom .workout-choice-head{gap:8px;align-items:flex-start}
+.workout-custom .workout-choice h2{margin:0;min-width:0;align-self:center}
+.workout-custom .workout-choice-head>.wl-fold{flex:none}
+.workout-custom .workout-choice-description{margin:6px 0 10px}
+.workout-custom .workout-choice .list{gap:0;background:var(--surface-2);border-radius:0;overflow:hidden}
+.workout-custom .workout-choice .item{background:none;border-radius:0;padding:10px 12px;min-height:56px}
+.workout-custom .workout-choice .item+.item{border-top:1px solid var(--sep)}
+.workout-custom .workout-choice .item:active{background:var(--surface-3)}
 .workout-custom .workout-sets-plain{background:none;border-radius:0;padding:0}
 .workout-custom .workout-sets-plain .swfront{background:var(--surface)}
 .workout-custom .workout-sets-plain :is(.stp,.effcell,.ck:not(.on),.chk:not(.on),.setgo){background:var(--surface-2)}

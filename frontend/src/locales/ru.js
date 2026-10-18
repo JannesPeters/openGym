@@ -1,5 +1,7 @@
 // Russian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Create new group': 'Создать новую группу',
+  'Choose at least two exercise options.': 'Выберите не менее двух вариантов упражнений.',
   'Week & Today': 'Неделя и Сегодня',
   'Show the week and Today card on Home. Active workouts stay visible.': 'Показывать неделю и карточку «Сегодня» вместе на Главной. Текущие тренировки остаются видимыми.',
   'Show your five latest workouts on Home.': 'Показывать пять последних тренировок на Главной.',

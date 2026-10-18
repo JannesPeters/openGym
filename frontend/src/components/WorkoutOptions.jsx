@@ -72,9 +72,9 @@ export default function WorkoutOptions({ entryIdx, headerAction }) {
       useStore.getState().update(s => { resetWorkoutOption(s, entryIdx) }, true)
     },
   })
-  if (entry.choicePending) return <div className="card" data-testid="workout-choice">
-    {headerAction ? <div className="row between"><h2>{t('Choose exercise')}</h2>{headerAction}</div> : <h2>{t('Choose exercise')}</h2>}
-    <p className="small dim">{t('Choose one option for this slot. Each exercise keeps its own progress.')}</p>
+  if (entry.choicePending) return <div className="card workout-choice" data-testid="workout-choice">
+    {headerAction ? <div className="row between workout-choice-head"><h2>{t('Choose exercise')}</h2>{headerAction}</div> : <h2>{t('Choose exercise')}</h2>}
+    <p className="small dim workout-choice-description">{t('Choose one option for this slot. Each exercise keeps its own progress.')}</p>
     {options(false)}
   </div>
   return <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>

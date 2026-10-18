@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildCombinedEntries } from './session-merge.js'
-import { chooseWorkoutOption, resetWorkoutOption } from './workout-options.js'
+import { addWorkoutChoiceGroup, chooseWorkoutOption, resetWorkoutOption } from './workout-options.js'
 import { buildCompletedWorkout } from './finish-workout.js'
 import { routineChangesFromEntry, updateRoutineFromEntry } from './routines.js'
 import { nextUnfinishedUnit, supersetFlowStep } from './supersetFlow.js'
@@ -17,6 +17,73 @@ const makeState = () => {
 }
 
 describe('workout choices', () => {
+  const newOptions = () => [
+    { id: '0025', sets: 3, reps: 8, weight: 60, sg: 'must-not-inherit', slotId: 'old' },
+    { id: '0009', sets: 2, reps: 12, weight: 25 },
+  ]
+  it.each(['custom', 'cards', 'list', 'compact', 'focus'])('adds an independent choice slot without splitting a superset (%s)', layout => {
+    const state = makeState()
+    state.active.workoutView = layout
+    const before = structuredClone(state)
+    const configs = newOptions()
+    const at = addWorkoutChoiceGroup(state, configs)
+    expect(at).toBe(2)
+    expect(state.active.entries.slice(0, 2)).toEqual(before.active.entries)
+    expect(state.routines).toEqual(before.routines)
+    const entry = state.active.entries[at]
+    expect(entry).toMatchObject({ choicePending: true, sets: [], rid: 'r', choiceRoutine: { id: 'r', prog: 'off' } })
+    expect(entry.sg).toBeUndefined()
+    expect(entry.target.sg).toBeUndefined()
+    expect(entry.slotId).not.toBe('slot')
+    expect(entry.slotId).not.toBe('old')
+    expect(entry.choiceId).not.toBe(before.active.entries[0].choiceId)
+    configs[1].weight = 999
+    expect(entry.choiceOptions[1].weight).toBe(25)
+    chooseWorkoutOption(state, at, '0009')
+    expect(state.active.entries[at].sets).toHaveLength(2)
+    expect(state.active.entries[at].sets.every(s => s.w === 25 && s.r === 12)).toBe(true)
+    expect(routineChangesFromEntry(state.routines[0], state.active.entries, at)).toBeFalsy()
+    resetWorkoutOption(state, at)
+    expect(state.active.entries[at].choicePending).toBe(true)
+  })
+
+  it('works in an empty freestyle editor and saves only the chosen logged option', () => {
+    const state = makeState()
+    state.active = { id: 'saved-edit', editingWorkoutId: 'saved', entries: [], cur: 0, workoutView: 'custom' }
+    addWorkoutChoiceGroup(state, newOptions())
+    const entry = state.active.entries[0]
+    expect(entry.rid).toBeUndefined()
+    expect(entry.choiceRoutine).toBeUndefined()
+    expect(buildCompletedWorkout(state.active).entries).toEqual([])
+    chooseWorkoutOption(state, 0, '0009')
+    state.active.entries[0].sets[0].done = true
+    const saved = buildCompletedWorkout(state.active).entries
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ id: '0009', slotId: entry.slotId })
+    expect(saved[0].choiceOptions).toBeUndefined()
+    expect(saved[0].sets.filter(set => set.done)).toHaveLength(1)
+  })
+
+  it.each(['session', 'routine'])('inherits %s progression exclusion without copying a per-exercise exclusion', kind => {
+    const state = makeState()
+    if (kind === 'session') state.active.noProg = true
+    else state.routines[0].excludeFromProgression = true
+    addWorkoutChoiceGroup(state, newOptions())
+    expect(state.active.entries[2].noProg).toBe(true)
+    chooseWorkoutOption(state, 2, '0009')
+    expect(state.active.entries[2].noProg).toBe(true)
+  })
+
+  it('does not mutate data when a draft is invalid or its workout is gone', () => {
+    const state = makeState()
+    const before = structuredClone(state)
+    expect(() => addWorkoutChoiceGroup(state, newOptions().slice(0, 1))).toThrow('at least two')
+    expect(() => addWorkoutChoiceGroup(state, [newOptions()[0], newOptions()[0]])).toThrow('at least two')
+    expect(state).toEqual(before)
+    state.active = null
+    expect(() => addWorkoutChoiceGroup(state, newOptions())).toThrow('no longer available')
+  })
+
   it.each([false, true])('clears selected sets and restores the original pending slot (logged: %s)', logged => {
     const state = makeState()
     state.active.workoutView = 'custom'

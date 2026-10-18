@@ -1,9 +1,39 @@
 import { buildPlannedEntry, builtOutOfProgression } from './session-start.js'
 import { sessionHistory } from './backfill.js'
-import { hasLoggedWork } from './exercise-options.js'
+import { hasLoggedWork, optionConfig } from './exercise-options.js'
 import { supersetUnits, unitOf } from './history.js'
 import { uid } from './format.js'
 import { activeWorkoutLayout } from './workout-layout.js'
+
+export function addWorkoutChoiceGroup(state, configs) {
+  const active = state.active
+  if (!active) throw new Error('This workout is no longer available')
+  if (configs.length < 2 || configs.some(cfg => !cfg.id) || new Set(configs.map(cfg => cfg.id)).size !== configs.length) {
+    throw new Error('A new group needs at least two different exercise options')
+  }
+  const jay = activeWorkoutLayout(state) === 'custom'
+  const source = jay ? active.entries.at(-1) : active.entries[active.cur]
+  const routine = state.routines.find(r => r.id === source?.rid)
+  const noProg = active.noProg === true || routine?.excludeFromProgression === true
+  const entry = {
+    slotId: uid(), choiceId: uid(),
+    choiceOptions: structuredClone(configs.map(optionConfig)),
+    ...(source?.rid ? { rid: source.rid } : {}),
+    ...(routine ? { choiceRoutine: {
+      id: routine.id, ...(routine.prog ? { prog: routine.prog } : {}),
+      ...(routine.excludeFromProgression ? { excludeFromProgression: true } : {}),
+    } } : {}),
+    ...(noProg ? { noProg: true } : {}),
+  }
+  const at = jay || !active.entries.length ? active.entries.length
+    : unitOf(supersetUnits(active.entries), active.cur).at(-1) + 1
+  active.entries.splice(at, 0, {
+    ...buildOptionEntry(state, entry, entry.choiceOptions[0]),
+    choicePending: true, sets: [],
+  })
+  if (!jay) active.cur = at
+  return at
+}
 
 function buildOptionEntry(state, entry, config, { add = false } = {}) {
   const active = state.active

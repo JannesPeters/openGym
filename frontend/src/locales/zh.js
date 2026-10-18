@@ -1,5 +1,7 @@
 // Simplified Chinese UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Create new group': '创建新组',
+  'Choose at least two exercise options.': '请至少选择两个动作选项。',
   'Week & Today': '本周与今天',
   'Show the week and Today card on Home. Active workouts stay visible.': '在首页同时显示本周概览和今天卡片。进行中的训练仍会显示。',
   'Show your five latest workouts on Home.': '在首页显示最近五次训练。',
