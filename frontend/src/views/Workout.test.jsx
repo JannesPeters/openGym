@@ -284,6 +284,7 @@ afterEach(async () => {
 })
 
 describe('workout exercise alternatives', () => {
+  const clearSelection = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Clear selection') || null
   const groupedRoutine = () => ({
     id: 'chest-options', name: 'Chest options', prog: 'off',
     ex: [{ id: '0025', mode: 'reps', sets: 3, reps: 8, weight: 20, slotId: 'chest-slot',
@@ -294,12 +295,14 @@ describe('workout exercise alternatives', () => {
     const state = workout([], 0, { routines: [routine] })
     await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: layout, routineIds: [routine.id] } })
     expect(container.textContent).toContain('Choose exercise')
+    expect(clearSelection()).toBeNull()
     expect(container.querySelector('[role="checkbox"]')).toBeNull()
     await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
     await rerender()
     expect(mocks.S.active.entries[0].id).toBe('0009')
     expect(mocks.S.active.entries[0].sets).toHaveLength(2)
     expect(mocks.S.active.entries[0].sets[0]).toMatchObject({ w: 45, r: 12, done: false })
+    expect(!!clearSelection()).toBe(layout === 'custom')
     if (layout === 'focus') await click(buttonNamed('Complete set'))
     else await toggleSet(0)
     await rerender()
@@ -318,6 +321,53 @@ describe('workout exercise alternatives', () => {
     expect(mocks.S.active.entries[1].sets).toHaveLength(3)
     expect(mocks.S.active.entries[1].sets[0]).toMatchObject({ w: 20, r: 8, done: false })
   })
+  it('confirms clearing a selected group, discards its logged sets and permits a fresh choice', async () => {
+    const routine = groupedRoutine()
+    const state = workout([], 0, { routines: [routine] })
+    state.active.entries = buildCombinedEntries(state, [routine.id]).entries
+    chooseWorkoutOption(state, 0, '0009')
+    state.active.entries[0].sets[0].done = true
+    await mount(state.active.entries, 0, { routines: [routine], workoutView: 'custom' })
+    const before = structuredClone(mocks.S)
+    await click(clearSelection())
+    const confirmation = mocks.confirmSheet.mock.calls.at(-1)[0]
+    expect(confirmation).toMatchObject({
+      title: 'Clear selection', confirmText: 'Clear selection', danger: true,
+      message: 'The sets you logged for this exercise in this session will be lost.',
+    })
+    expect(mocks.S).toEqual(before)
+    await act(async () => { confirmation.onConfirm() })
+    await rerender()
+    expect(mocks.S.active.entries[0]).toMatchObject({ id: '0025', choicePending: true, sets: [] })
+    expect(mocks.S.routines).toEqual(before.routines)
+    expect(mocks.stopWork).toHaveBeenCalled()
+    expect(mocks.stopRest).toHaveBeenCalled()
+    expect(container.querySelectorAll('[role="checkbox"]')).toHaveLength(0)
+    expect(clearSelection()).toBeNull()
+    expect(container.querySelector('[data-testid="workout-choice"]')).toBeTruthy()
+    await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
+    await rerender()
+    expect(mocks.S.active.entries[0].sets).toHaveLength(2)
+    expect(mocks.S.active.entries[0].sets.every(set => set.w === 45 && !set.done)).toBe(true)
+  })
+
+  it.each(['workout', 'selection', 'layout'])('rejects a stale clear confirmation after changing the %s', async change => {
+    const routine = groupedRoutine()
+    const state = workout([], 0, { routines: [routine] })
+    state.active.entries = buildCombinedEntries(state, [routine.id]).entries
+    chooseWorkoutOption(state, 0, '0009')
+    await mount(state.active.entries, 0, { routines: [routine], workoutView: 'custom' })
+    await click(clearSelection())
+    const confirmation = mocks.confirmSheet.mock.calls.at(-1)[0]
+    if (change === 'workout') mocks.S.active.id = 'another-workout'
+    if (change === 'selection') chooseWorkoutOption(mocks.S, 0, '0025')
+    if (change === 'layout') mocks.S.active.workoutView = 'cards'
+    const before = structuredClone(mocks.S)
+    await act(async () => { confirmation.onConfirm() })
+    expect(mocks.S).toEqual(before)
+    expect(mocks.toast).toHaveBeenCalledWith('Too late, that one’s gone')
+  })
+
   it('uses Custom by default and collapses/reopens a completed option without changing either prescription', async () => {
     const routine = groupedRoutine()
     const state = workout([], 0, { routines: [routine] })

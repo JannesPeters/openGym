@@ -47,6 +47,9 @@ icon-only styling. Collapsed titles and set summaries remain clickable to reopen
 Jay's layout omits muscle/equipment tags, the plan line and the inline progression guidance.
 Its sticky header also omits the workout progress bar; other layouts retain it.
 Exercise settings remain available in each exercise's three-dot menu.
+Selected exercise groups also offer Clear selection in Jay's layout. A destructive confirmation
+discards that selection's sets and restores the group's original unselected options. Other
+added options and saved routine settings are unchanged; choosing again builds fresh planned sets.
 The sets container has no inset background or padding in Jay's layout; set headers, rows,
 swipe actions and Add set keep their existing behavior. Swipe-row fronts match the surrounding
 exercise surface rather than drawing dark tiles; they stay opaque to preserve swipe reveals.
