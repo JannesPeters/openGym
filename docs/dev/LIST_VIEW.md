@@ -46,6 +46,7 @@ Expanded cards place the chevron to the right of the exercise menu; both use the
 icon-only styling. Collapsed titles and set summaries remain clickable to reopen the card.
 Jay's layout omits muscle/equipment tags, the plan line and the inline progression guidance.
 Its sticky header also omits the workout progress bar; other layouts retain it.
+Exercise-option lists omit equipment subtitles in Jay's layout, including the selection sheets.
 Exercise settings remain available in each exercise's three-dot menu.
 Selected exercise groups also offer Clear selection in Jay's layout. A destructive confirmation
 discards that selection's sets and restores the group's original unselected options. Other

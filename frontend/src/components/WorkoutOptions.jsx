@@ -44,7 +44,7 @@ export default function WorkoutOptions({ entryIdx, headerAction }) {
         onClick={() => choose(option.id, add, close)}>
         <span className="grow item-open"><span className="tt">{exerciseNameText(ex)}</span>
           <span className="ss">{exLine(option, state.unit, speedUnitOf(state))}</span>
-          <span className="small dim">{t(ex.eq || '')}</span>
+          {activeWorkoutLayout(state) !== 'custom' && <span className="small dim">{t(ex.eq || '')}</span>}
           {profile && !exAvailable(state, ex) && <span className="small" style={{ color: 'var(--orange)' }}>{t('Not in your equipment profile')}</span>}
         </span>
       </button>
