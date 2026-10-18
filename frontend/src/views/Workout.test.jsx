@@ -2527,6 +2527,7 @@ describe("Jay's layout", () => {
     expect([...container.querySelectorAll('.card button')].some(button => button.textContent === 'Add set')).toBe(true)
     expect([...container.querySelectorAll('button')].some(button => button.textContent.startsWith('Finish workout early'))).toBe(layout !== 'custom')
     expect(container.querySelector('.whdr-finish').textContent).toBe('Finish')
+    expect(!!container.querySelector('.wprog')).toBe(layout !== 'custom')
     const addExercise = [...container.querySelectorAll('button')].find(button => button.textContent === 'Add exercise')
     const note = [...container.querySelectorAll('button')].find(button => button.textContent === (layout === 'custom' ? 'Add note' : 'Add session note'))
     expect(note).toBeTruthy()

@@ -45,6 +45,7 @@ These manual folds reset on reload; automatic folding still follows completion.
 Expanded cards place the chevron to the right of the exercise menu; both use the same subtle
 icon-only styling. Collapsed titles and set summaries remain clickable to reopen the card.
 Jay's layout omits muscle/equipment tags, the plan line and the inline progression guidance.
+Its sticky header also omits the workout progress bar; other layouts retain it.
 Exercise settings remain available in each exercise's three-dot menu.
 The sets container has no inset background or padding in Jay's layout; set headers, rows,
 swipe actions and Add set keep their existing behavior. Swipe-row fronts match the surrounding
