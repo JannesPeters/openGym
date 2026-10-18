@@ -1876,11 +1876,10 @@ body.no-tabbar.resting #toast{bottom:calc(100px + var(--sab))}
 .wl-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .wl-icon{width:32px;height:32px;background:none;color:var(--label-2)}
 .wl-icon .icn{width:16px;height:16px}
+.workout-custom .wl-unit{background:var(--surface)}
 .workout-custom .workout-sets-plain{background:none;border-radius:0;padding:0}
-.workout-custom .workout-sets-plain .swfront{background:var(--surface-2)}
-.workout-custom .ss-card .workout-sets-plain .swfront{background:var(--surface)}
-.workout-custom .workout-sets-plain :is(.stp,.effcell,.ck:not(.on),.chk:not(.on),.setgo){background:var(--surface-3)}
-.workout-custom .workout-sets-plain .stp button:active{background:var(--surface-2)}
+.workout-custom .workout-sets-plain .swfront{background:var(--surface)}
+.workout-custom .workout-sets-plain :is(.stp,.effcell,.ck:not(.on),.chk:not(.on),.setgo){background:var(--surface-2)}
 .workout-actions{display:flex;gap:8px}
 .workout-actions>.btn{flex:1;min-width:0;min-height:44px;padding:10px 8px;font-size:15px}
 .wl-summary{display:grid;gap:8px;padding-bottom:10px}

@@ -52,6 +52,8 @@ swipe actions and Add set keep their existing behavior. Swipe-row fronts match t
 exercise surface rather than drawing dark tiles; they stay opaque to preserve swipe reveals.
 Individual inputs, steppers and unchecked completion controls use a subtle contrasting fill;
 completed checks and effort ratings retain their semantic colors.
+Exercise cards use Cards' `--surface` fill and controls use its `--surface-2` fill,
+with the shared `--surface-3` pressed state rather than a separate Jay-specific palette.
 Add exercise and Add note are visible tinted buttons side by side in Jay's layout.
 The unfinished-workout footer button is hidden in Jay's layout; the header's Finish action
 remains available. Completed-workout and saved-workout editing actions are unchanged.
