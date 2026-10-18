@@ -33,6 +33,14 @@ on your phone, synced across your devices, behind your own passkey login.
 
 </div>
 
+## Personal adaptations
+
+This fork's UI/UX adaptations live on the
+[`personal` branch](https://github.com/JannesPeters/openGym/tree/personal): a simpler interface
+and a few focused features tailored to my preferences and how I work out.
+This `main` branch retains the upstream-oriented openGym project and documentation;
+see [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym) for the original project.
+
 <table align="center">
 <tr>
 <td align="center"><img src="assets/screenshots/home.png" alt="Home screen" width="230"><br><sub><b>Home</b> · today's workout and weight</sub></td>
