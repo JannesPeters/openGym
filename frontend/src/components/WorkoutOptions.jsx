@@ -10,7 +10,7 @@ import { hasLoggedWork } from '../lib/exercise-options.js'
 import { chooseWorkoutOption } from '../lib/workout-options.js'
 import { Button } from './ui.jsx'
 
-export default function WorkoutOptions({ entryIdx }) {
+export default function WorkoutOptions({ entryIdx, headerAction }) {
   const state = useStore(s => s.S)
   const entry = state.active?.entries[entryIdx]
   if (!entry?.choiceOptions) return null
@@ -54,7 +54,7 @@ export default function WorkoutOptions({ entryIdx }) {
     {options(add, close)}
   </>)
   if (entry.choicePending) return <div className="card" data-testid="workout-choice">
-    <h2>{t('Choose exercise')}</h2>
+    {headerAction ? <div className="row between"><h2>{t('Choose exercise')}</h2>{headerAction}</div> : <h2>{t('Choose exercise')}</h2>}
     <p className="small dim">{t('Choose one option for this slot. Each exercise keeps its own progress.')}</p>
     {options(false)}
   </div>

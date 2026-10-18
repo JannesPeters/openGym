@@ -1582,6 +1582,7 @@ export default {
   'Change exercise': 'Изменить упражнение',
   'Use default exercise': 'Использовать упражнение по умолчанию',
   'Custom': 'Свой вариант',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'Запишите вес тела, чтобы оценить это упражнение.',
   'Log the anchor lift to score this one.': 'Запишите опорное упражнение, чтобы оценить это.',
   'Not scored': 'Не оценено',

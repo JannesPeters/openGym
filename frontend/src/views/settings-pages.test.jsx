@@ -90,7 +90,7 @@ describe('the root', () => {
     expect(host.querySelector('.sp-acct .lrow-s').textContent).toBe('Your data lives on this device. Sign in to sync.')
     // a guest in a browser has no reminders (no push server) and no Coach page (the server's Coach)
     expect(titles()).toEqual(['Guest', 'Workout', 'Timer alerts', 'Plan & schedule', 'Units & language', 'Equipment', 'Look & Home', 'Data & backup', 'About & updates'])
-    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:30 rest · Custom')
+    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe("1:30 rest · Jay's layout")
     expect(rowTitled('Timer alerts').querySelector('.lrow-v').textContent).toBe('Sound · Vibrate')
     expect(rowTitled('Plan & schedule').querySelector('.lrow-v').textContent).toMatch(/^Fixed Week · Mon/)
     expect(rowTitled('Units & language').querySelector('.lrow-v').textContent).toBe('kg · English')
@@ -117,10 +117,10 @@ describe('the root', () => {
   it('previews a rest that was never on the old list, and no timer at all', () => {
     mocks.S.restSec = 105
     mount()
-    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:45 rest · Custom')
+    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe("1:45 rest · Jay's layout")
     mocks.S.restSec = 0
     mount()
-    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('No rest timer · Custom')
+    expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe("No rest timer · Jay's layout")
   })
 
   it('signed in, Reminders is there and the card names the account; on the phone app the Coach too', () => {
@@ -305,13 +305,14 @@ describe('the pages', () => {
     mount('workout')
     expect(rowTitled('Collapse completed exercises')).toBeUndefined()
     expect(searchSettings('collapse', { ...guestWeb, workoutView: 'custom' })).toEqual([])
+    expect(searchSettings("Jay's layout", guestWeb).map(hit => hit.title)).toContain('Layout')
     expect(searchSettings('Custom', guestWeb).map(hit => hit.title)).toContain('Layout')
     const pick = name => [...rowTitled('Layout').querySelectorAll('button')].find(b => b.textContent === name)
     act(() => pick('List').click())
     mount('workout')
     expect(rowTitled('Collapse completed exercises').querySelector('[role=switch]').getAttribute('aria-checked')).toBe(String(collapseCompleted))
     expect(searchSettings('collapse', { ...guestWeb, workoutView: 'list' }).map(hit => hit.title)).toContain('Collapse completed exercises')
-    act(() => pick('Custom').click())
+    act(() => pick("Jay's layout").click())
     mount('workout')
     expect(rowTitled('Collapse completed exercises')).toBeUndefined()
     expect(mocks.S.collapseCompleted).toBe(collapseCompleted)

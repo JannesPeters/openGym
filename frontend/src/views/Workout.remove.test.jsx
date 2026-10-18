@@ -30,7 +30,7 @@ function setActive(entries, cur = 0) {
   S.wc = { ...S.wc, exerciseButtons: true }   // the removal button is opt-in now; the menu path is covered in Workout.test.jsx
   S.active = {
     id: 'remove-test', d: '2026-08-11', start: Date.now(), routineId: null,
-    name: 'Remove test', bw: null, cur, entries
+    name: 'Remove test', bw: null, cur, entries, workoutView: 'cards'
   }
   useStore.setState({ S, user: null })
 }

@@ -1615,6 +1615,7 @@ export default {
   'Change exercise': '운동 변경',
   'Use default exercise': '기본 운동 사용',
   'Custom': '사용자 지정',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': '이 운동을 평가하려면 체중을 기록하세요.',
   'Log the anchor lift to score this one.': '이 운동을 평가하려면 기준 운동을 기록하세요.',
   'Not scored': '평가 안 됨',

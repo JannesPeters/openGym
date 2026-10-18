@@ -964,6 +964,7 @@ export const PT_BR_OVERRIDES = {
   'Change exercise': 'Trocar exercício',
   'Use default exercise': 'Usar exercício padrão',
   'Custom': 'Personalizado',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'Registre seu peso corporal para avaliar este exercício.',
   'Log the anchor lift to score this one.': 'Registre o exercício de referência para avaliar este.',
   'The server cannot be reached': 'Não é possível acessar o servidor',

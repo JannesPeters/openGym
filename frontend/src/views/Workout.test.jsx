@@ -295,7 +295,7 @@ describe('workout exercise alternatives', () => {
     await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: layout, routineIds: [routine.id] } })
     expect(container.textContent).toContain('Choose exercise')
     expect(container.querySelector('[role="checkbox"]')).toBeNull()
-    await click(container.querySelector('[data-testid="workout-choice"] button:last-child'))
+    await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
     await rerender()
     expect(mocks.S.active.entries[0].id).toBe('0009')
     expect(mocks.S.active.entries[0].sets).toHaveLength(2)
@@ -335,7 +335,7 @@ describe('workout exercise alternatives', () => {
     const firstUnit = container.querySelector('.wl-unit')
     expect(firstUnit.querySelector('.wl-summary')).toBeTruthy()
     expect(mocks.S.active.entries[0].sets.every(s => s.done)).toBe(true)
-    await click(firstUnit.querySelector('.wl-summary'))
+    await click(firstUnit.querySelector('.wl-summary-open'))
     expect(firstUnit.querySelectorAll('.setrow')).toHaveLength(2)
     expect(firstUnit.textContent).not.toContain('Change exercise')
     expect(firstUnit.textContent).toContain('Add another exercise from this group')
@@ -2068,13 +2068,8 @@ describe('workout focus view', () => {
   })
 })
 
-const mountWorkoutView = mount
-describe.each(['list', 'custom'])('workout %s view', layout => {
-  const mount = (entries, cur = 0, overrides = {}) => mountWorkoutView(entries, cur, {
-    ...overrides,
-    ...(overrides.workoutView === 'list' ? { workoutView: layout } : {}),
-    ...(overrides.active?.workoutView === 'list' ? { active: { ...overrides.active, workoutView: layout } } : {}),
-  })
+describe('workout list view', () => {
+  const layout = 'list'
   const units = () => [...container.querySelectorAll('.wl-unit')]
   const focusButton = unit => [...unit.querySelectorAll('button')].find(b => b.textContent.trim() === 'Set current')
 
@@ -2178,7 +2173,7 @@ describe.each(['list', 'custom'])('workout %s view', layout => {
     await toggleSet(0)
 
     expect(mocks.S.active.entries[0].sets[0].done).toBe(true)
-    expect(mocks.S.active.cur).toBe(layout === 'custom' ? 1 : 0)
+    expect(mocks.S.active.cur).toBe(0)
     expect(mocks.startRest).toHaveBeenCalledWith(90, expect.any(Number), { forSet: expect.any(Number) })
   })
 
@@ -2447,7 +2442,7 @@ describe('workout view header menu', () => {
     expect(mocks.renameWorkoutSheet).toHaveBeenCalled()
 
     const layout = await openLayout(menu)
-    expect(menuItemsOf(layout).map(it => it.label)).toEqual(['Custom', 'Cards', 'List', 'Compact', 'Focus', 'Collapse completed exercises'])
+    expect(menuItemsOf(layout).map(it => it.label)).toEqual(["Jay's layout", 'Cards', 'List', 'Compact', 'Focus', 'Collapse completed exercises'])
     expect(item(layout, 'List').on).toBe(true)
     expect(item(layout, 'Cards').on).toBe(false)
   })
@@ -2459,18 +2454,18 @@ describe('workout view header menu', () => {
     expect(item(menu, 'Layout').sub).toBe('Focus')
 
     const layout = await openLayout(menu)
-    expect(menuItemsOf(layout).map(it => it.label)).toEqual(['Custom', 'Cards', 'List', 'Compact', 'Focus'])
+    expect(menuItemsOf(layout).map(it => it.label)).toEqual(["Jay's layout", 'Cards', 'List', 'Compact', 'Focus'])
     expect(item(layout, 'Focus').on).toBe(true)
     expect(item(layout, 'Cards').on).toBe(false)
   })
 
-  it.each(['Custom', 'List', 'Cards', 'Compact', 'Focus'])('writes %s onto s.active without touching the global default', async label => {
+  it.each(["Jay's layout", 'List', 'Cards', 'Compact', 'Focus'])('writes %s onto s.active without touching the global default', async label => {
     await mount([exercise('plain-bench', [false])], 0, { workoutView: 'cards', active: { workoutView: 'cards', routineIds: [] } })
 
     const layout = await openLayout(await openMenu())
     await act(async () => { item(layout, label).onClick() })
 
-    expect(mocks.S.active.workoutView).toBe(label.toLowerCase())
+    expect(mocks.S.active.workoutView).toBe(label === "Jay's layout" ? 'custom' : label.toLowerCase())
     expect(mocks.S.workoutView).toBe('cards')
   })
 
@@ -2507,11 +2502,180 @@ describe('workout view header menu', () => {
     expect(!!container.querySelector('.wl-summary')).toBe(session ?? collapseCompleted)
     layout = await openLayout(await openMenu())
     expect(item(layout, 'Collapse completed exercises').on).toBe(session ?? collapseCompleted)
-    await act(async () => item(layout, 'Custom').onClick())
+    await act(async () => item(layout, "Jay's layout").onClick())
     await rerender()
     expect(container.querySelector('.wl-summary')).toBeTruthy()
     expect(mocks.S.collapseCompleted).toBe(collapseCompleted)
     expect(mocks.S.active.collapseCompleted).toBe(session)
+  })
+})
+
+describe("Jay's layout", () => {
+  it.each(['custom', 'list', 'cards'])('only hides muscle, equipment, plan and progression details in Jay layout (%s)', async layout => {
+    await mount([exercise('0334', [false], {
+      planned: { sets: 3, reps: 12 },
+      plan: { policy: 'linear', kind: 'first', why: ['Nothing logged yet, so this session sets the baseline.'] },
+    })], 0, { workoutView: layout })
+    const tags = [...container.querySelectorAll('.tag')].map(el => el.textContent.toLowerCase())
+    expect(tags.includes('shoulders')).toBe(layout !== 'custom')
+    expect(tags.includes('dumbbell')).toBe(layout !== 'custom')
+    expect(!!container.querySelector('.planline')).toBe(layout !== 'custom')
+    expect(!!container.querySelector('.progline')).toBe(layout !== 'custom')
+    expect(!!container.querySelector('.workout-sets-plain')).toBe(layout === 'custom')
+    expect(container.querySelector('.card .sethead')).toBeTruthy()
+    expect(container.querySelectorAll('.card [role="checkbox"]')).toHaveLength(1)
+    expect([...container.querySelectorAll('.card button')].some(button => button.textContent === 'Add set')).toBe(true)
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.startsWith('Finish workout early'))).toBe(layout !== 'custom')
+    expect(container.querySelector('.whdr-finish').textContent).toBe('Finish')
+    const addExercise = [...container.querySelectorAll('button')].find(button => button.textContent === 'Add exercise')
+    const note = [...container.querySelectorAll('button')].find(button => button.textContent === (layout === 'custom' ? 'Add note' : 'Add session note'))
+    expect(note).toBeTruthy()
+    expect(!!container.querySelector('.workout-actions')).toBe(layout === 'custom')
+    if (layout === 'custom') {
+      expect(addExercise.parentElement).toBe(note.parentElement)
+      expect(addExercise.classList.contains('tinted')).toBe(true)
+      expect(note.classList.contains('tinted')).toBe(true)
+    }
+    await click(addExercise)
+    expect(mocks.exercisePicker).toHaveBeenCalledOnce()
+    await click(note)
+    const { sessionNoteSheet } = await import('../sheets.jsx')
+    expect(sessionNoteSheet).toHaveBeenCalledOnce()
+    await click(container.querySelector('button[aria-label="More"]'))
+    const settings = menuItemsOf(mocks.menuSheet.mock.calls.at(-1)[0]).find(item => item.label === 'Exercise settings')
+    expect(settings).toBeTruthy()
+    await act(async () => { settings.onClick() })
+    expect(mocks.exConfigSheet.mock.calls.at(-1)[0].id).toBe('0334')
+  })
+
+  const noCurrent = () => {
+    expect(container.querySelector('.wl-unit.cur, .wchip.cur, [aria-current]')).toBeNull()
+    expect(container.querySelector('.wl-hd > .muted.small')).toBeNull()
+    expect(container.textContent).not.toContain('Current')
+    expect(container.textContent).not.toContain('Set current')
+  }
+
+  it('can fold and reopen unfinished sets without selecting an exercise or changing its data', async () => {
+    await mount([exercise('bench', [false, false]), exercise('row', [false])], 1, { workoutView: 'custom' })
+    const before = structuredClone(mocks.S.active)
+    const unit = container.querySelector('.wl-unit')
+    let toggle = unit.querySelector('.exhd .wl-fold')
+    const more = unit.querySelector('.exhd button[aria-label="More"]')
+    expect(more.nextElementSibling).toBe(toggle)
+    expect(more.classList.contains('wl-icon')).toBe(true)
+    expect(toggle.classList.contains('wl-icon')).toBe(true)
+    expect(unit.querySelector('.wl-hd')).toBeNull()
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(toggle.getAttribute('aria-label')).toBe('Fold away')
+    expect(toggle.textContent).toBe('')
+    expect(toggle.querySelector('[data-icon="chevronUp"]')).toBeTruthy()
+    await click(toggle)
+    toggle = unit.querySelector('.wl-summary-ex > .wl-fold')
+    expect(unit.querySelector('.setrow')).toBeNull()
+    expect(unit.querySelector('.card')).toBeNull()
+    expect(unit.querySelector('.wl-summary .tag').textContent).toBe('0/2 sets')
+    expect(unit.querySelector('.wl-summary-details > .tag').textContent).toBe('0/2 sets')
+    expect(unit.querySelector('.wl-summary-details').firstElementChild.classList.contains('tag')).toBe(true)
+    expect(unit.querySelector('.wl-summary-details > .wl-set-summary')).toBeTruthy()
+    expect(unit.querySelector('.wl-summary-open > .row .tag')).toBeNull()
+    expect(unit.querySelector('button button')).toBeNull()
+    expect(unit.querySelector('.wl-summary [data-icon="check"]')).toBeNull()
+    expect([...unit.querySelectorAll('.wl-set-mini')].map(el => el.textContent)).toEqual(['1. 60×5', '2. 60×5'])
+    expect(unit.querySelector('.wl-summary')).toBeTruthy()
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.getAttribute('aria-label')).toBe('Show the sets')
+    expect(toggle.querySelector('[data-icon="chevronDown"]')).toBeTruthy()
+    expect(toggle.getAttribute('aria-controls')).toBe(unit.querySelector('[id]').id)
+    await click(toggle)
+    toggle = unit.querySelector('.exhd .wl-fold')
+    expect(unit.querySelector('.card')).toBeTruthy()
+    expect(unit.querySelectorAll('.setrow')).toHaveLength(2)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(mocks.S.active).toEqual(before)
+    noCurrent()
+  })
+
+  it('ignores a persisted current exercise, folds completed work and keeps entry actions available', async () => {
+    await mount([exercise('bench', [true]), exercise('row', [false])], 0, {
+      workoutView: 'custom', wc: { exerciseButtons: true },
+    })
+    noCurrent()
+    expect(container.querySelector('.wl-summary')).toBeTruthy()
+    expect(buttonNamed('Swap exercise')).toBeNull()
+    await flushFrame()
+    expect(mocks.scrollCalls).toEqual([])
+    await click(container.querySelector('.wl-summary-open'))
+    noCurrent()
+    await click(container.querySelector('.wl-unit button[aria-label="More"]'))
+    const labels = menuItemsOf(mocks.menuSheet.mock.calls.at(-1)[0]).map(item => item.label)
+    expect(labels).toContain('Swap exercise')
+    expect(labels).toContain('Remove exercise')
+    expect(mocks.S.active.cur).toBe(0)
+  })
+
+  it('uses chips only to reveal an exercise without selecting one or switching to Cards', async () => {
+    await mount([exercise('bench', [true]), exercise('row', [false])], 1, {
+      workoutView: 'cards', active: { workoutView: 'custom' },
+    })
+    await click(container.querySelector('.wchip'))
+    await flushFrame()
+    expect(container.querySelector('.wl-unit .setrow')).toBeTruthy()
+    expect(mocks.S.active.cur).toBe(1)
+    expect(mocks.S.active.workoutView).toBe('custom')
+    expect(mocks.scrollCalls.at(-1).node.dataset.unitKey).toBe('0')
+    noCurrent()
+  })
+
+  it('keeps each superset member and its actual weights and reps readable while folded', async () => {
+    await mount([
+      exercise('bench', [true], { sg: 'pair', sets: [{ w: 62.5, r: 8, done: true }] }),
+      exercise('row', [true], { sg: 'pair', sets: [{ w: 40, r: 12, done: true }] }),
+    ], 0, { workoutView: 'custom' })
+    const summary = container.querySelector('.wl-summary')
+    expect(summary.querySelectorAll('.wl-summary-ex')).toHaveLength(2)
+    expect([...summary.querySelectorAll('.wl-summary-details > .tag')].map(el => el.textContent)).toEqual(['1 sets', '1 sets'])
+    expect([...summary.querySelectorAll('.wl-set-mini')].map(el => el.textContent)).toEqual(['1. 62.5×8', '1. 40×12'])
+    expect(summary.querySelectorAll('.wl-set-mini.done')).toHaveLength(2)
+    expect(container.querySelector('.setrow')).toBeNull()
+    noCurrent()
+  })
+
+  it('logs supersets and starts round rest without selecting the partner or next exercise', async () => {
+    await mount([
+      exercise('bench', [false], { sg: 'pair' }),
+      exercise('row', [false], { sg: 'pair' }),
+      exercise('squat', [false]),
+    ], 0, { workoutView: 'custom' })
+    await toggleSet(0)
+    await rerender()
+    expect(mocks.S.active.cur).toBe(0)
+    noCurrent()
+    await toggleSet(1)
+    await rerender()
+    expect(mocks.S.active.cur).toBe(0)
+    expect(container.querySelector('.wl-summary')).toBeTruthy()
+    expect(mocks.startRest).toHaveBeenCalledWith(90, 1, { forSet: 0 })
+    noCurrent()
+  })
+
+  it('appends added exercises instead of inserting after a hidden selection', async () => {
+    await mount([exercise('bench', [false]), exercise('row', [false])], 0, { workoutView: 'custom' })
+    await addExerciseThroughSheets({ id: 'added' })
+    await rerender()
+    expect(mocks.S.active.entries.map(entry => entry.id)).toEqual(['bench', 'row', 'added'])
+    expect(mocks.S.active.cur).toBe(0)
+    noCurrent()
+  })
+
+  it('restores the legacy marker only when switching back to List', async () => {
+    await mount([exercise('bench', [false]), exercise('row', [false])], 1, { workoutView: 'list' })
+    expect(container.querySelector('.wl-unit.cur').dataset.unitKey).toBe('1')
+    mocks.S.active.workoutView = 'custom'
+    await rerender()
+    noCurrent()
+    mocks.S.active.workoutView = 'list'
+    await rerender()
+    expect(container.querySelector('.wl-unit.cur').dataset.unitKey).toBe('1')
   })
 })
 
@@ -2531,9 +2695,9 @@ describe('collapsing completed workout exercises', () => {
     })
     await toggleSet(1)
     await rerender()
-    expect(mocks.S.active.cur).toBe(1)
+    expect(mocks.S.active.cur).toBe(0)
     expect(units()[0].querySelector('.wl-summary')).toBeTruthy()
-    await click(units()[0].querySelector('.wl-summary'))
+    await click(units()[0].querySelector('.wl-summary-open'))
     expect(units()[0].querySelectorAll('.setrow').length).toBe(2)
     await toggleSet(1)
     await rerender()
@@ -2543,7 +2707,7 @@ describe('collapsing completed workout exercises', () => {
     expect(mocks.S.active.collapseCompleted).toBe(session)
   })
 
-  it.each(['custom', 'list', 'compact'])('folds the current exercise in %s the moment its last set is ticked, and opens it again on a tap', async workoutView => {
+  it.each(['list', 'compact'])('folds the current exercise in %s the moment its last set is ticked, and opens it again on a tap', async workoutView => {
     await mount([exercise('bench', [true, false]), exercise('row', [false])], 0,
       { workoutView, active: { workoutView, collapseCompleted: true } })
     const loggedBefore = structuredClone(mocks.S.active.entries[0].sets)

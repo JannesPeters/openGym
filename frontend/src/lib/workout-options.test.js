@@ -17,6 +17,16 @@ const makeState = () => {
 }
 
 describe('workout choices', () => {
+  it.each(['custom', 'list', 'cards', 'compact', 'focus'])('only selects an exercise option in layouts with a current exercise (%s)', layout => {
+    const state = makeState()
+    state.active.workoutView = layout
+    state.active.cur = 1
+    chooseWorkoutOption(state, 0, '0025')
+    expect(state.active.cur).toBe(layout === 'custom' ? 1 : 0)
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+    expect(state.active.cur).toBe(layout === 'custom' ? 1 : 2)
+  })
+
   it('starts with an unresolved slot that cannot be logged as the primary', () => {
     const state = makeState()
     expect(state.active.entries).toHaveLength(2)

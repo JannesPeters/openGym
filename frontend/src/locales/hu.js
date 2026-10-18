@@ -1615,6 +1615,7 @@ export default {
   'Change exercise': 'Gyakorlat módosítása',
   'Use default exercise': 'Alapértelmezett gyakorlat használata',
   'Custom': 'Egyéni',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'Rögzítsd a testsúlyodat, hogy ez a gyakorlat értékelhető legyen.',
   'Log the anchor lift to score this one.': 'Rögzítsd a viszonyítási alapul szolgáló gyakorlatot, hogy ez is értékelhető legyen.',
   'Not scored': 'Nincs értékelve',

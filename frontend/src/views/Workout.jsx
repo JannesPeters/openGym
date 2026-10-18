@@ -108,11 +108,12 @@ const SWITCH_SIDES_SEC = 10
 
 function ExerciseBlock(props) {
   const entry = useStore(s => s.S.active.entries[props.entryIdx])
-  return entry?.choicePending ? <WorkoutOptions entryIdx={props.entryIdx} /> : <ResolvedExerciseBlock {...props} />
+  return entry?.choicePending ? <WorkoutOptions entryIdx={props.entryIdx} headerAction={props.headerAction} /> : <ResolvedExerciseBlock {...props} />
 }
 
-function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSide, onField, onAddSet, onRemoveSet, onAddWarmup, onRemoveSetAt, onCopySetAt, onStartTimed, onPairPrev, onPairNext, onSetRowRef, onProgressionSettings, onRest, onNoProg, routineUpdate, onSwap, onMoveUp, onMoveDown, canMoveUp, canMoveDown, onRemoveExercise, busy }) {
+function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSide, onField, onAddSet, onRemoveSet, onAddWarmup, onRemoveSetAt, onCopySetAt, onStartTimed, onPairPrev, onPairNext, onSetRowRef, onProgressionSettings, onRest, onNoProg, routineUpdate, onSwap, onMoveUp, onMoveDown, canMoveUp, canMoveDown, onRemoveExercise, busy, headerAction }) {
   const S = useStore(s => s.S)
+  const jayLayout = activeWorkoutLayout(S) === 'custom'
   const update = useStore(s => s.update)
   const working = useUI(s => s.work)
   const restEnds = useUI(s => s.timer?.endsAt)
@@ -645,7 +646,8 @@ function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, on
       <div className="row" style={{ gap: 2, flex: 'none' }}>
         {entry.note && <button className="iconbtn" aria-label={t('Note')} title={t('Note')} style={{ color: 'var(--acc)' }}
           onClick={() => exerciseNoteSheet(entryIdx)}><Icon name="note" /></button>}
-        <button className="iconbtn" aria-label={t('More')} title={t('More')} onClick={openMore}><Icon name="more" /></button>
+        <button className={'iconbtn' + (headerAction ? ' wl-icon' : '')} aria-label={t('More')} title={t('More')} onClick={openMore}><Icon name="more" /></button>
+        {headerAction}
       </div>
     </div>
     {/* Kept out of progression: by hand for this session (the ⋯ menu, with its undo right here),
@@ -664,17 +666,17 @@ function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, on
     {/* compact view drops everything from here to the sets card — it is all still on the ⋯ menu
         (note, details, history, bar weight, progression) or is display-only (tags, "last time"). */}
     {!dense && <>
-    <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+    {(!jayLayout || cardio || isPerSide(cfg) || best > 0) && <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
       {cardio && <span className="tag acc"><Icon name="figureRun" />{t('Cardio')}</span>}
       {/* A unilateral exercise is logged per side directly (the L/R rows below for reps, a
           "Left"/"Right" tag on each doubled row for a timed hold), so the old "{n} per side"
           chip — which halved the combined total for display — is gone: the split is no longer
           derived, it is what you enter. The tag only flags that this is per-side. */}
       {!cardio && isPerSide(cfg) && <span className="tag acc nocap"><Icon name="sides" />{t('Per side')}</span>}
-      {(ex.tg || ex.bp) && <span className="tag">{t(MUSCLE_NAME[targetMuscleOf(ex)] || targetMuscleOf(ex))}</span>}
-      {ex.eq && <span className="tag">{t(ex.eq)}</span>}
+      {!jayLayout && (ex.tg || ex.bp) && <span className="tag">{t(MUSCLE_NAME[targetMuscleOf(ex)] || targetMuscleOf(ex))}</span>}
+      {!jayLayout && ex.eq && <span className="tag">{t(ex.eq)}</span>}
       {best > 0 && <span className="tag nocap">{t('Best:')} {fmtNum(best)} {S.unit}</span>}
-    </div>
+    </div>}
     {/* Three notes can apply to one exercise and they are not interchangeable, so each keeps its
         own line and its own icon: the plan's instruction (cfg.note, from the routine), the
         standing fact about the movement (exNotes), and the message you pinned to yourself last
@@ -686,15 +688,15 @@ function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, on
       {t('From {0}:', fmtDate(pinnedNote.d, true))} {pinnedNote.note}
     </div>}
     {entry.note && <div className="exnote">{entry.note}</div>}
-    {planLine}
+    {!jayLayout && planLine}
     {refLine}
-    {guidance && onProgressionSettings && <button type="button" className={'progline' + (plan.kind === 'deload' ? ' warn' : '')}
+    {!jayLayout && guidance && onProgressionSettings && <button type="button" className={'progline' + (plan.kind === 'deload' ? ' warn' : '')}
       aria-label={t('Open exercise settings')} onClick={onProgressionSettings}>
       <Icon name={plan.kind === 'up' ? 'arrowUp' : plan.kind === 'deload' ? 'arrowDown' : 'lightbulb'} />
       <span><strong>{t(guidance.policyLabel)}</strong> · {t(...guidance.why)}</span>
     </button>}
     </>}
-    <div className="card" style={{ marginTop: 10, marginBottom: 0 }}>
+    <div className={'card' + (jayLayout ? ' workout-sets-plain' : '')} style={{ marginTop: 10, marginBottom: 0 }}>
       {/* the header carries the same eff3/timed sizing as the rows, or the labels drift off their
           columns; over L/R rows it also has to skip the side badge that sits in front of the weight cell */}
       <div className={'sethead' + (col3 ? ' eff3' : '') + (timed ? ' timed' : '') + (perSide ? ' per-side' : '') + (wc.steppers ? '' : ' plain')}><span className="n-sp" /><span className="w-sp">{col1.hd}</span>{col2 && <span className="r-sp">{col2.hd}</span>}{col3 && <span className={col3.eff ? 'eff-sp' : 'r-sp'}>{col3.hd}</span>}{timed && <span className="ck-sp" />}<span className="ck-sp" /></div>
@@ -947,9 +949,10 @@ function ActiveWorkout() {
   // seeded onto s.active and overridable for this session from the header ⋮). compact is list
   // with the per-exercise media, tag chips, note lines, "last time" and progression line
   // stripped — just names, the one-line plan and set rows. Every set handler below is already entry-index
-  // parameterised, so these only change what is rendered — completion, rest, top-weight and
-  // auto-advance share one path. Missing preferences use Custom; explicit choices are preserved.
+  // parameterised, so completion, rest and top-weight share one path. Jay's layout leaves
+  // the legacy navigation cursor alone. Explicit choices are preserved.
   const workoutView = activeWorkoutLayout(S)
+  const jayLayout = workoutView === 'custom'
   const listMode = ['custom', 'list', 'compact'].includes(workoutView)
   const focusMode = workoutView === 'focus'
   const dense = workoutView === 'compact'
@@ -962,22 +965,25 @@ function ActiveWorkout() {
   // Collapse finished exercises in the list (#241). The current unit stays open, superset
   // members included, until you move on (ticking its last set does that, see toggle); an empty
   // exercise or a half-done warm-up or side stays open too.
-  // Custom always collapses. Other stacked layouts prefer the session's choice over the saved
-  // one, without Custom overwriting either preference.
+  // Jay's layout always folds completed units, with no current-unit exemption. Other stacked
+  // layouts prefer the session's choice over the saved one without overwriting either.
   const collapseOn = workoutView === 'custom' || (listMode && !!(A.collapseCompleted ?? S.collapseCompleted))
-  // A finished unit you tapped open again to look at or fix (Discord: "minimize completed exercises
-  // so I view only what I have yet to do"). This screen's own memory: a reload folds it back.
+  // Manual card visibility is local to this screen; reloading restores automatic completion-based
+  // folding. Jay's layout also lets unfinished cards fold without changing any logged data.
   // Keyed by index like the units, so a different number of exercises starts over.
-  const [openedState, setOpenedState] = useState(() => ({ len: A.entries.length, keys: new Set() }))
+  const [openedState, setOpenedState] = useState(() => ({ len: A.entries.length, keys: new Set(), folded: new Set() }))
   const opened = openedState.len === A.entries.length ? openedState.keys : new Set()
+  const folded = openedState.len === A.entries.length ? openedState.folded : new Set()
   const finished = u => u.every(idx => A.entries[idx].sets.length > 0 && A.entries[idx].sets.every(s => s.done))
   const collapsed = new Set(collapseOn ? units.filter(u =>
-    !u.includes(cur) && !opened.has(u.join('-')) && finished(u),
+    (jayLayout && folded.has(u.join('-'))) || ((jayLayout || !u.includes(cur)) && !opened.has(u.join('-')) && finished(u)),
   ).map(u => u.join('-')) : [])
   const setUnitOpen = (key, open) => setOpenedState(prev => {
     const keys = new Set(prev.len === A.entries.length ? prev.keys : [])
-    if (open) keys.add(key); else keys.delete(key)
-    return { len: A.entries.length, keys }
+    const folded = new Set(prev.len === A.entries.length ? prev.folded : [])
+    if (open) { keys.add(key); folded.delete(key) }
+    else { keys.delete(key); if (jayLayout) folded.add(key) }
+    return { len: A.entries.length, keys, folded }
   })
   const wc = workoutControls(S)
   // Superset flow: center the actionable row when completing a set moves to the partner or
@@ -1035,7 +1041,7 @@ function ActiveWorkout() {
       if (!A2 || useStore.getState().S.hints?.swipeSets) return
       const c = Math.min(Math.max(A2.cur || 0, 0), A2.entries.length - 1)
       const shownUnit = unitOf(supersetUnits(A2.entries), c)
-      const order = listMode ? [c, ...A2.entries.keys()] : shownUnit
+      const order = jayLayout ? [...A2.entries.keys()] : listMode ? [c, ...A2.entries.keys()] : shownUnit
       let at = null
       for (const k of order) {
         const j = A2.entries[k]?.sets.findIndex(x => !x.done) ?? -1
@@ -1049,7 +1055,7 @@ function ActiveWorkout() {
       hintTm.current = setTimeout(() => { if (useUI.getState().swipeHint?.id === id) setUI({ swipeHint: null }) }, 6000)
     }, 600)
     return () => clearTimeout(tm)
-  }, [wc.swipeSets, hintSeen, A.entries.length, cur, listMode])
+  }, [wc.swipeSets, hintSeen, A.entries.length, cur, listMode, jayLayout])
   useEffect(() => () => { clearTimeout(hintTm.current); setUI({ swipeHint: null, setFlash: null }) }, [])
   useEffect(() => {
     const liveEntries = new Set(A.entries)
@@ -1118,7 +1124,7 @@ function ActiveWorkout() {
   const listRef = useRef(null)
   const hdrRef = useRef(null)
   useEffect(() => {
-    if (!listMode) return
+    if (!listMode || jayLayout) return
     const schedule = callback => window.requestAnimationFrame
       ? window.requestAnimationFrame(callback)
       : window.setTimeout(callback, 0)
@@ -1339,7 +1345,7 @@ function ActiveWorkout() {
   // the exercise buttons are on, because then the tap also picks what Move/Swap/Remove below
   // act on and the list is where you use them.
   const focusUnit = firstIdx => update(s => {
-    if (!s.active) return
+    if (!s.active || activeWorkoutLayout(s) === 'custom') return
     s.active.cur = firstIdx
     if (!workoutControls(s).exerciseButtons && workoutLayout(s.workoutView) === 'cards') s.active.workoutView = 'cards'
   })
@@ -1348,7 +1354,7 @@ function ActiveWorkout() {
   // render above prefers over S.workoutView.
   const setWorkoutView = v => update(s => { if (s.active) s.active.workoutView = v })
   const LAYOUT_LABEL = {
-    custom: t('Custom'),
+    custom: t("Jay's layout"),
     cards: t('Cards'),
     list: t('List'),
     compact: t('Compact'),
@@ -1357,7 +1363,7 @@ function ActiveWorkout() {
   const openLayoutMenu = () => menuSheet({
     title: t('Layout'),
     items: [
-      { icon: 'list', label: t('Custom'), on: workoutView === 'custom', onClick: () => setWorkoutView('custom') },
+      { icon: 'list', label: t("Jay's layout"), on: jayLayout, onClick: () => setWorkoutView('custom') },
       { icon: 'layout', label: t('Cards'), on: workoutView === 'cards', onClick: () => setWorkoutView('cards') },
       { icon: 'list', label: t('List'), on: workoutView === 'list', onClick: () => setWorkoutView('list') },
       { icon: 'compact', label: t('Compact'), on: workoutView === 'compact', onClick: () => setWorkoutView('compact') },
@@ -1388,7 +1394,7 @@ function ActiveWorkout() {
     // never becomes the baseline the regular sessions progress from. An exercise kept out by
     // hand (its ⋯ menu) is that exercise's own choice for today and is not passed on; a session
     // kept out as a whole (the header ⋮) takes the new one with it (joinSessionNoProg).
-    const curEntry = A.entries[A.cur]
+    const curEntry = jayLayout ? A.entries.at(-1) : A.entries[A.cur]
     const curRid = curEntry?.rid
     const routine = curRid ? S.routines.find(r => r.id === curRid) : null
     const freestyle = !routine
@@ -1412,9 +1418,9 @@ function ActiveWorkout() {
             step: modeOf(full) === 'reps' ? (ownedWeightsFor(s, full) || weightIncrement(full, s.unit)) : defaultIncrement(ex.id, s.unit), preferLast: true,
           }), full, dropGrid(s, full)) }
           : buildPlannedEntry(past, full, routine, { noProg })
-        const insertAt = insertionIndexAfterCurrentUnit(supersetUnits(s.active.entries), s.active.cur, s.active.entries.length)
+        const insertAt = jayLayout ? s.active.entries.length : insertionIndexAfterCurrentUnit(supersetUnits(s.active.entries), s.active.cur, s.active.entries.length)
         s.active.entries.splice(insertAt, 0, joinSessionNoProg(s.active, { id: ex.id, ...built, ...(curRid ? { rid: curRid } : {}), ...(noProg ? { noProg: true } : {}) }))
-        s.active.cur = insertAt
+        if (!jayLayout) s.active.cur = insertAt
         useUI.getState().shiftRestOwner(insertAt, 1)
       })
     }
@@ -1717,7 +1723,7 @@ function ActiveWorkout() {
       // only what I have yet to do"). The scroll anchor holds what is on screen while it folds,
       // and revealCur brings the next exercise up if it was left low on the screen. Only on new
       // progress, never on a re-tick, and never in the other layouts, where the marker stays put.
-      if (collapseOn && freshUnitDone && nextUnit && freshUnit?.includes(fresh.cur)) {
+      if (!jayLayout && collapseOn && freshUnitDone && nextUnit && freshUnit?.includes(fresh.cur)) {
         revealCur.current = true
         update(s => { if (s.active) s.active.cur = nextUnit[0] })
       }
@@ -1749,7 +1755,7 @@ function ActiveWorkout() {
       if (step.unitDone) {
         if (nextUnit?.length && !restBeforeWarmup) startRest(restAfter, idx, { forSet: i })
       } else {
-        if (step.nextIdx != null) update(s => { if (s.active) s.active.cur = step.nextIdx })
+        if (!jayLayout && step.nextIdx != null) update(s => { if (s.active) s.active.cur = step.nextIdx })
         if (step.roundDone) startRest(restAfter, idx, { forSet: i })
       }
       onFocusProgress?.({ unitDone: freshUnitDone })
@@ -1802,7 +1808,7 @@ function ActiveWorkout() {
     update(s => { if (s.active) s.active.cur = chip.unit[0] })
   }
   const chipRow = wc.exerciseChips && A.entries.length > 0
-    ? <WorkoutChips entries={A.entries} cur={cur} onPick={pickChip} />
+    ? <WorkoutChips entries={A.entries} cur={jayLayout ? undefined : cur} onPick={pickChip} />
     : null
 
   // Hardware keys (issue #133, lib/workout-keys.js): Space or Enter ticks the next set, ← and →
@@ -1820,6 +1826,8 @@ function ActiveWorkout() {
     else window.setTimeout(scroll, 0)
   }
   onKey.current = event => {
+    // Without a selected exercise, native focus owns keyboard activation.
+    if (jayLayout) return false
     // A sheet on top owns the keyboard (Escape closes it, Enter confirms in it).
     if (useUI.getState().sheets.length) return false
     const action = workoutKeyAction(event, { tabbed: tabbed.current, rtl: document.documentElement.dir === 'rtl' })
@@ -1871,14 +1879,15 @@ function ActiveWorkout() {
     if (!useStore.getState().user || editing) return
     let stopped = false
     const ping = active => {
-      const A2 = useStore.getState().S.active
+      const state = useStore.getState().S
+      const A2 = state.active
       if (!A2) return
       const u = supersetUnits(A2.entries)
       const c = Math.min(A2.cur, Math.max(0, A2.entries.length - 1))
       const ui = u.findIndex(x => x.includes(c))
       const tot = setUnitsTotal(A2.entries)
       api('/api/activity', { method: 'POST', body: JSON.stringify({
-        active, name: A2.name, exIdx: ui + 1, exTotal: u.length,
+        active, name: A2.name, ...(activeWorkoutLayout(state) === 'custom' ? {} : { exIdx: ui + 1 }), exTotal: u.length,
         setsDone: setsDoneActive(A2), setsTotal: tot, startedAt: A2.start
       }) }).catch(() => {})
     }
@@ -1947,31 +1956,61 @@ function ActiveWorkout() {
       <div className={'workout-list' + (workoutView === 'custom' ? ' workout-custom' : '')} data-layout={workoutView} data-testid="workout-list" ref={listRef}>
         {units.map((u, ui) => {
           const multi = u.length > 1
-          const isCur = u.includes(cur)
+          const isCur = !jayLayout && u.includes(cur)
           const isCollapsed = collapsed.has(u.join('-'))
           // Finished and tapped open again: it says it can fold back, and does on a tap.
           const reopened = collapseOn && !isCur && !isCollapsed && opened.has(u.join('-')) && finished(u)
+          const foldControl = jayLayout && <button type="button" className="iconbtn wl-icon wl-fold"
+            aria-label={isCollapsed ? t('Show the sets') : t('Fold away')}
+            title={isCollapsed ? t('Show the sets') : t('Fold away')}
+            aria-expanded={!isCollapsed} aria-controls={'workout-unit-' + u.join('-')}
+            onClick={() => setUnitOpen(u.join('-'), isCollapsed)}>
+            <Icon name={isCollapsed ? 'chevronDown' : 'chevronUp'} />
+          </button>
+          const Summary = jayLayout ? 'div' : 'button'
+          const SummaryBody = jayLayout ? 'button' : 'span'
+          const openProps = { type: 'button', 'aria-expanded': false, title: t('Show the sets'), onClick: () => setUnitOpen(u.join('-'), true) }
           return <section key={u.join('-')} className={'wl-unit' + (isCur ? ' cur' : '')} data-exidx={u[0]} data-unit-key={u.join('-')}>
-            <div className="wl-hd">
+            {!jayLayout && <div className="wl-hd">
               <span className="muted small">{multi ? t('Superset {0} / {1}', ui + 1, units.length) : t('Exercise {0} / {1}', ui + 1, units.length)}</span>
               <span className="row" style={{ gap: 6 }}>
-                {reopened && <button className="chip" aria-expanded="true" aria-controls={'workout-unit-' + u.join('-')}
-                  onClick={() => setUnitOpen(u.join('-'), false)}>{t('Fold away')}</button>}
+                {reopened && <button type="button" className="chip" aria-expanded="true" aria-controls={'workout-unit-' + u.join('-')}
+                  onClick={() => setUnitOpen(u.join('-'), false)}>{t('Fold away')}
+                </button>}
                 {isCur
                   ? <span className="tag acc">{t('Current')}</span>
                   : <button className="chip" onClick={() => focusUnit(u[0])}>{t('Set current')}</button>}
               </span>
-            </div>
+            </div>}
             <div id={'workout-unit-' + u.join('-')}>
             {/* One line per exercise, and the line is the way back in: a tap opens the sets again
                 to fix a number, without making it the current exercise. */}
-            {isCollapsed ? <button type="button" className="wl-summary" aria-expanded="false" title={t('Show the sets')}
-              onClick={() => setUnitOpen(u.join('-'), true)}>
-              {u.map(idx => <span key={idx} className="row between" style={{ gap: 8 }}>
-                <span className={exerciseNameClass(exOr(A.entries[idx].id))} style={{ fontWeight: 600 }}><ExerciseName ex={exOr(A.entries[idx].id)} /></span>
-                <span className="tag acc nocap"><Icon name="check" />{t('{0} sets', A.entries[idx].sets.length)}</span>
-              </span>)}
-            </button> : multi ? (
+            {isCollapsed ? <Summary className="wl-summary" {...(!jayLayout ? openProps : {})}>
+              {u.map(idx => {
+                const complete = finished([idx])
+                const status = <span className={'tag nocap' + (complete ? ' acc' : '')}>
+                  {complete && <Icon name="check" />}
+                  {t('{0} sets', complete ? A.entries[idx].sets.length : A.entries[idx].sets.filter(s => s.done).length + '/' + A.entries[idx].sets.length)}
+                </span>
+                return <span key={idx} className="wl-summary-ex">
+                  <SummaryBody className={jayLayout ? 'wl-summary-open' : undefined} {...(jayLayout ? openProps : {})}>
+                  <span className="row between" style={{ gap: 8 }}>
+                    <span className={exerciseNameClass(exOr(A.entries[idx].id))} style={{ fontWeight: 600 }}><ExerciseName ex={exOr(A.entries[idx].id)} /></span>
+                    {!jayLayout && status}
+                  </span>
+                  {jayLayout && <span className="wl-summary-details">
+                    {status}
+                    <span className="wl-set-summary">
+                      {A.entries[idx].sets.map((set, i) => <span key={i} className={'wl-set-mini' + (set.done ? ' done' : '')}>
+                        <span className="muted">{i + 1}.</span> {setLabel(A.entries[idx].id, set, A.entries[idx].target, speedUnitOf(S))}
+                      </span>)}
+                    </span>
+                  </span>}
+                  </SummaryBody>
+                  {foldControl}
+                </span>
+              })}
+            </Summary> : multi ? (
               <div className="ss-card">
                 <div className="ss-hd" style={{ justifyContent: 'space-between' }}>
                   <span className="row" style={{ gap: 5 }}><Icon name="link" />{ssTitle(u)}</span>
@@ -1982,12 +2021,14 @@ function ActiveWorkout() {
                   return <div key={idx} ref={el => bindExRef(entry, el)} className="ss-ex" data-exidx={idx}>
                     {k > 0 && <div className="ss-amp">+</div>}
                     <ExerciseBlock entryIdx={idx} compact dense={dense} onSetRowRef={(setIdx, el) => bindSetRef(entry, setIdx, el)}
+                      headerAction={foldControl}
                       {...blockProps(idx)} />
                   </div>
                 })}
               </div>
             ) : (
               <ExerciseBlock entryIdx={u[0]} dense={dense}
+                headerAction={foldControl}
                 onPairPrev={u[0] > 0 ? () => pairAt(u[0] - 1, u[0]) : null}
                 onPairNext={u[0] < A.entries.length - 1 ? () => pairAt(u[0], u[0] + 1) : null}
                 {...blockProps(u[0])} />
@@ -2059,9 +2100,12 @@ function ActiveWorkout() {
       <Button trailingIcon="chevronRight" disabled={unitIdx < 0 || unitIdx >= units.length - 1} onClick={() => navigateUnit(1)}>{t('Next')}</Button>
     </div>}
     {!listMode && <div style={{ height: 10 }} />}
-    {wc.exerciseButtons && listMode && A.entries.length > 0 && <div className="muted small" style={{ marginBottom: 6 }}>{t('Move, swap and remove below act on the exercise marked {0}.', t('Current'))}</div>}
-    <Button onClick={addExercise} icon="plus">{t('Add exercise')}</Button>
-    {wc.exerciseButtons && A.entries.length > 0 && <>
+    {wc.exerciseButtons && listMode && !jayLayout && A.entries.length > 0 && <div className="muted small" style={{ marginBottom: 6 }}>{t('Move, swap and remove below act on the exercise marked {0}.', t('Current'))}</div>}
+    {jayLayout ? <div className="workout-actions">
+      <Button variant="tinted" icon="plus" onClick={addExercise}>{t('Add exercise')}</Button>
+      <Button variant="tinted" icon="note" onClick={sessionNoteSheet}>{A.note ? t('Edit note') : t('Add note')}</Button>
+    </div> : <Button onClick={addExercise} icon="plus">{t('Add exercise')}</Button>}
+    {wc.exerciseButtons && !jayLayout && A.entries.length > 0 && <>
       <div style={{ height: 6 }} />
       <div className="row">
         <Button size="sm" icon="chevronUp" aria-label={t('Move up')}
@@ -2082,14 +2126,15 @@ function ActiveWorkout() {
     <div style={{ height: 10 }} />
     {/* Wrapping up is when you know how the session went, so the note sits with the finish
         button rather than somewhere in the header. */}
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+    {!jayLayout && <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
       <Button size="sm" icon="note" variant={A.note ? 'tinted' : undefined} onClick={sessionNoteSheet}>
         {A.note ? t('Edit session note') : t('Add session note')}
       </Button>
-    </div>
+    </div>}
     {(() => {
       const exDone = A.entries.filter(e => e.sets.length && e.sets.every(s => s.done)).length
       const allDone = A.entries.length > 0 && exDone === A.entries.length
+      if (jayLayout && !allDone && !editing) return null
       return <button className={allDone ? 'btn primary' : 'btn ghost dim'} onClick={finishWorkout}>
         {editing ? t('Save changes') : allDone ? t('Finish workout') : t('Finish workout early · {0} exercises', exDone + '/' + A.entries.length)}
       </button>

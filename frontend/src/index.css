@@ -1874,7 +1874,26 @@ body.no-tabbar.resting #toast{bottom:calc(100px + var(--sab))}
 .wl-unit{scroll-margin-top:calc(var(--whdr-h, var(--sat) + var(--conn) + 80px) + 16px)}
 .wl-unit.cur{box-shadow:inset 0 0 0 1.5px var(--acc-line)}
 .wl-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.wl-icon{width:32px;height:32px;background:none;color:var(--label-2)}
+.wl-icon .icn{width:16px;height:16px}
+.workout-custom .workout-sets-plain{background:none;border-radius:0;padding:0}
+.workout-custom .workout-sets-plain .swfront{background:var(--surface-2)}
+.workout-custom .ss-card .workout-sets-plain .swfront{background:var(--surface)}
+.workout-custom .workout-sets-plain :is(.stp,.effcell,.ck:not(.on),.chk:not(.on),.setgo){background:var(--surface-3)}
+.workout-custom .workout-sets-plain .stp button:active{background:var(--surface-2)}
+.workout-actions{display:flex;gap:8px}
+.workout-actions>.btn{flex:1;min-width:0;min-height:44px;padding:10px 8px;font-size:15px}
 .wl-summary{display:grid;gap:8px;padding-bottom:10px}
+.wl-summary-ex{display:grid;gap:6px;min-width:0}
+.workout-custom .wl-summary-ex{position:relative}
+.wl-summary-open{display:grid;gap:6px;width:100%;text-align:start}
+.wl-summary-open>.row{padding-inline-end:40px;min-height:32px}
+.workout-custom .wl-summary-ex>.wl-fold{position:absolute;inset-inline-end:0;top:0}
+.wl-summary-details{display:flex;align-items:center;gap:8px;min-width:0}
+.wl-summary-details>.tag{flex:none}
+.wl-set-summary{display:flex;flex:1;min-width:0;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--label-2);font-variant-numeric:tabular-nums}
+.wl-set-mini{overflow-wrap:anywhere}
+.wl-set-mini.done{color:var(--label)}
 /* the folded unit is a button (a tap opens it again): full width, text where it always sat */
 button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var(--r-sm)}
 

@@ -3,6 +3,7 @@ import { sessionHistory } from './backfill.js'
 import { hasLoggedWork } from './exercise-options.js'
 import { supersetUnits, unitOf } from './history.js'
 import { uid } from './format.js'
+import { activeWorkoutLayout } from './workout-layout.js'
 
 export function chooseWorkoutOption(state, index, exerciseId, { add = false } = {}) {
   const active = state.active
@@ -30,6 +31,7 @@ export function chooseWorkoutOption(state, index, exerciseId, { add = false } = 
   const at = add ? unitOf(supersetUnits(active.entries), index).at(-1) + 1 : index
   if (add) active.entries.splice(at, 0, next)
   else active.entries[index] = next
-  active.cur = at
+  if (activeWorkoutLayout(state) !== 'custom') active.cur = at
+  else if (add && at <= active.cur) active.cur++
   return at
 }

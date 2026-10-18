@@ -1550,6 +1550,7 @@ export default {
   'Change exercise': 'تغيير التمرين',
   'Use default exercise': 'استخدام التمرين الافتراضي',
   'Custom': 'مخصص',
+  "Jay's layout": "Jay's layout",
   'Log your body weight to score this lift.': 'سجّل وزن جسمك لتقييم هذه الرفعة.',
   'Log the anchor lift to score this one.': 'سجّل الرفعة المرجعية لتقييم هذه الرفعة.',
   'Not scored': 'لم يُقيَّم',
