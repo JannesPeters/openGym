@@ -1,3 +1,15 @@
+# Personal adaptations
+
+> [!NOTE]
+> This fork's UI/UX adaptations live on the
+> [`personal` branch](https://github.com/JannesPeters/openGym/tree/personal): a simpler interface
+> and a few focused features tailored to my preferences and how I work out.
+>
+> This `main` branch retains the upstream-oriented openGym project and documentation below;
+> see [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym) for the original project.
+
+---
+
 <div align="center">
 
 <img src="assets/banner.png" alt="openGym" width="720">
@@ -32,14 +44,6 @@ on your phone, synced across your devices, behind your own passkey login.
 <a href="https://ko-fi.com/opengym" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support openGym on Ko-fi" height="45"></a>
 
 </div>
-
-## Personal adaptations
-
-This fork's UI/UX adaptations live on the
-[`personal` branch](https://github.com/JannesPeters/openGym/tree/personal): a simpler interface
-and a few focused features tailored to my preferences and how I work out.
-This `main` branch retains the upstream-oriented openGym project and documentation;
-see [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym) for the original project.
 
 <table align="center">
 <tr>
