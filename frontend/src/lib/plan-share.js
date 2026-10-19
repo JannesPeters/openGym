@@ -21,7 +21,7 @@ import { t, exerciseNameFor, exerciseNameClass, getLang, RTL_LANGS } from './i18
 import { convertWeight } from './units.js'
 import { fmtSpeed, speedUnitOf } from './speed.js'
 import { MUSCLES, inMuscleOrder } from './muscles.js'
-import { optionsOf, hasOptions, mapOptions, freshSlotIds } from './exercise-options.js'
+import { optionsOf, hasOptions, mapOptions, freshSlotIds, cleanGroupName } from './exercise-options.js'
 
 const PLAN_FMT = 1
 const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0]   // every getDay() index; only the reader's own
@@ -132,6 +132,7 @@ function cleanEx(e) {
   if (intens) o.intensifier = intens
   if (hasOptions(e)) {
     if (e.slotId) o.slotId = e.slotId
+    if (cleanGroupName(e.groupName)) o.groupName = cleanGroupName(e.groupName)
     o.alternatives = e.alternatives.map(cleanEx)
   }
   return o
@@ -281,6 +282,7 @@ export function parsePlan(raw, destinationUnit = 'kg') {
     }).map(parseExercise)
     if (!configs.length) return null
     const meta = Object.fromEntries(['sg', 'sgName', 'sgRest'].filter(key => slot[key] != null).map(key => [key, slot[key]]))
+    if (cleanGroupName(slot.groupName)) meta.groupName = cleanGroupName(slot.groupName)
     return { ...configs[0], ...meta, ...(configs.length > 1 ? { slotId: typeof slot.slotId === 'string' && slot.slotId ? slot.slotId : uid(), alternatives: configs.slice(1) } : {}) }
   }
   const routines = data.routines.filter(r => r && Array.isArray(r.ex)).map(r => ({
@@ -412,7 +414,7 @@ function routineHTML(r, unit, { bare = false, speedUnit } = {}) {
       // one word and printed "Curlupper Legs".
       const part = ex && ex.bp && ex.bp !== 'cardio' ? ` <span class="part">${esc(t(ex.bp))}</span>` : ''
       const note = e.note ? `<div class="ex-note">${esc(e.note)}</div>` : ''
-      const alternatives = hasOptions(e) ? `<div class="ex-note">${esc(t('Choose one'))}: ${optionsOf(e).map(option => {
+      const alternatives = hasOptions(e) ? `<div class="ex-note">${esc(cleanGroupName(e.groupName) || t('Choose one'))}: ${optionsOf(e).map(option => {
         const exercise = EXIDX[option.id]
         return `${esc(exercise ? exerciseNameFor(exercise) : t('Unknown exercise'))} (${esc(scheme(option, unit, speedUnit))})`
       }).join(' / ')}</div>` : ''

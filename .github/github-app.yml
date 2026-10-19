@@ -1,0 +1,10 @@
+scripts:
+  - name: Install frontend dependencies
+    command: npm ci --prefix frontend
+    triggers:
+      - session.create
+  - name: Preview openGym
+    command: npm --prefix frontend run dev -- --host 0.0.0.0
+
+server_ready_pattern: '(?i)Local:\s+(https?://\S+)'
+auto_open_in_browser: true

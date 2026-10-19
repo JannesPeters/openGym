@@ -49,6 +49,9 @@ import { MUSCLE_NAME, targetMuscleOf } from '../lib/muscles.js'
 import FocusView from './FocusView.jsx'
 import { withMeaning, historyAs, dbLoadFor, entryDbLoad, bellsIn, ownedWeightsFor, stepOwned } from '../lib/dumbbells.js'
 import WorkoutOptions from '../components/WorkoutOptions.jsx'
+import WorkoutGroupSheet from '../components/WorkoutGroupSheet.jsx'
+import { addWorkoutChoiceGroup } from '../lib/workout-options.js'
+import { cleanGroupName } from '../lib/exercise-options.js'
 
 // How long after a key starts a hold the same key is not yet its "Done" (#133). A USB button
 // that bounces, or a double press, sends two presses a moment apart: the first starts the hold,
@@ -1433,6 +1436,21 @@ function ActiveWorkout() {
     // The confirm names what it changes: this workout, never the routine behind it.
     else exConfigSheet(ex, null, commit, null, routine, seed, null, t('Add to this workout'))
   })
+  const createGroup = () => {
+    const activeId = A.id
+    useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} onCreate={(configs, name) => {
+      if (useStore.getState().S.active?.id !== activeId) {
+        useUI.getState().toast(t('Too late, that one’s gone'))
+        return false
+      }
+      if (focusMode) focusPointerEpoch.current++
+      update(s => {
+        const at = addWorkoutChoiceGroup(s, configs, name)
+        useUI.getState().shiftRestOwner(at, 1)
+      }, true)
+      return true
+    }} />)
+  }
   // Ending the session without saving it. The ⋯ menu's last item since the header's ✕ became the
   // ⌄ that only leaves the screen (v1.3.11).
   const discardWorkout = () => confirmSheet({
@@ -1452,6 +1470,7 @@ function ActiveWorkout() {
       ] },
       { title: t('Add'), items: [
         { icon: 'plusCircle', label: t('Add exercise'), onClick: addExercise },
+        { icon: 'plusCircle', label: t('Create new group'), onClick: createGroup },
         !editing && { icon: 'clipboard', label: t('Add routine'), sub: t('Bring another routine into this session'), onClick: addRoutineToSessionSheet },
       ] },
       { title: t('This workout'), items: [
@@ -1926,7 +1945,7 @@ function ActiveWorkout() {
     }
   }, [])
 
-  return <WorkoutScrollAnchor enabled={collapseOn} collapsed={[...collapsed].join(',')}>
+  return <WorkoutScrollAnchor enabled={collapseOn} animate={jayLayout} collapsed={[...collapsed].join(',')}>
     {/* In list mode the whole session scrolls under the header, so the header (name, clock,
         set counter, discard/finish, progress) stays pinned — the one thing you want in view
         while you are somewhere in the middle of a long stack. Cards mode never scrolls far. */}
@@ -1939,7 +1958,7 @@ function ActiveWorkout() {
       {editing
         ? <button className="iconbtn" aria-label={t('Close editor')} title={t('Close editor')} onClick={() => exitWorkoutEdit()}><Icon name="xmark" /></button>
         : <button className="iconbtn" aria-label={t('Minimize')} title={t('Minimize')} onClick={() => nav('/home')}><Icon name="chevronDown" /></button>}
-      <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{(A.backfill || editing) ? fmtDate(A.d, true) : <Elapsed start={A.start} />} · {t('{0} sets', done + '/' + total)}</div></div>
+      <div className="whdr-mid"><div className="whdr-name">{A.name}</div><div className="sub">{(A.backfill || editing) ? fmtDate(A.d, true) : <Elapsed start={A.start} />}{!jayLayout && <> · {t('{0} sets', done + '/' + total)}</>}</div></div>
       <button className="iconbtn" aria-label={t('Workout options')} title={t('Workout options')} onClick={openViewMenu}><Icon name="more" /></button>
       <button className="btn primary pill whdr-finish" aria-label={editing ? t('Save changes') : undefined}
         onClick={() => (editing ? finishWorkout() : finishWorkoutSheet({ onDiscard: discardWorkout }))}>{editing ? t('Save') : t('Finish')}</button>
@@ -1994,6 +2013,7 @@ function ActiveWorkout() {
                 </span>
                 return <span key={idx} className="wl-summary-ex">
                   <SummaryBody className={jayLayout ? 'wl-summary-open' : undefined} {...(jayLayout ? openProps : {})}>
+                  {cleanGroupName(A.entries[idx].groupName) && <span className="small accent workout-group-name">{cleanGroupName(A.entries[idx].groupName)}</span>}
                   <span className="row between" style={{ gap: 8 }}>
                     <span className={exerciseNameClass(exOr(A.entries[idx].id))} style={{ fontWeight: 600 }}><ExerciseName ex={exOr(A.entries[idx].id)} /></span>
                     {!jayLayout && status}
@@ -2105,6 +2125,8 @@ function ActiveWorkout() {
       <Button variant="tinted" icon="plus" onClick={addExercise}>{t('Add exercise')}</Button>
       <Button variant="tinted" icon="note" onClick={sessionNoteSheet}>{A.note ? t('Edit note') : t('Add note')}</Button>
     </div> : <Button onClick={addExercise} icon="plus">{t('Add exercise')}</Button>}
+    <div style={{ height: 8 }} />
+    <Button icon="plusCircle" onClick={createGroup}>{t('Create new group')}</Button>
     {wc.exerciseButtons && !jayLayout && A.entries.length > 0 && <>
       <div style={{ height: 6 }} />
       <div className="row">

@@ -49,6 +49,26 @@ Tests can call `await buildLocalPreviewState(new Date('2026-10-18T12:00:00'))` f
 Run the focused checks with `npx vitest run src/lib/local-preview.test.js src/store/useStore.local-preview.test.jsx`.
 Regular dev and production builds do not enable this seed path.
 
+### Workout exercise-choice groups
+
+In a running workout or saved-workout editor, **Create new group** (below the exercises or
+in the Add menu) opens a draft exercise-choice group. Add at least two different exercises,
+optionally configuring each prescription, then create it and choose which option to perform.
+An optional **Group name** labels the choice slot in routines and workouts, including after
+selection or reset. Names are trimmed and limited to 60 characters; unnamed and older groups
+keep the existing Choose one / Choose exercise labels.
+Cancelling leaves the workout unchanged. This creates a separate slot in this workout, not
+a superset or an edit to its routine. Only chosen, logged exercises enter the finished history.
+
+In Plan's saved-routine editor, **Create new group** sits beside **Add exercise** above the
+exercise list. It uses the same draft builder but saves a new independent choice slot to that
+routine for future workouts; cancelling does not change the routine.
+
+The routine's muscle map is compact inline; **Expand** opens the same planned coverage in a
+full-screen dialog. Close or Escape returns focus to Expand without leaving the editor.
+Jay's exercise cards use a short measured-height transition when folded or expanded. They
+return to natural sizing afterward, and reduced-motion preferences skip the transition.
+
 ## Guidelines
 
 - **Keep it dependency-light.** The frontend uses React, React Router and Zustand; `api/` has two

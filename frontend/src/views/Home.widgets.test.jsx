@@ -132,6 +132,7 @@ describe('Home display settings', () => {
     expect(rows.map(row => row.querySelector('.tt').textContent)).toEqual(['Session 6', 'Session 5', 'Session 4', 'Session 3', 'Session 2'])
     const heading = [...host.querySelectorAll('h2')].find(h => h.textContent === 'Recent workouts')
     const card = heading.closest('.card')
+    expect(card.classList.contains('home-recent')).toBe(true)
     expect(heading.classList.contains('big')).toBe(true)
     expect(heading.style.fontSize).toBe('22px')
     expect(card.firstElementChild).toBe(heading)
@@ -148,10 +149,23 @@ describe('Home display settings', () => {
     expect(host.textContent).toContain('No workouts yet. Your first one will land here.')
     const empty = [...host.querySelectorAll('.empty')].find(el => el.textContent === 'No workouts yet. Your first one will land here.')
     expect(empty.nextElementSibling.querySelector('button').textContent).toBe('History')
+    expect(empty.closest('.home-recent').querySelectorAll('.item')).toHaveLength(0)
     act(() => empty.nextElementSibling.querySelector('button').click())
     expect(nav).toHaveBeenCalledWith('/history')
     act(() => useStore.getState().update(s => { s.showHistoryCard = false }))
     expect(host.textContent).not.toContain('No workouts yet. Your first one will land here.')
     expect(useStore.getState().S.workouts).toEqual([])
+  })
+
+  it('contains populated workout rows within the recent-workouts surface', () => {
+    const workouts = ['Push Day', 'Pull Day', 'Leg Day', 'Push Day', 'Pull Day', 'Leg Day']
+      .map((name, i) => ({ ...workout(`w${i}`, `2026-10-${10 + i}`), name }))
+    useStore.setState(s => ({ S: { ...s.S, workouts, showHistoryCard: true } }))
+    mountHome()
+    const rows = [...host.querySelectorAll('.home-recent .item')]
+    expect(rows).toHaveLength(5)
+    expect(rows.map(row => row.querySelector('.tt').textContent)).toEqual(workouts.slice(-5).reverse().map(w => w.name))
+    act(() => rows[0].click())
+    expect(workoutDetailSheet).toHaveBeenCalledWith(workouts.at(-1))
   })
 })

@@ -4,6 +4,9 @@
 import pt from './pt.js'
 
 export const PT_BR_OVERRIDES = {
+  'Group name': 'Nome do grupo',
+  'Create new group': 'Criar novo grupo',
+  'Choose at least two exercise options.': 'Escolha pelo menos duas opções de exercício.',
   'Week & Today': 'Semana e Hoje',
   'Show the week and Today card on Home. Active workouts stay visible.': 'Mostrar a semana e o cartão Hoje juntos no Início. Os treinos em andamento continuam visíveis.',
   'Show your five latest workouts on Home.': 'Mostrar seus cinco treinos mais recentes no Início.',

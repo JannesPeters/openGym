@@ -1,5 +1,8 @@
 // Korean UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': '그룹 이름',
+  'Create new group': '새 그룹 만들기',
+  'Choose at least two exercise options.': '운동 옵션을 두 개 이상 선택하세요.',
   'Week & Today': '주간 및 오늘',
   'Show the week and Today card on Home. Active workouts stay visible.': '홈 화면에 주간 개요와 오늘 카드를 함께 표시합니다. 진행 중인 운동은 계속 표시됩니다.',
   'Show your five latest workouts on Home.': '홈 화면에 최근 운동 다섯 개를 표시합니다.',

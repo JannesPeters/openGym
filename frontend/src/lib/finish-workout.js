@@ -2,6 +2,7 @@
 // exercise the exact shape the UI writes without mounting React or mutating store state.
 import { bestWeightForEntry, cleanupSg } from './history.js'
 import { hasCompletedWork, isSideSet } from './workout-model.js'
+import { cleanGroupName } from './exercise-options.js'
 
 // planSec is live-session bookkeeping: a hold displaced before it finished puts its plan aside so
 // the row still knows what it is asking for (Workout.startTimed). A finished session keeps only
@@ -78,6 +79,7 @@ export function buildCompletedWorkout(active, { end = Date.now(), prs = [], snap
       // shape it always was. Without this the whitelist drops both at finish.
       ...(entry.rid ? { rid: entry.rid } : {}),
       ...(entry.slotId ? { slotId: entry.slotId } : {}),
+      ...(cleanGroupName(entry.groupName) ? { groupName: cleanGroupName(entry.groupName) } : {}),
       ...(entry.noProg === true ? { noProg: true } : {}),
       // What the routine asked for when the session was built (session-start.js), next to the
       // target the prescription moved — how the next session tells an edited plan (#275).

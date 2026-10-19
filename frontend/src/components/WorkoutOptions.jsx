@@ -6,7 +6,7 @@ import { exLine } from '../lib/history.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { activeProfile, exAvailable } from '../lib/equipment.js'
 import { t } from '../lib/i18n.js'
-import { hasLoggedWork } from '../lib/exercise-options.js'
+import { hasLoggedWork, cleanGroupName } from '../lib/exercise-options.js'
 import { chooseWorkoutOption, resetWorkoutOption } from '../lib/workout-options.js'
 import { activeWorkoutLayout } from '../lib/workout-layout.js'
 import { confirmSheet } from '../sheets.jsx'
@@ -15,7 +15,8 @@ import { Button } from './ui.jsx'
 export default function WorkoutOptions({ entryIdx, headerAction }) {
   const state = useStore(s => s.S)
   const entry = state.active?.entries[entryIdx]
-  if (!entry?.choiceOptions) return null
+  const name = cleanGroupName(entry?.groupName)
+  if (!entry?.choiceOptions) return name ? <div className="small accent workout-group-name">{name}</div> : null
   const activeId = state.active.id
   const choiceId = entry.choiceId
   const choose = (id, add, close) => {
@@ -52,6 +53,7 @@ export default function WorkoutOptions({ entryIdx, headerAction }) {
   }
   const open = add => useUI.getState().openSheet(close => <>
     <h3>{t(add ? 'Add another exercise from this group' : 'Choose exercise')}</h3>
+    {name && <p className="small accent workout-group-name">{name}</p>}
     {add && <p className="small dim">{t('Adds its own full planned sets. Your existing exercises stay unchanged.')}</p>}
     {options(add, close)}
   </>)
@@ -72,14 +74,16 @@ export default function WorkoutOptions({ entryIdx, headerAction }) {
       useStore.getState().update(s => { resetWorkoutOption(s, entryIdx) }, true)
     },
   })
-  if (entry.choicePending) return <div className="card" data-testid="workout-choice">
-    {headerAction ? <div className="row between"><h2>{t('Choose exercise')}</h2>{headerAction}</div> : <h2>{t('Choose exercise')}</h2>}
-    <p className="small dim">{t('Choose one option for this slot. Each exercise keeps its own progress.')}</p>
+  if (entry.choicePending) return <div className="card workout-choice" data-testid="workout-choice">
+    {headerAction ? <div className="row between workout-choice-head"><h2>{name || t('Choose exercise')}</h2>{headerAction}</div> : <h2>{name || t('Choose exercise')}</h2>}
+    <p className="small dim workout-choice-description">{t('Choose one option for this slot. Each exercise keeps its own progress.')}</p>
     {options(false)}
   </div>
-  return <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+  return <>
+    {name && <div className="small accent workout-group-name">{name}</div>}
+    <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
     {!hasLoggedWork(entry) && <Button size="sm" variant="ghost" onClick={() => open(false)}>{t('Change exercise')}</Button>}
     <Button size="sm" variant="ghost" icon="plus" onClick={() => open(true)}>{t('Add another exercise from this group')}</Button>
     {activeWorkoutLayout(state) === 'custom' && <Button size="sm" variant="ghost" icon="reset" onClick={reset}>{t('Clear selection')}</Button>}
-  </div>
+  </div></>
 }

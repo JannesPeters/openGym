@@ -1,5 +1,8 @@
 // Hungarian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'Csoport neve',
+  'Create new group': 'Új csoport létrehozása',
+  'Choose at least two exercise options.': 'Válassz legalább két gyakorlatot.',
   'Week & Today': 'Hét és Mai nap',
   'Show the week and Today card on Home. Active workouts stay visible.': 'A hét és a Mai nap kártya együttes megjelenítése a Kezdőlapon. A folyamatban lévő edzések láthatók maradnak.',
   'Show your five latest workouts on Home.': 'Az öt legutóbbi edzésed megjelenítése a Kezdőlapon.',
