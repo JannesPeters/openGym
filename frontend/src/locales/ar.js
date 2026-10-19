@@ -1,5 +1,8 @@
 // Arabic UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'اسم المجموعة',
+  'Create new group': 'إنشاء مجموعة جديدة',
+  'Choose at least two exercise options.': 'اختر خيارين للتمرين على الأقل.',
   'Week & Today': 'الأسبوع واليوم',
   'Show the week and Today card on Home. Active workouts stay visible.': 'عرض الأسبوع وبطاقة اليوم معًا في الرئيسية. تبقى التمارين الجارية ظاهرة.',
   'Show your five latest workouts on Home.': 'عرض آخر خمسة تمارين في الرئيسية.',

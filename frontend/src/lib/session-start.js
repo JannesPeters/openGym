@@ -9,7 +9,7 @@ import { nextPrescription, applyPrescription, defaultIncrement, weightIncrement,
 import { dropGrid } from './plates.js'
 import { backoffStepOf, applyBackoff } from './backoff.js'
 import { dbLoadFor, historyAs, ownedWeightsFor } from './dumbbells.js'
-import { hasOptions, optionsOf } from './exercise-options.js'
+import { hasOptions, optionsOf, cleanGroupName } from './exercise-options.js'
 import { uid } from './format.js'
 
 /**
@@ -30,7 +30,7 @@ export const startsFromLast = st => st?.startFrom === 'last'
  * `noProg` builds the routine's own numbers with no prescription, as an excluded routine does.
  */
 export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
-  const { alternatives, slotId, choiceId, choiceRoutine, choiceOptions, choicePending, ...config } = cfg
+  const { alternatives, slotId, groupName, choiceId, choiceRoutine, choiceOptions, choicePending, ...config } = cfg
   cfg = config
   // What a dumbbell weight means for this exercise today (lib/dumbbells.js): the history it
   // progresses from is read in that meaning, so a switch from "40 total" to per bell opens at
@@ -129,6 +129,7 @@ export function buildSessionEntries(st, r) {
       id: cfg.id, sg: cfg.sg, ...built,
       ...(cfg.slotId ? { slotId: cfg.slotId } : {}),
       ...(hasOptions(cfg) ? {
+        ...(cleanGroupName(cfg.groupName) ? { groupName: cleanGroupName(cfg.groupName) } : {}),
         choiceId: uid(), choiceOptions: structuredClone(optionsOf(cfg)), choicePending: true, sets: [],
         choiceRoutine: { id: r.id, ...(r.prog ? { prog: r.prog } : {}), ...(noProg ? { excludeFromProgression: true } : {}) }
       } : {}),

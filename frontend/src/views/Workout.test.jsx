@@ -254,6 +254,7 @@ async function rerenderAt(cur) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.exercisePicker.mockReturnValue({ close: vi.fn() })
   mocks.user = null
   mocks.timer = null
   mocks.work = null
@@ -284,6 +285,91 @@ afterEach(async () => {
 })
 
 describe('workout exercise alternatives', () => {
+  it.each(['custom', 'cards', 'list', 'compact', 'focus'])('keeps the header timer but hides the set counter only in Jay layout (%s)', async layout => {
+    await mount([exercise('0025', [false, true])], 0, { active: { workoutView: layout } })
+    const header = container.querySelector('.whdr-mid .sub')
+    expect(header.textContent.length).toBeGreaterThan(0)
+    expect(header.textContent.includes('1/2 sets')).toBe(layout !== 'custom')
+    expect(header.textContent.endsWith(' · ')).toBe(false)
+    expect(container.querySelector('.whdr-name').textContent).toBe(mocks.S.active.name)
+  })
+
+  it.each([false, true])('creates a separate configured group through the visible action (saved editor: %s)', async editing => {
+    await mount([exercise('0025', [false])], 0, {
+      active: { workoutView: 'custom', ...(editing ? { editingWorkoutId: 'saved' } : {}) },
+    })
+    const before = structuredClone(mocks.S)
+    await click([...container.querySelectorAll('button')].find(b => b.textContent === 'Create new group'))
+    const sheet = document.createElement('div')
+    container.appendChild(sheet)
+    const sheetRoot = createRoot(sheet)
+    const close = vi.fn()
+    await act(async () => { sheetRoot.render(mocks.openSheet.mock.calls.at(-1)[0](close)) })
+    const name = sheet.querySelector('input')
+    expect(name.closest('label').textContent).toBe('Group name')
+    const create = () => [...sheet.querySelectorAll('button')].find(b => b.textContent === 'Create new group')
+    const add = () => [...sheet.querySelectorAll('button')].find(b => b.textContent === 'Add exercise')
+    expect(create().disabled).toBe(true)
+    await click(add())
+    await act(async () => { mocks.exercisePicker.mock.calls.at(-1)[0]({ id: '0025' }, true) })
+    expect(create().disabled).toBe(true)
+    expect(mocks.S).toEqual(before)
+    await click(add())
+    await act(async () => { mocks.exercisePicker.mock.calls.at(-1)[0]({ id: '0025' }, true) })
+    expect(sheet.querySelectorAll('.item')).toHaveLength(1)
+    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining('already exists'))
+    await click(add())
+    await act(async () => { mocks.exercisePicker.mock.calls.at(-1)[0]({ id: '0009' }, false) })
+    await act(async () => { mocks.exConfigSheet.mock.calls.at(-1)[2]({ sets: 2, reps: 12, weight: 25 }) })
+    expect(create().disabled).toBe(false)
+    expect(mocks.S).toEqual(before)
+    await click([...sheet.querySelectorAll('button[aria-label="Remove"]')].at(-1))
+    expect(create().disabled).toBe(true)
+    await click(add())
+    await act(async () => { mocks.exercisePicker.mock.calls.at(-1)[0]({ id: '0009' }, false) })
+    await act(async () => { mocks.exConfigSheet.mock.calls.at(-1)[2]({ sets: 2, reps: 12, weight: 25 }) })
+    await click(create())
+    expect(close).toHaveBeenCalledOnce()
+    await act(async () => { sheetRoot.unmount() })
+    mocks.S.active.entries[1].groupName = 'Chest options'
+    await rerender()
+    expect(mocks.S.active.entries).toHaveLength(2)
+    expect(mocks.S.active.entries[0]).toEqual(before.active.entries[0])
+    expect(mocks.S.active.entries[1]).toMatchObject({ groupName: 'Chest options', choicePending: true, sets: [], choiceOptions: [
+      expect.objectContaining({ id: '0025' }),
+      expect.objectContaining({ id: '0009', sets: 2, reps: 12, weight: 25 }),
+    ] })
+    expect(container.querySelector('[data-testid="workout-choice"] h2').textContent).toBe('Chest options')
+    await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
+    await rerender()
+    expect(mocks.S.active.entries[1].sets).toHaveLength(2)
+    expect(container.querySelector('.workout-group-name').textContent).toBe('Chest options')
+    await click(container.querySelectorAll('.wl-fold')[1])
+    await rerender()
+    expect(container.querySelector('.wl-summary .workout-group-name').textContent).toBe('Chest options')
+    expect(mocks.S.routines).toEqual(before.routines)
+  })
+
+  it('exposes Create new group in the workout menu in other layouts', async () => {
+    await mount([exercise('0025', [false])], 0, { active: { workoutView: 'cards' } })
+    await click(container.querySelector('button[aria-label="Workout options"]'))
+    const create = menuItemsOf(mocks.menuSheet.mock.calls.at(-1)[0]).find(item => item.label === 'Create new group')
+    expect(create).toBeTruthy()
+    await act(async () => { create.onClick() })
+    expect(mocks.openSheet).toHaveBeenCalledOnce()
+  })
+
+  it('rejects committing a group draft after the workout has changed', async () => {
+    await mount([exercise('0025', [false])], 0, { active: { workoutView: 'custom' } })
+    await click([...container.querySelectorAll('button')].find(b => b.textContent === 'Create new group'))
+    const draft = mocks.openSheet.mock.calls.at(-1)[0](vi.fn())
+    mocks.S.active.id = 'different-workout'
+    const before = structuredClone(mocks.S)
+    expect(draft.props.onCreate([{ id: '0025' }, { id: '0009' }])).toBe(false)
+    expect(mocks.S).toEqual(before)
+    expect(mocks.toast).toHaveBeenCalledWith('Too late, that one’s gone')
+  })
+
   const clearSelection = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Clear selection') || null
   const groupedRoutine = () => ({
     id: 'chest-options', name: 'Chest options', prog: 'off',
@@ -295,6 +381,13 @@ describe('workout exercise alternatives', () => {
     const state = workout([], 0, { routines: [routine] })
     await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: layout, routineIds: [routine.id] } })
     expect(container.textContent).toContain('Choose exercise')
+    const choice = container.querySelector('.workout-choice')
+    expect(choice).toBeTruthy()
+    if (layout === 'custom') {
+      expect(choice.closest('.workout-custom .wl-unit')).toBeTruthy()
+      expect(choice.querySelector('.workout-choice-head h2').textContent).toBe('Choose exercise')
+      expect(choice.querySelector('.workout-choice-head .wl-fold')).toBeTruthy()
+    }
     expect(container.querySelectorAll('[data-testid="workout-choice"] .item-open > .small.dim')).toHaveLength(layout === 'custom' ? 0 : 2)
     expect(clearSelection()).toBeNull()
     expect(container.querySelector('[role="checkbox"]')).toBeNull()
@@ -2483,7 +2576,7 @@ describe('workout view header menu', () => {
     const menu = await openMenu()
     expect(menu.sections.map(g => g.title)).toEqual([undefined, 'Add', 'This workout', undefined])
     expect(menuItemsOf(menu).map(it => it.label)).toEqual([
-      'Workout settings', 'Add exercise', 'Add routine', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression', 'Discard workout',
+      'Workout settings', 'Add exercise', 'Create new group', 'Add routine', 'Rename workout', 'Layout', 'Add session note', 'Don’t count for progression', 'Discard workout',
     ])
     expect(item(menu, 'Workout settings').sub).toBe('1:30 rest · Silent')
     expect(item(menu, 'Discard workout').danger).toBe(true)

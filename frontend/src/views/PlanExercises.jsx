@@ -12,7 +12,7 @@ import { cleanupSg, defaultConfig, exLine } from '../lib/history.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { replaceSlotExercise } from '../lib/routines.js'
 import { removeRoutineExercise } from './RoutineEdit.jsx'
-import { addOption, hasOptions, optionsOf, removeOption, saveOption } from '../lib/exercise-options.js'
+import { addOption, hasOptions, optionsOf, removeOption, saveOption, cleanGroupName } from '../lib/exercise-options.js'
 
 // One snapshot per history entry: returning to a picker restores its filters and loaded rows.
 const browsers = new Map()
@@ -106,7 +106,7 @@ export default function PlanExercises({ editing = false, custom = false }) {
       </div>
     </div>
       {editing && !custom && !optionId && <div className="card" style={{ marginBottom: 16 }}>
-        <h2>{t('Exercise alternatives')}</h2>
+        <h2>{cleanGroupName(slot.groupName) || t('Exercise alternatives')}</h2>
         <p className="small dim">{t('Choose one during your workout. Each option keeps its own settings and progress.')}</p>
         {hasOptions(slot) && <div className="list">{optionsOf(slot).map(option => <div className="item" key={option.id}>
           <button className="grow item-open" onClick={() => {

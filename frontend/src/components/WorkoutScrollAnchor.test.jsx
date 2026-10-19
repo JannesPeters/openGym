@@ -24,7 +24,8 @@ beforeEach(() => {
     if (this.className === 'whdr') return { top: 0, bottom: 80 }
     const offset = document.body.style.position === 'fixed' ? parseFloat(document.body.style.top) : -window.scrollY
     const top = Number(this.dataset.top || 0) + offset + (parseFloat(this.style.marginTop) || 0)
-    return { top, bottom: top + Number(this.dataset.height || 0) }
+    const height = this.motionHeight ?? Number(this.dataset.height || 0)
+    return { top, bottom: top + height, height }
   }
   container = document.getElementById('root')
   root = createRoot(container)
@@ -32,11 +33,11 @@ beforeEach(() => {
 
 afterEach(async () => { await act(async () => { root.unmount() }) })
 
-async function render(collapsed, tiles, nextHeight = pageHeight) {
+async function render(collapsed, tiles, nextHeight = pageHeight, animate = false) {
   // Changing height during commit models the browser clamping scrollY when the page shrinks.
   const committed = el => { if (el) pageHeight = nextHeight }
   await act(async () => {
-    root.render(<WorkoutScrollAnchor collapsed={collapsed}>
+    root.render(<WorkoutScrollAnchor collapsed={collapsed} animate={animate}>
       <div className="whdr" />
       <div className="workout-list" ref={committed}>
         {tiles.map(([key, top, height]) => <section className="wl-unit" key={key} data-unit-key={key} data-top={top} data-height={height} />)}
@@ -132,4 +133,105 @@ it('cancels an older sheet correction when restoring the workout anchor', async 
   await render('', [['0', 100, 700], ['1', 800, 650]])
   await render('0', [['0', 100, 200], ['1', 300, 650]])
   expect(cancel).toHaveBeenCalledOnce()
+})
+
+function motionSupport(reduce = false) {
+  const animations = []
+  const frames = new Map()
+  let id = 0
+  const preference = { matches: reduce, addEventListener: vi.fn(), removeEventListener: vi.fn() }
+  dom.matchMedia = vi.fn(() => preference)
+  dom.requestAnimationFrame = vi.fn(callback => { frames.set(++id, callback); return id })
+  dom.cancelAnimationFrame = vi.fn(id => frames.delete(id))
+  dom.Element.prototype.animate = vi.fn(function (keyframes, options) {
+    const animation = { cancel: vi.fn(() => { delete this.motionHeight }), onfinish: null, oncancel: null }
+    animations.push({ element: this, keyframes, options, animation })
+    return animation
+  })
+  return { animations, frames, preference }
+}
+
+it('animates measured collapse and expansion heights only when enabled, without a fixed maximum', async () => {
+  const { animations } = motionSupport()
+  await render('', [['0', 100, 2300]], 3000, true)
+  expect(animations).toHaveLength(0)
+  await render('0', [['0', 100, 96]], 3000, true)
+  const tile = container.querySelector('.wl-unit')
+  expect(animations[0].keyframes).toEqual([{ height: '2300px' }, { height: '96px' }])
+  expect(animations[0].options).toMatchObject({ duration: 200 })
+  expect(tile.style.overflow).toBe('clip')
+  animations[0].animation.onfinish()
+  expect(tile.style.overflow).toBeFalsy()
+  expect(tile.style.height).toBeFalsy()
+  await render('', [['0', 100, 4800]], 5500, true)
+  expect(animations[1].keyframes).toEqual([{ height: '96px' }, { height: '4800px' }])
+  animations[1].animation.onfinish()
+  expect(tile.style.overflow).toBeFalsy()
+  expect(tile.style.height).toBeFalsy()
+})
+
+it('does not animate other layouts or reduced-motion preferences', async () => {
+  const { animations, preference } = motionSupport(true)
+  await render('', [['0', 100, 700]])
+  await render('0', [['0', 100, 100]])
+  expect(animations).toHaveLength(0)
+  await render('', [['0', 100, 700]], 2400, true)
+  expect(animations).toHaveLength(0)
+  preference.matches = false
+  await render('0', [['0', 100, 100]], 2400, true)
+  expect(animations).toHaveLength(1)
+})
+
+it('reverses from the painted height and cancels the previous transition', async () => {
+  const { animations } = motionSupport()
+  await render('', [['0', 100, 700]], 2400, true)
+  await render('0', [['0', 100, 100]], 2400, true)
+  container.querySelector('.wl-unit').motionHeight = 380
+  await render('', [['0', 100, 700]], 2400, true)
+  expect(animations[0].animation.cancel).toHaveBeenCalledOnce()
+  expect(animations[0].animation.onfinish).toBeNull()
+  expect(animations[1].keyframes).toEqual([{ height: '380px' }, { height: '700px' }])
+})
+
+it('retargets growing set content during expansion and releases clipping afterward', async () => {
+  const { animations } = motionSupport()
+  await render('0', [['0', 100, 100]], 2400, true)
+  await render('', [['0', 100, 700]], 2400, true)
+  container.querySelector('.wl-unit').motionHeight = 260
+  await render('', [['0', 100, 1100]], 2400, true)
+  expect(animations[1].keyframes).toEqual([{ height: '260px' }, { height: '1100px' }])
+  animations[1].animation.onfinish()
+  expect(container.querySelector('.wl-unit').style.overflow).toBeFalsy()
+})
+
+it('cancels active motion when reduced motion is enabled, or the layout is changed', async () => {
+  const { animations, preference, frames } = motionSupport()
+  await render('', [['0', 100, 700]], 2400, true)
+  await render('0', [['0', 100, 100]], 2400, true)
+  preference.matches = true
+  preference.addEventListener.mock.calls[0][1]()
+  expect(animations[0].animation.cancel).toHaveBeenCalledOnce()
+  expect(frames.size).toBe(0)
+  expect(container.querySelector('.wl-unit').style.overflow).toBeFalsy()
+  preference.matches = false
+  await render('', [['0', 100, 700]], 2400, true)
+  await render('', [['0', 100, 700]], 2400, false)
+  expect(animations[1].animation.cancel).toHaveBeenCalledOnce()
+  expect(container.querySelector('.wl-unit').style.overflow).toBeFalsy()
+})
+
+it('releases scroll anchoring for a user gesture and cleans up motion on unmount', async () => {
+  const { animations, frames, preference } = motionSupport()
+  await render('', [['0', 100, 700], ['1', 800, 650]], 2400, true)
+  await render('0', [['0', 100, 100], ['1', 200, 650]], 2400, true)
+  window.dispatchEvent(new Event('wheel'))
+  scrollY = 50
+  const [id, callback] = frames.entries().next().value
+  frames.delete(id)
+  callback()
+  expect(window.scrollY).toBe(50)
+  await act(async () => { root.render(null) })
+  expect(animations[0].animation.cancel).toHaveBeenCalledOnce()
+  expect(frames.size).toBe(0)
+  expect(preference.removeEventListener).toHaveBeenCalledWith('change', expect.any(Function))
 })
