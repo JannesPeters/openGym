@@ -14,7 +14,7 @@ import { supersetMeta, setSupersetMeta } from '../lib/superset-meta.js'
 import { fmtRest } from '../lib/duration.js'
 import Icon from '../components/Icon.jsx'
 import { glyphOf } from '../lib/glyphs.js'
-import { Button, Row, SelectRow, Switch, SheetDialog, Section } from '../components/ui.jsx'
+import { Button, Row, SelectRow, Switch, SheetDialog, Section, TextField } from '../components/ui.jsx'
 import SwipeRow from '../components/SwipeRow.jsx'
 import { workoutControls } from '../lib/workout-controls.js'
 import { copyRoutine, deleteRoutine } from '../lib/routines.js'
@@ -477,12 +477,13 @@ export default function RoutineEdit() {
       </div>
     </div>
 
-    <Section title={t('Details')} className="routine-details">
-      <label className="lrow routine-name-field">
-        <span className="lrow-t">{t('Routine')}</span>
-        <input key={r.id} className="input" defaultValue={r.name}
-          onChange={e => update(s => { s.routines.find(x => x.id === id).name = e.target.value.trim() || t('Routine') })} />
-      </label>
+    <label className="routine-name-field">
+      <span className="sect-t">{t('Name')}</span>
+      <TextField key={r.id} type="text" name="name" defaultValue={r.name}
+        onChange={e => update(s => { s.routines.find(x => x.id === id).name = e.target.value.trim() || t('Routine') })} />
+    </label>
+
+    <Section className="routine-details">
       <Row icon={glyphOf(r.emoji)} title={t('Pick an icon')} accessory="chevron"
         onClick={() => glyphPicker(r.emoji, g => update(s => { s.routines.find(x => x.id === id).emoji = g }))} />
     </Section>

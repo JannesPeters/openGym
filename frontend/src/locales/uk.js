@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'Показувати піктограми тренувань',
   'Group name': 'Назва групи',
+  'Name': 'Назва',
+  'Edit details before adding': 'Редагувати деталі перед додаванням',
   'Create new group': 'Створити нову групу',
   'Choose at least two exercise options.': 'Виберіть щонайменше два варіанти вправ.',
   'Week & Today': 'Тиждень і Сьогодні',

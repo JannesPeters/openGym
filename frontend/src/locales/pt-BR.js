@@ -6,6 +6,8 @@ import pt from './pt.js'
 export const PT_BR_OVERRIDES = {
   'Show routine icons': 'Mostrar ícones das rotinas',
   'Group name': 'Nome do grupo',
+  'Name': 'Nome',
+  'Edit details before adding': 'Editar detalhes antes de adicionar',
   'Create new group': 'Criar novo grupo',
   'Choose at least two exercise options.': 'Escolha pelo menos duas opções de exercício.',
   'Week & Today': 'Semana e Hoje',

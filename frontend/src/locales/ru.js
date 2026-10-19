@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'Показывать значки тренировок',
   'Group name': 'Название группы',
+  'Name': 'Название',
+  'Edit details before adding': 'Изменить настройки перед добавлением',
   'Create new group': 'Создать новую группу',
   'Choose at least two exercise options.': 'Выберите не менее двух вариантов упражнений.',
   'Week & Today': 'Неделя и Сегодня',

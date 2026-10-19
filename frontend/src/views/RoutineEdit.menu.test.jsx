@@ -51,7 +51,7 @@ afterEach(() => {
 })
 
 describe('routine action menu', () => {
-  it('edits the name and icon below a non-editable routine header', () => {
+  it('edits the standalone name field and icon below a non-editable routine header', () => {
     mount()
     const header = host.querySelector('.hdr')
     const details = host.querySelector('.routine-details')
@@ -59,8 +59,9 @@ describe('routine action menu', () => {
     expect(header.textContent).toBe('Push day')
     expect(header.querySelector('[aria-label="Pick an icon"]')).toBeNull()
     expect(header.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const input = details.querySelector('input')
-    expect(input.labels[0].textContent.trim()).toBe('Routine')
+    const input = host.querySelector('.routine-name-field input')
+    expect(input.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(input.labels[0].textContent.trim()).toBe('Name')
     act(() => {
       Object.getOwnPropertyDescriptor(input.constructor.prototype, 'value').set.call(input, 'Pull day')
       input.dispatchEvent(new Event('input', { bubbles: true }))

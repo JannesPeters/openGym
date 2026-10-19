@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'Rutin simgelerini göster',
   'Group name': 'Grup adı',
+  'Name': 'Ad',
+  'Edit details before adding': 'Eklemeden önce ayrıntıları düzenle',
   'Create new group': 'Yeni grup oluştur',
   'Choose at least two exercise options.': 'En az iki egzersiz seçeneği belirleyin.',
   'Week & Today': 'Hafta ve Bugün',

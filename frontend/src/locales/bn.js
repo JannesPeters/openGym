@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'রুটিনের আইকন দেখান',
   'Group name': 'গ্রুপের নাম',
+  'Name': 'নাম',
+  'Edit details before adding': 'যোগ করার আগে বিবরণ সম্পাদনা করুন',
   'Create new group': 'নতুন গ্রুপ তৈরি করুন',
   'Choose at least two exercise options.': 'অন্তত দুটি ব্যায়ামের বিকল্প বেছে নিন।',
   'Week & Today': 'সপ্তাহ ও আজ',

@@ -7,13 +7,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})), appBase: () => '/', beacon: vi.fn() }))
 vi.mock('../components/Media.jsx', () => ({ Thumb: () => null, default: () => null }))
 vi.mock('../components/BodyMap.jsx', () => ({ default: () => null }))
+vi.mock('../lib/nav.js', async importOriginal => ({
+  ...await importOriginal(), onSheetEntry: vi.fn(() => false),
+}))
 
 import RoutineEdit from './RoutineEdit.jsx'
 import PlanExercises from './PlanExercises.jsx'
+import Modals from '../components/Modals.jsx'
 import { DEF, useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { bindUI } from '../components/ui.jsx'
 import { EXIDX } from '../lib/exercises.js'
+import { onSheetEntry } from '../lib/nav.js'
+import { defaultConfig } from '../lib/history.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 let root, host, navigate, location
@@ -44,6 +50,7 @@ function mount(path = '/plan/r/r1', extra = {}) {
       <Route path="/plan/r/:id/exercise/:index/:exerciseId" element={<PlanExercises editing />} />
       <Route path="/plan/r/:id/exercise/:index/:exerciseId/custom" element={<PlanExercises editing custom />} />
     </Routes>
+    <Modals />
   </MemoryRouter>))
 }
 const click = node => act(() => node.click())
@@ -56,7 +63,10 @@ const stored = () => useStore.getState().S.routines[0].ex
 const row = name => [...host.querySelectorAll('.item')].find(node => node.querySelector('.tt')?.textContent.toLowerCase() === name.toLowerCase())
 const back = () => click(host.querySelector('button[aria-label="Back"]'))
 
-beforeEach(() => { localStorage.clear() })
+beforeEach(() => {
+  localStorage.clear()
+  vi.mocked(onSheetEntry).mockReturnValue(false)
+})
 afterEach(() => { act(() => root.unmount()); host.remove() })
 
 describe('Plan full-screen exercise navigation', () => {
@@ -108,7 +118,21 @@ describe('Plan full-screen exercise navigation', () => {
     expect(stored()[0].alternatives).toEqual(group.alternatives)
   })
 
-  it('uses routed pages, keeps search and chosen markers, and returns to the routine through history', () => {
+  it('adds from the overview immediately without opening settings or leaving the picker', () => {
+    mount()
+    click(button('Add exercise'))
+    input(host.querySelector('.search input'), 'bench press')
+    const path = location.pathname
+    click(row('Barbell Bench Press'))
+    click(button('Add to routine'))
+    expect(location.pathname).toBe(path)
+    expect(useUI.getState().sheets).toHaveLength(0)
+    expect(host.querySelector('.search input').value).toBe('bench press')
+    expect(stored()).toHaveLength(2)
+    expect(stored().at(-1)).toEqual({ id: '0025', ...defaultConfig('0025') })
+  })
+
+  it('uses routed configuration on request, keeps search and chosen markers, and returns through history', () => {
     mount()
     click(button('Add exercise'))
     expect(location.pathname).toBe('/plan/r/r1/exercises')
@@ -119,6 +143,16 @@ describe('Plan full-screen exercise navigation', () => {
     click(bench.querySelector('button'))
     expect(stored()).toHaveLength(2)
     click(bench)
+    expect(location.pathname).toBe('/plan/r/r1/exercises')
+    expect(host.querySelector('.sheet .exdetail-name')).toBeTruthy()
+    expect(host.querySelector('.sheet .fav-btn')).toBeTruthy()
+    expect(button('Create variant')).toBeTruthy()
+    expect(button('Add to my plan')).toBeUndefined()
+    expect(useUI.getState().sheets).toHaveLength(1)
+    act(() => useUI.getState().closeSheet(useUI.getState().sheets.at(-1).id))
+    expect(host.querySelector('.search input').value).toBe('bench press')
+    click(row('Barbell Bench Press'))
+    click(button('Edit details before adding'))
     expect(location.pathname).toBe('/plan/r/r1/exercises/0025')
     expect(host.querySelector('.search')).toBeNull()
     expect(useUI.getState().sheets).toHaveLength(0)
@@ -147,6 +181,24 @@ describe('Plan full-screen exercise navigation', () => {
     expect(stored()[1].reps).toBe(9)
   })
 
+  it('replaces the native detail-sheet entry and returns to the original picker snapshot', () => {
+    mount()
+    click(button('Add exercise'))
+    input(host.querySelector('.search input'), 'bench press')
+    const pickerKey = location.key
+    // MemoryRouter does not see the native history entry that Modals adds.
+    act(() => navigate(location.pathname, { state: location.state }))
+    input(host.querySelector('.search input'), 'bench press')
+    click(row('Barbell Bench Press'))
+    vi.mocked(onSheetEntry).mockReturnValue(true)
+    click(button('Edit details before adding'))
+    expect(location.pathname).toBe('/plan/r/r1/exercises/0025')
+    click(button('Add to routine'))
+    expect(location.key).toBe(pickerKey)
+    expect(host.querySelector('.search input').value).toBe('bench press')
+    expect(stored()).toHaveLength(2)
+  })
+
   it('keeps variant selection and configuration when returning from the custom exercise editor', () => {
     const variant = { ...EXIDX['0025'], id: 'cvariant', custom: true, baseExerciseId: '0025', variantLabel: 'Gym80' }
     mount('/plan/r/r1', { customEx: [variant] })
@@ -154,8 +206,10 @@ describe('Plan full-screen exercise navigation', () => {
     input(host.querySelector('.search input'), 'bench press')
     click(row('Barbell Bench Press'))
     click(host.querySelector('[aria-label="Variants"] button[aria-label*="Gym80"]'))
+    click(button('Edit details before adding'))
+    expect(location.pathname).toBe('/plan/r/r1/exercises/cvariant')
     click(button('Edit or delete this exercise'))
-    expect(location.pathname).toBe('/plan/r/r1/exercises/0025/custom')
+    expect(location.pathname).toBe('/plan/r/r1/exercises/cvariant/custom')
     back()
     expect(host.querySelector('[aria-label="Variants"] [aria-pressed="true"]').textContent).toBe('Gym80')
     click(button('Add to routine'))
