@@ -1,5 +1,6 @@
 // Russian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Show routine icons': 'Показывать значки тренировок',
   'Group name': 'Название группы',
   'Create new group': 'Создать новую группу',
   'Choose at least two exercise options.': 'Выберите не менее двух вариантов упражнений.',

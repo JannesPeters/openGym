@@ -1,5 +1,6 @@
 // Spanish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Show routine icons': 'Mostrar iconos de las rutinas',
   'Group name': 'Nombre del grupo',
   'Create new group': 'Crear nuevo grupo',
   'Choose at least two exercise options.': 'Elige al menos dos opciones de ejercicio.',

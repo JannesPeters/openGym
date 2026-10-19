@@ -284,6 +284,29 @@ afterEach(async () => {
   await unmount()
 })
 
+it('hides routine glyphs from Start workout titles without hiding the start action icon', async () => {
+  const routines = [
+    { id: 'today', name: 'Push', emoji: 'barbell', ex: [{ id: '0025' }] },
+    { id: 'other', name: 'Pull', emoji: 'pullup', ex: [{ id: '0009' }] },
+  ]
+  await mount([], 0, {
+    routines,
+    week: { [new Date().getDay()]: ['today'] },
+    dayPlan: {},
+  })
+  mocks.S.active = null
+  await rerender()
+  expect(container.querySelector('.card .lrow-i')).toBeTruthy()
+  expect(container.querySelector('.list .item .lrow-i')).toBeTruthy()
+  mocks.S.showRoutineIcons = false
+  await rerender()
+  expect(container.querySelector('.card .lrow-i')).toBeNull()
+  expect(container.querySelector('.list .item .lrow-i')).toBeNull()
+  const start = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Start Push'))
+  expect(start).toBeTruthy()
+  expect(start.querySelector('svg')).toBeTruthy()
+})
+
 describe('workout exercise alternatives', () => {
   it.each(['custom', 'cards', 'list', 'compact', 'focus'])('keeps the header timer but hides the set counter only in Jay layout (%s)', async layout => {
     await mount([exercise('0025', [false, true])], 0, { active: { workoutView: layout } })

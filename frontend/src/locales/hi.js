@@ -1,5 +1,6 @@
 // Hindi UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Show routine icons': 'रूटीन आइकन दिखाएं',
   'Group name': 'समूह का नाम',
   'Create new group': 'नया समूह बनाएँ',
   'Choose at least two exercise options.': 'व्यायाम के कम से कम दो विकल्प चुनें।',

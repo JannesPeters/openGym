@@ -163,6 +163,17 @@ describe('the root', () => {
     type('zzzz')
     expect(host.querySelector('.sp-empty').textContent).toBe('No setting matches “zzzz”.')
   })
+
+  it('defaults routine icons on and persists the preference when switched off', () => {
+    mount('look')
+    const toggle = rowTitled('Show routine icons').querySelector('[role="switch"]')
+    expect(toggle.getAttribute('aria-label')).toBe('Show routine icons')
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    act(() => toggle.click())
+    expect(mocks.S.showRoutineIcons).toBe(false)
+    mount('look')
+    expect(rowTitled('Show routine icons').querySelector('[role="switch"]').getAttribute('aria-checked')).toBe('false')
+  })
 })
 
 // Each search hit is a row on its page, on the device and profile it was offered for. The ctx is

@@ -42,6 +42,20 @@ describe('persistence — workout layout', () => {
   })
 })
 
+describe('persistence — routine icons', () => {
+  it('keeps routine icons visible for profiles without this preference', () => {
+    expect(DEF.showRoutineIcons).toBe(true)
+    expect(importBackup('{}').showRoutineIcons).toBe(true)
+    expect(pullFromServer('{"state":{}}').showRoutineIcons).toBe(true)
+  })
+
+  it.each([true, false])('keeps the %s setting through backup and sync', showRoutineIcons => {
+    const before = { ...clone(DEF), showRoutineIcons }
+    expect(importBackup(exportBackup(before)).showRoutineIcons).toBe(showRoutineIcons)
+    expect(pullFromServer(pushToServer(before)).showRoutineIcons).toBe(showRoutineIcons)
+  })
+})
+
 // A profile that uses all three keys: a non-default field set, a custom field, two check-ins,
 // and a value recorded against that custom field.
 const KNEE = 'knee-1'

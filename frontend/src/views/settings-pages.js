@@ -106,6 +106,7 @@ export const SEARCH = [
   // Look & Home
   { page: 'look', title: 'Week & Today', icon: 'calendar', tint: 'var(--orange)', kw: 'this week today scheduled workout widget home calendar rotation overview choose different show hide' },
   { page: 'look', title: 'Recent workouts', icon: 'history', tint: 'var(--blue)', kw: 'history widget home recent workouts list show hide' },
+  { page: 'look', title: 'Show routine icons', icon: 'dumbbell', tint: 'var(--teal)', kw: 'routine workout title name icon glyph show hide' },
   { page: 'look', title: 'Theme', icon: 'moon', tint: 'var(--indigo)', kw: 'dark mode light mode theme appearance night', opts: ['Dark', 'Light', 'System'] },
   { page: 'look', title: 'Accent color', icon: 'palette', tint: 'var(--purple)', kw: 'color colour accent tint custom own picker hex rgb', opts: [...Object.values(ACCENT_NAMES), 'Your own color'], tkw: () => t('custom color picker') },
   { page: 'look', title: 'Body diagram', icon: 'figureStrength', tint: 'var(--teal)', kw: 'muscle map body male female', opts: ['Male', 'Female'] },

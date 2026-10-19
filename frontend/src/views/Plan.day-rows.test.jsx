@@ -70,6 +70,19 @@ describe('Plan — the weekday rows', () => {
     expect(dayAssignSheet).toHaveBeenCalledWith(1)
   })
 
+  it('hides routine glyphs when disabled, but keeps rest-day icons and routine names', () => {
+    mount()
+    expect(day('Monday').querySelector('.lrow-i')).toBeTruthy()
+    mocks.S.showRoutineIcons = false
+    mount()
+    expect(day('Monday').querySelector('.lrow-i')).toBeNull()
+    expect(day('Monday').querySelector('.tt').textContent).toBe('Push')
+    expect(day('Tuesday').querySelector('.lrow-i')).toBeTruthy()
+    act(() => [...host.querySelectorAll('.plan-views button')].find(button => button.textContent === 'Routines').click())
+    expect(host.querySelector('.plan-routines .plan-routine .lrow-i')).toBeNull()
+    expect(host.querySelector('.plan-routines .plan-routine .tt').textContent).toBe('Push')
+  })
+
   it('an empty day is a rest day that asks to be planned, and opens the same picker', () => {
     mount()
     const tuesday = day('Tuesday')

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { DEF, useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
-import { workoutDetailSheet } from './sheets.jsx'
+import { workoutDetailSheet, WorkoutRow } from './sheets.jsx'
 import { EXDB } from './lib/exercises-data.js'
 
 const lifts = EXDB.filter(e => e.bp !== 'cardio' && e.eq === 'barbell').slice(0, 3).map(e => e.id)
@@ -47,6 +47,27 @@ afterEach(() => {
 })
 
 describe('workout detail', () => {
+  it('hides routine icons from workout rows while preserving their names', () => {
+    const S = clone(DEF)
+    delete S.showRoutineIcons
+    S.routines = [{ id: 'r1', name: 'Push', emoji: 'barbell', ex: [] }]
+    useStore.setState({ S, user: null })
+    const w = workout([], { routineId: 'r1' })
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    act(() => root.render(<WorkoutRow w={w} onClick={() => {}} />))
+    expect(host.querySelector('.lrow-i')).toBeTruthy()
+    expect(host.querySelector('.tt').textContent).toBe('Push')
+
+    useStore.setState(state => ({ S: { ...state.S, showRoutineIcons: false } }))
+    act(() => root.render(<WorkoutRow w={w} onClick={() => {}} />))
+    expect(host.querySelector('.lrow-i')).toBeNull()
+    expect(host.querySelector('.tt').textContent).toBe('Push')
+    act(() => root.unmount())
+    host.remove()
+  })
+
   it('lists a drop-set\'s drops and a rest-pause set\'s bursts', () => {
     workoutDetailSheet(workout([
       { id: lifts[0], target: { mode: 'reps' }, sets: [done(100, 8, { type: 'dropset', drops: [{ w: 80, r: 6 }, { w: 60, r: 5 }] })] },

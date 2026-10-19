@@ -1,5 +1,6 @@
 // Ukrainian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Show routine icons': 'Показувати піктограми тренувань',
   'Group name': 'Назва групи',
   'Create new group': 'Створити нову групу',
   'Choose at least two exercise options.': 'Виберіть щонайменше два варіанти вправ.',
