@@ -53,8 +53,16 @@ export function writeState(dir, uid, S) {
   fs.writeFileSync(path.join(dir, 'state-' + uid + '.json'), JSON.stringify(S));
 }
 
-/** A profile that has consented and has some history — the usual starting point. */
+export function daysAgo(days, now = new Date()) {
+  const date = new Date(now);
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Recent history stays inside the real review window; historical tests override these dates. */
 export function sampleState(over = {}) {
+  const now = new Date();
+  const recent = daysAgo(2, now);
   return {
     unit: 'kg', lang: 'en', effort: 'rpe', targetW: 80,
     coach: { consent: { agreedAt: new Date().toISOString(), version: 1 }, profile: { goal: 'muscle', daysPerWeek: 3, equipment: ['dumbbell'] } },
@@ -68,10 +76,10 @@ export function sampleState(over = {}) {
     week: { 1: 'r1', 3: 'r1', 5: 'r1' },
     dayPlan: {},
     exWeights: { '0001': { w: 20 } },
-    bodyweight: [{ d: '2026-07-01', w: 78 }, { d: '2026-07-20', w: 78.5 }],
+    bodyweight: [{ d: daysAgo(21, now), w: 78 }, { d: recent, w: 78.5 }],
     customEx: [],
     workouts: [{
-      id: 'w1', d: '2026-07-20', name: 'Full body A', start: 1000, end: 1000 + 45 * 60000, vol: 600, prs: [],
+      id: 'w1', d: recent, name: 'Full body A', start: 1000, end: 1000 + 45 * 60000, vol: 600, prs: [],
       entries: [{
         id: '0001', target: { sets: 3, reps: 10, weight: 20 },
         sets: [{ w: 20, r: 10, done: true, rpe: 9.5 }, { w: 20, r: 9, done: true, rpe: 10 }, { w: 20, r: 8, done: true, rpe: 10 }]
