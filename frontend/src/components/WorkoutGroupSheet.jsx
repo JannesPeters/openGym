@@ -9,7 +9,7 @@ import { speedUnitOf } from '../lib/speed.js'
 import { t } from '../lib/i18n.js'
 import { Button } from './ui.jsx'
 
-export default function WorkoutGroupSheet({ onCreate, close }) {
+export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
   const [options, setOptions] = useState([])
   const state = useStore(s => s.S)
   const add = () => {
@@ -23,7 +23,7 @@ export default function WorkoutGroupSheet({ onCreate, close }) {
         setOptions(current => [...current, { ...cfg, id: ex.id }])
       }
       if (quick) commit(defaultConfig(ex.id))
-      else exConfigSheet(ex, null, commit, null, null, null, null, t('Add to this workout'))
+      else exConfigSheet(ex, null, commit, null, routine, null, null, routine ? t('Add to routine') : t('Add to this workout'))
     })
   }
   return <>
