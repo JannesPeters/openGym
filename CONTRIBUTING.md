@@ -32,6 +32,23 @@ cd api && npm test
 cd mcp && npm test
 ```
 
+### Seeded local previews
+
+Run `cd frontend && npm run dev:seed`, then open <http://localhost:5174/#/home>. This opt-in,
+development-only mode loads 12 weeks of completed workouts with weight and rep progression,
+weigh-ins, measurements, and session/exercise notes. It uses a separate browser origin from the
+regular dev server on `:5173`, and `/api` requests are refused rather than proxied.
+
+The preview refuses an origin that already has browser storage or account data; it does not clear
+or overwrite it. If the port is busy or the origin is refused, use a fresh port, for example
+`npm run dev:seed -- --port 5176`, and keep that origin exclusively for previews. Preview edits
+survive reloads; use **Reset demo data** in Settings to restore the seed.
+
+Tests can call `await buildLocalPreviewState(new Date('2026-10-18T12:00:00'))` from
+`src/lib/local-preview.js`; it returns a fresh deterministic fixture without touching storage.
+Run the focused checks with `npx vitest run src/lib/local-preview.test.js src/store/useStore.local-preview.test.jsx`.
+Regular dev and production builds do not enable this seed path.
+
 ### Workout exercise-choice groups
 
 In a running workout or saved-workout editor, **Create new group** (below the exercises or
@@ -49,7 +66,6 @@ routine for future workouts; cancelling does not change the routine.
 
 The routine's muscle map is compact inline; **Expand** opens the same planned coverage in a
 full-screen dialog. Close or Escape returns focus to Expand without leaving the editor.
-
 Jay's exercise cards use a short measured-height transition when folded or expanded. They
 return to natural sizing afterward, and reduced-motion preferences skip the transition.
 

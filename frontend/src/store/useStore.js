@@ -3,7 +3,7 @@ import { api, setRemoteAuth } from '../lib/api.js'
 import { localTZ } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { registerCustom, healCustomEx, referencedCustomExercises } from '../lib/exercises.js'
-import { DEMO, DEMO_SEEDED } from '../lib/demo.js'
+import { DEMO, DEMO_SEEDED, LOCAL_PREVIEW } from '../lib/demo.js'
 import { rememberDefaultLang } from '../lib/default-lang.js'
 import { guestAllowed } from '../lib/guest.js'
 import { MOBILE, initReminderSync, nativeLoad, nativeSave, onAppActive, readJsonFile, syncReminder, writeAutoBackup, writeJsonFile } from '../lib/mobile.js'
@@ -1824,14 +1824,16 @@ export const useStore = create((set, get) => {
       return left.owed ? owedResult(left, { stashed: true }) : { owed: false }
     },
 
-    // Demo build only: drop the seeded example profile back in (Settings → "Reset demo data").
-    // Dynamic import so the generator never ships in a self-hosted bundle.
+    // Demo build and local preview: restore the example profile from Settings.
+    // The local-preview flag is false in production builds, so only the public seed runs there.
     async resetDemo() {
-      const { buildDemoState } = await import('../lib/demoSeed.js')
+      const example = LOCAL_PREVIEW
+        ? await (await import('../lib/local-preview.js')).buildLocalPreviewState()
+        : (await import('../lib/demoSeed.js')).buildDemoState()
       markOwed(false)
-      persist(Object.assign(clone(DEF), buildDemoState()), false)
-      // The demo's photos and videos were only ever in this browser, and the reset takes them too.
-      await mediaStore.clearAll().catch(() => {})
+      persist(Object.assign(clone(DEF), example), false)
+      // The public demo keeps its old reset behavior; local previews never own media files.
+      if (!LOCAL_PREVIEW) await mediaStore.clearAll().catch(() => {})
     },
 
     // Boot: ask the server who we are, then pull.
