@@ -26,7 +26,7 @@ import { SG_NAME_MAX } from './lib/superset-meta.js'
 import { REST_MAX, fmtRest } from './lib/duration.js'
 import Icon from './components/Icon.jsx'
 import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow, SheetDialog } from './components/ui.jsx'
-import { glyphOf, GLYPH_GROUPS, DEFAULT_GLYPH } from './lib/glyphs.js'
+import { glyphOf, GLYPH_GROUPS, DEFAULT_GLYPH, routineIconsVisible } from './lib/glyphs.js'
 import BodyMap from './components/BodyMap.jsx'
 import ExerciseBrowser from './components/ExerciseBrowser.jsx'
 import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, normalizeMuscleGroups, hasExplicitMuscleMetadata, inMuscleOrder, canonicalMuscleOf, targetMuscleOf } from './lib/muscles.js'
@@ -1128,7 +1128,7 @@ function AddToRoutine({ ex, close }) {
     <div className="muted small" style={{ marginBottom: 12 }}>{t('Pick a routine. Sets, reps and weight come next.')}</div>
     <div className="list">
       {st.routines.map(r => <div key={r.id} className="item" {...tappable(() => pick(r.id))}>
-        <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
+        {routineIconsVisible(st) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
         <div className="grow"><div className="tt">{r.name}</div><div className="ss">{exCount(r.ex.length)}</div></div>
         {r.ex.some(e => e.id === ex.id) && <span className="tag">{t('already in')}</span>}<Icon name="plus" className="chev" />
       </div>)}
@@ -2225,7 +2225,7 @@ function DayOverride({ iso, close }) {
     toast(v === '' ? t('Back to weekly plan') : v === 'rest' ? t('{0} set to rest', fmtDate(iso)) : t('{0} planned for {1}', (st.routines.find(r => r.id === v) || {}).name, fmtDate(iso)))
   }
   const row = r => <div key={r.id} className="item" {...tappable(() => set(r.id))}>
-    <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
+    {routineIconsVisible(st) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
     <div className="grow"><div className="tt">{r.name}</div><div className="ss">{pinnedOn[r.id] && pinnedOn[r.id] !== iso ? fmtDate(pinnedOn[r.id], true) : exCount(r.ex.length)}</div></div>
     {effIds.includes(r.id) && <Icon name="check" className="accent" />}</div>
   return <>
@@ -2312,7 +2312,7 @@ function DayAssign({ day, close }) {
       {st.routines.map(r => {
         const on = cur.includes(r.id)
         return <div key={r.id} className="item menu-item" aria-pressed={on} {...tappable(() => toggle(r.id))}>
-          <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
+          {routineIconsVisible(st) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
           <div className="grow"><div className="tt">{r.name}</div><div className="ss">{exCount(r.ex.length)}</div></div>
           <span className={'menu-on' + (on ? ' is-on' : '')}><Icon name="check" /></span>
         </div>
@@ -2493,7 +2493,7 @@ function WorkoutDetail({ w, close }) {
       return <div key={g.rid || '__none'}>
         <div className="row between" style={{ margin: '2px 0 8px', paddingBottom: 6, borderBottom: '1px solid var(--sep)' }}>
           <div className="row" style={{ gap: 7, fontWeight: 600 }}>
-            {r && <Icon name={glyphOf(r.emoji)} />}{r ? r.name : t('Freestyle')}
+            {r && routineIconsVisible(st) && <Icon name={glyphOf(r.emoji)} />}{r ? r.name : t('Freestyle')}
           </div>
           <div className="small dim">{t('{0} sets', setN)} · {fmtVol(vol, st.unit)}</div>
         </div>
@@ -2713,7 +2713,7 @@ export function WorkoutRow({ w, onClick }) {
   const glyph = glyphOf((st.routines.find(r => r.id === w.routineId) || {}).emoji)
   const mediaN = workoutMediaCount(w)
   return <div className="item" {...tappable(onClick)}>
-    <span className="lrow-i" style={{ width: 34, height: 34, borderRadius: 8, fontSize: 19 }}><Icon name={glyph} /></span>
+    {routineIconsVisible(st) && <span className="lrow-i" style={{ width: 34, height: 34, borderRadius: 8, fontSize: 19 }}><Icon name={glyph} /></span>}
     <div className="grow"><div className="tt">{w.name}</div>
       <div className="ss">{[fmtDate(w.d, true), ...durPart(w.end - w.start), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(w.vol, st.unit)].join(' · ')}</div></div>
     {mediaN > 0 && <span className="wrow-media" title={tn('{0} photo or video', '{0} photos or videos', mediaN)} aria-label={tn('{0} photo or video', '{0} photos or videos', mediaN)}><Icon name="image" />{mediaN}</span>}
@@ -2926,7 +2926,7 @@ function AddRoutineToSession({ close }) {
         const disabled = already || empty
         return <div key={r.id} className={'item' + (disabled ? ' disabled' : '')} aria-disabled={disabled || undefined}
           {...tappable(disabled ? null : () => add(r))}>
-          <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
+          {routineIconsVisible(st) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
           <div className="grow"><div className="tt">{r.name}</div><div className="ss">{exCount(r.ex.length)}</div></div>
           {already ? <span className="tag">{t('already added')}</span> : empty ? <span className="tag">{t('no exercises')}</span> : <Icon name="chevronRight" className="chev" />}
         </div>

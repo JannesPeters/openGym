@@ -1,4 +1,5 @@
 export default {
+  'Show routine icons': '顯示訓練計畫圖示',
   'Group name': '群組名稱',
   'Create new group': '建立新群組',
   'Choose at least two exercise options.': '請至少選擇兩個動作選項。',

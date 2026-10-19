@@ -48,6 +48,17 @@ describe('Home — the way to the Start screen when a plan already owns today', 
     expect(door()).toBeTruthy()
   })
 
+  it('hides the routine glyph from Today but keeps the active workout icon', () => {
+    setS(); mount()
+    expect(host.querySelector('.today-row .lrow-i')).toBeTruthy()
+    setS({ showRoutineIcons: false }); mount()
+    expect(host.querySelector('.today-row .lrow-i')).toBeNull()
+    setS({ showRoutineIcons: false, active: { id: 'a', name: 'Push', start: Date.now(), cur: 0, entries: [] } })
+    mount()
+    expect(host.querySelector('.today-row .lrow-i svg')).toBeTruthy()
+    expect(host.querySelector('.today-row .ttl').textContent).toBe('Push (in progress)')
+  })
+
   it('opens the Start screen without starting anything', () => {
     setS(); mount()
     act(() => { door().dispatchEvent(new MouseEvent('click', { bubbles: true })) })

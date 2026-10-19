@@ -1,5 +1,6 @@
 // Thai UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Show routine icons': 'แสดงไอคอนรูทีน',
   'Group name': 'ชื่อกลุ่ม',
   'Create new group': 'สร้างกลุ่มใหม่',
   'Choose at least two exercise options.': 'เลือกตัวเลือกท่าออกกำลังกายอย่างน้อยสองรายการ',

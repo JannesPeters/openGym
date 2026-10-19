@@ -10,6 +10,7 @@ import { DEF, useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { exercisePicker, exConfigSheet } from '../sheets.jsx'
 import { exOr } from '../lib/exercises.js'
+import { exerciseTitleFor } from '../lib/i18n.js'
 
 vi.mock('../lib/api.js', () => ({ api: vi.fn(() => Promise.resolve({})) }))
 vi.mock('../sheets.jsx', async importOriginal => ({
@@ -56,6 +57,11 @@ afterEach(() => {
 
 it('exposes a distinct new-group action above the saved routine list and persists an independent slot', () => {
   mount()
+  const originalRows = [...host.querySelectorAll('.routine-list .item-open')]
+  expect(originalRows[0].querySelector('.tt').textContent).toBe(exerciseTitleFor(exOr('0025')))
+  expect(originalRows[0].querySelector('.workout-group-name').textContent).toBe('Choose one · 2 options')
+  expect(originalRows[1].querySelector('.tt').textContent).toBe(exerciseTitleFor(exOr('0009')))
+  expect(originalRows[1].querySelector('.workout-group-name')).toBeNull()
   const header = host.querySelector('.routine-ex-h')
   expect(button(header, 'Add exercise')).toBeTruthy()
   const create = button(header, 'Create new group')
@@ -90,6 +96,10 @@ it('exposes a distinct new-group action above the saved routine list and persist
   expect(draft()).toBeNull()
   expect(host.textContent).toContain('Choose one')
   expect(host.textContent).toContain('Chest options')
+  const namedGroup = host.querySelector('[data-ex-index="3"] .item-open')
+  expect(namedGroup.querySelector('.tt').textContent).toBe('Chest options')
+  expect(namedGroup.querySelector('.ss').textContent).toContain(exerciseTitleFor(exOr('0025')))
+  expect(namedGroup.querySelector('.workout-group-name').textContent).toBe('2 options')
   const reloaded = JSON.parse(localStorage.getItem('gym_state_v1')).routines[0].ex
   act(() => root.unmount())
   host.remove()

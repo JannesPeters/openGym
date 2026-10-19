@@ -527,6 +527,8 @@ export default function RoutineEdit() {
       // An unresolvable id is shown rather than skipped — hiding it left an entry you
       // could neither see nor delete, but that still turned up in the workout.
       const ex = exOr(e.id)
+      const choiceGroup = hasOptions(e)
+      const groupName = choiceGroup ? cleanGroupName(e.groupName) : ''
       const noEquip = profile && optionsOf(e).every(option => !exAvailable(S, exOr(option.id)))
       const linkedPrev = i > 0 && e.sg && r.ex[i - 1].sg === e.sg
       // At a superset's edge an arrow takes the exercise out of it rather than past a neighbour.
@@ -569,8 +571,18 @@ export default function RoutineEdit() {
           <span className="routine-grip" data-drag-handle aria-hidden="true" title={t('Reorder exercises')}><Icon name="grip" /></span>
           {ssPos.has(i) && <span className="ss-pos" aria-label={t('Superset position {0}', ssPos.get(i))}>{ssPos.get(i)}</span>}
           <Thumb ex={ex} />
-          <button type="button" className="grow item-open" data-row-open><span className={`tt ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></span><span className="ss">{exLine(e, S.unit, speedUnitOf(S))}</span>
-            {hasOptions(e) && <span className="small accent workout-group-name">{cleanGroupName(e.groupName) || t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
+          <button type="button" className="grow item-open" data-row-open>
+            {groupName
+              ? <>
+                <span className="tt">{groupName}</span>
+                <span className="ss"><ExerciseName ex={ex} /> · {exLine(e, S.unit, speedUnitOf(S))}</span>
+                <span className="small accent workout-group-name">{t('{0} options', optionsOf(e).length)}</span>
+              </>
+              : <>
+                <span className={`tt ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></span>
+                <span className="ss">{exLine(e, S.unit, speedUnitOf(S))}</span>
+                {choiceGroup && <span className="small accent workout-group-name">{t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
+              </>}
             {e.note && <span className="small dim" style={{ marginTop: 2 }}>{e.note}</span>}</button>
           {noEquip && <span className="tag" style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }} title={t('Needs {0}, which isn’t in your active profile', t(ex.eq))}><Icon name="warning" /></span>}
           <button type="button" className="iconbtn" data-exercise-menu aria-haspopup="dialog"

@@ -735,6 +735,10 @@ export default function Settings({ page = null, find = null, via = null }) {
             onChange={v => update(s => { s.theme = v })}
           />
         </Row>
+        <Row icon="dumbbell" iconTint="var(--teal)" title={t('Show routine icons')}>
+          <Switch aria-label={t('Show routine icons')} checked={S.showRoutineIcons !== false}
+            onChange={v => update(s => { s.showRoutineIcons = v })} />
+        </Row>
         <div className="lrow" style={{ flexWrap: 'wrap', rowGap: 12, paddingBottom: 14 }}>
           <span className="lrow-i" style={{ '--tint': 'var(--purple)' }}><Icon name="palette" /></span>
           <span className="lrow-m"><span className="lrow-t">{t('Accent color')}</span></span>

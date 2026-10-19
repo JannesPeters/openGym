@@ -36,6 +36,5 @@ export default function RoutineMuscleMap({ routine, body }) {
         aria-label={`${t('Expand')}: ${title}`} onClick={expand}>{t('Expand')}</Button>
       {chips}
     </div>
-    {note}
   </div>
 }

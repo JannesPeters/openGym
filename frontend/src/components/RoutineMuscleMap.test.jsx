@@ -38,6 +38,7 @@ it('opens the same map, muscle chips and choice explanation in a labelled full-s
   const inline = host.querySelector('.routine-muscle-card')
   expect(inline.getAttribute('aria-label')).toBe('What this session hits')
   expect(trigger().getAttribute('aria-label')).toBe('Expand: What this session hits')
+  expect(inline.querySelector('p')).toBeNull()
   act(() => trigger().click())
   expect(useUI.getState().sheets[0].kind).toBe('viewer')
   expect(dialog().getAttribute('aria-label')).toBe('What this session hits')
@@ -47,7 +48,9 @@ it('opens the same map, muscle chips and choice explanation in a labelled full-s
   expect(maps[1].dataset.load).toBe(maps[0].dataset.load)
   expect(maps[1].dataset.body).toBe('female')
   expect(dialog().querySelector('.mchips').textContent).toBe(inline.querySelector('.mchips').textContent)
-  expect(dialog().querySelector('p').textContent).toBe(inline.querySelector('p').textContent)
+  expect(dialog().querySelector('p').textContent).toBe(
+    'Planned muscle coverage uses the first option in each group. Your workout statistics use the exercises you actually perform.',
+  )
   expect(document.activeElement).toBe(close())
   act(() => close().click())
   expect(dialog()).toBeNull()

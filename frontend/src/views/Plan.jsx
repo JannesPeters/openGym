@@ -15,7 +15,7 @@ import { copyRoutine, deleteRoutine, restoreRoutine, routineSnapshot } from '../
 import { workoutControls } from '../lib/workout-controls.js'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { useListReorder, moved } from '../lib/use-list-reorder.js'
-import { glyphOf, DEFAULT_GLYPH } from '../lib/glyphs.js'
+import { glyphOf, DEFAULT_GLYPH, routineIconsVisible } from '../lib/glyphs.js'
 import { DEMO } from '../lib/demo.js'
 import { MOBILE } from '../lib/mobile.js'
 import { coachAvailable } from '../lib/coach.js'
@@ -230,7 +230,7 @@ function Schedule({ S, update, nav, mode }) {
   const addToSeq = () => menuSheet({
     title: t('Add to the rotation'),
     items: S.routines.filter(r => !seq.includes(r.id)).map(r => ({
-      icon: glyphOf(r.emoji), label: r.name, onClick: () => setSeq([...seq, r.id]),
+      icon: routineIconsVisible(S) ? glyphOf(r.emoji) : undefined, label: r.name, onClick: () => setSeq([...seq, r.id]),
     })),
   })
   // The only path from a coach-written queue into a managed one: behind a confirmation that says
@@ -258,7 +258,7 @@ function Schedule({ S, update, nav, mode }) {
   const dayRow = (d, rs = dayRoutines(d)) => {
     return <div key={d} className="item plan-day" data-day={d} aria-label={t(DAYN[d])} {...tappable(() => dayAssignSheet(d))}>
       <span className={'plan-day-n' + (d === todayDow ? ' today' : '')} aria-hidden="true">{t(DAYS[d])}</span>
-      <span className={'lrow-i' + (rs.length ? '' : ' rest')}><Icon name={rs.length ? glyphOf(rs[0].emoji) : 'moon'} /></span>
+      {(!rs.length || routineIconsVisible(S)) && <span className={'lrow-i' + (rs.length ? '' : ' rest')}><Icon name={rs.length ? glyphOf(rs[0].emoji) : 'moon'} /></span>}
       <div className="grow">
         <div className="tt">{rs.length ? deriveSessionName(rs.map(r => r.name)) : t('Rest day')}</div>
         <div className="ss">{rs.length === 1 ? exCount(rs[0].ex.length) : rs.length ? routineCount(rs.length) : t('Tap to plan something')}</div>
@@ -328,7 +328,7 @@ function Schedule({ S, update, nav, mode }) {
             {editing && <button className="plan-minus" aria-label={t('Remove {0}', r?.name ?? id)} title={t('Remove')}
               onClick={() => takeOut(id)}><Icon name="minus" /></button>}
             <span className={'plan-order' + (item?.state === 'next' ? ' next' : '')}>{item?.state === 'done' ? <Icon name="check" /> : i + 1}</span>
-            <span className="lrow-i"><Icon name={glyphOf(r?.emoji)} /></span>
+            {routineIconsVisible(S) && <span className="lrow-i"><Icon name={glyphOf(r?.emoji)} /></span>}
             <div className="grow" style={{ minWidth: 0 }}>
               <div className="tt">{r?.name ?? id}</div>
               <div className="ss">{item ? stateWord(item) : r ? exCount(r.ex.length) : ''}</div>
@@ -431,14 +431,14 @@ function Routines({ S, update, nav }) {
         ? <div className="list routine-list plan-routines is-editing" ref={reorder.listRef}>{routines.map((r, i) =>
           <div key={r.id} data-reorder-row className="item plan-routine" style={reorder.rowStyle(i)}>
             <button className="plan-minus" aria-label={t('Delete {0}', r.name)} title={t('Delete routine')} onClick={() => remove(r)}><Icon name="minus" /></button>
-            <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
+            {routineIconsVisible(S) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
             <div className="grow"><div className="tt">{r.name}</div><div className="ss">{sub(r)}</div></div>
             {routines.length > 1 && <button className="plan-handle" aria-label={t('Move {0}', r.name)} title={t('Drag to reorder')}
               {...reorder.handle(i)}><Icon name="chevronsUpDown" /></button>}
           </div>)}</div>
         : <div className="list routine-list plan-routines">{routines.map(r => {
           const row = <div key={r.id} className="item plan-routine" {...tappable(() => nav('/plan/r/' + r.id))}>
-            <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
+            {routineIconsVisible(S) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
             <div className="grow"><div className="tt">{r.name}</div><div className="ss">{sub(r)}</div></div>
             <Icon name="chevronRight" className="chev" /></div>
           // Swipe (v1.3.11, Settings → Swipe actions): toward the start deletes with an Undo,

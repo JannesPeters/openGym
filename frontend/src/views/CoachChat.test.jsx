@@ -121,6 +121,15 @@ describe('the Coach chat', () => {
     expect(container.querySelector('.pcard-rt-h b').textContent).toContain('Full body B')
   })
 
+  it('hides decorative glyphs from proposed routine titles when disabled', async () => {
+    const S = state()
+    S.showRoutineIcons = false
+    await mount({ id: 'p1', kind: 'create', bundle: bundle(everyDay) }, null, { S })
+    expect(container.querySelectorAll('.pcard-tab svg')).toHaveLength(0)
+    expect(container.querySelector('.pcard-rt-h b svg')).toBeNull()
+    expect([...container.querySelectorAll('.pcard-tab')].map(tab => tab.textContent)).toEqual(['Full body A', 'Full body B'])
+  })
+
   it('imports the plan through the store, records it in the thread, and leaves today startable', async () => {
     await mount({ id: 'p1', kind: 'create', bundle: bundle(everyDay) })
     await click(byText(/Import this plan/))
