@@ -10,7 +10,12 @@ and [this fork's deployment](https://opengym-jay.vercel.app/).
 The [`main` branch](https://github.com/JannesPeters/openGym/tree/main) keeps the upstream-oriented
 version. The deployment linked here belongs to this fork, not upstream.
 
-## What this fork focuses on
+## What differs on the personal branch
+
+The changes below are merged on the `personal` branch and describe this fork only; they are not
+features of upstream openGym.
+
+### Training and UI
 
 - **Less friction in planning.** Simplified exercise browsing, exercise details and routine
   editing. Adding and configuring exercises in Plan uses full-screen pages with Back navigation;
@@ -23,6 +28,14 @@ version. The deployment linked here belongs to this fork, not upstream.
   prescriptions and progression, and explicitly choose which to perform each workout. Once work
   is logged, that exercise cannot be swapped out; another option can be added alongside it
   without losing the logged sets.
+- **Clearer routine summaries.** Named choice groups appear by name, muscle-coverage guidance is
+  shown only when expanded, and a saved setting controls routine and workout title icons.
+
+### Local development tools
+
+For contributors, the branch also includes a Storybook gallery for existing UI components and an
+isolated, seeded local preview of the app. These are development tools, not features of the
+deployed app.
 
 The foundation is still openGym: routine planning, guided workouts, set and body-weight logging,
 progression, history and statistics, with a self-hostable backend and an installable web app.
