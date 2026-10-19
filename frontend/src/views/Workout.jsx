@@ -1429,13 +1429,12 @@ function ActiveWorkout() {
     }
     // The "+" on a picker row reads as "add this now" — routed through the same detail
     // sheet before, so it added nothing until you'd scrolled past it and found the real
-    // button. Quick-add commits with the same default (or, freestyle, last-session) config
-    // the sheet would have opened with; tapping the row still opens that sheet for anyone
-    // who wants to set sets/reps first.
+    // button. Quick-add commits with the same default (or, freestyle, last-session) config.
+    // Shared details offer either an immediate add or this optional configuration.
     if (quick) { commit(seed || defaultConfig(ex.id)); useUI.getState().toast(t('“{0}” added to {1}', exerciseNameText(ex), routine ? routine.name : t('Freestyle'))) }
     // The confirm names what it changes: this workout, never the routine behind it.
     else exConfigSheet(ex, null, commit, null, routine, seed, null, t('Add to this workout'))
-  })
+  }, { detailLabel: t('Add to this workout') })
   const createGroup = () => {
     const activeId = A.id
     useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} onCreate={(configs, name) => {

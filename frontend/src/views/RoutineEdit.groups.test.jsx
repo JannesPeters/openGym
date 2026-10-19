@@ -42,6 +42,7 @@ function mount(ex = original) {
 }
 function add(id, quick = true) {
   click(button(draft(), 'Add exercise'))
+  expect(exercisePicker.mock.lastCall[1]).toEqual({ detailLabel: 'Add to routine' })
   act(() => exercisePicker.mock.lastCall[0](exOr(id), quick))
 }
 beforeEach(() => {
@@ -53,6 +54,17 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   host.remove()
+})
+
+it('renders the routine name as a standalone text field outside the settings list', () => {
+  mount()
+  const input = host.querySelector('.routine-name-field input')
+  expect(input.labels[0].textContent).toBe('Name')
+  expect(input.type).toBe('text')
+  expect(input.name).toBe('name')
+  expect(input.classList.contains('field')).toBe(true)
+  expect(input.closest('.lrow, .sect-b')).toBeNull()
+  expect(host.querySelector('.routine-details input')).toBeNull()
 })
 
 it('exposes a distinct new-group action above the saved routine list and persists an independent slot', () => {

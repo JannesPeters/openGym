@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'Mostrar iconos de las rutinas',
   'Group name': 'Nombre del grupo',
+  'Name': 'Nombre',
+  'Edit details before adding': 'Editar detalles antes de añadir',
   'Create new group': 'Crear nuevo grupo',
   'Choose at least two exercise options.': 'Elige al menos dos opciones de ejercicio.',
   'Week & Today': 'Semana y Hoy',

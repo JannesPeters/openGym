@@ -29,7 +29,7 @@ export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
       }
       if (quick) commit(defaultConfig(ex.id))
       else exConfigSheet(ex, null, commit, null, routine, null, null, routine ? t('Add to routine') : t('Add to this workout'))
-    })
+    }, { detailLabel: routine ? t('Add to routine') : t('Add to this workout') })
   }
   return <>
     <h3>{t('Create new group')}</h3>

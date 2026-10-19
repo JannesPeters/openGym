@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'إظهار أيقونات الروتين',
   'Group name': 'اسم المجموعة',
+  'Name': 'الاسم',
+  'Edit details before adding': 'تعديل التفاصيل قبل الإضافة',
   'Create new group': 'إنشاء مجموعة جديدة',
   'Choose at least two exercise options.': 'اختر خيارين للتمرين على الأقل.',
   'Week & Today': 'الأسبوع واليوم',

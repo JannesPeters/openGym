@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ExerciseBrowser from '../components/ExerciseBrowser.jsx'
 import Icon from '../components/Icon.jsx'
-import { CustomExForm, deleteCustomEx, ExConfig } from '../sheets.jsx'
+import { CustomExForm, deleteCustomEx, ExConfig, exerciseDetailSheet } from '../sheets.jsx'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { EXIDX, exOr } from '../lib/exercises.js'
@@ -10,6 +10,7 @@ import { exerciseNameText, uid } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { cleanupSg, defaultConfig, exLine } from '../lib/history.js'
 import { speedUnitOf } from '../lib/speed.js'
+import { onSheetEntry } from '../lib/nav.js'
 import { replaceSlotExercise } from '../lib/routines.js'
 import { removeRoutineExercise } from './RoutineEdit.jsx'
 import { addOption, hasOptions, optionsOf, removeOption, saveOption, cleanGroupName } from '../lib/exercise-options.js'
@@ -49,7 +50,7 @@ export default function PlanExercises({ editing = false, custom = false }) {
   const remember = useCallback(state => { rememberEntry(browsers, entryKey, state) }, [entryKey])
   const rememberDraft = useCallback(state => { rememberEntry(drafts, entryKey, state) }, [entryKey])
   const back = () => loc.state?.planBack ? nav(-1) : nav(root, { replace: true })
-  const open = path => nav(path, { state: {
+  const open = (path, replace = false) => nav(path, { replace, state: {
     planBack: loc.pathname + loc.search,
     planReturn: loc.state?.planBack ? 2 : 0,
   } })
@@ -88,7 +89,7 @@ export default function PlanExercises({ editing = false, custom = false }) {
       if (depth) nav(-depth)
       else nav(root, { replace: true })
     }
-    if (addingOption) nav(root)
+    if (addingOption) nav(root, { replace: onSheetEntry() })
     return true
   }
 
@@ -173,7 +174,15 @@ export default function PlanExercises({ editing = false, custom = false }) {
         } : undefined} />
         : <ExerciseBrowser key={entryKey} picking routineId={id} like={replacing || addingOption ? original : undefined}
           initialState={browsers.get(entryKey)} onStateChange={remember}
-          onOpen={target => open(`${picker}/${encodeURIComponent(target.id)}${loc.search}`)}
+          onOpen={target => {
+            const configure = (selected, replace = false) => open(`${picker}/${encodeURIComponent(selected.id)}${loc.search}`, replace)
+            if (replacing) configure(target)
+            else exerciseDetailSheet(target, {
+              addLabel: t(addingOption ? 'Add alternative' : 'Add to routine'),
+              onAdd: selected => save(selected),
+              onEditBeforeAdd: selected => configure(selected, onSheetEntry()),
+            })
+          }}
           onAdd={target => {
             if (replacing && target.id === original) { back(); return }
             save(target)

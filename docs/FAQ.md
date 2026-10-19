@@ -143,6 +143,15 @@ Groups travel in backups, account sync and shared plans. Use an updated openGym 
 and when importing a shared plan: older versions do not understand alternatives and may show
 only the first option or lose options when editing/re-exporting.
 
+### Can I inspect an exercise before adding it?
+
+Tap an exercise's row in **Add exercise**, whether you are editing a routine in Plan or adding
+to your current workout. It opens the same exercise details as the **Exercises** tab, including
+media, instructions, history and variants. **Add to routine** or **Add to this workout** adds it
+immediately with the default settings, or your previous settings in a freestyle workout.
+Choose **Edit details before adding** to set sets, reps and weight first. The **+** button on a
+picker row also adds it immediately.
+
 ### Can I track different machines for the same exercise separately?
 
 Yes. Open the exercise in the **Exercise Library**, choose **Create variant**, and give it a label

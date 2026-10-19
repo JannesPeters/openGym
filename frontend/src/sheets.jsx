@@ -974,7 +974,7 @@ export function detailTags(ex) {
   return out
 }
 
-function ExerciseDetail({ ex: initialEx, close }) {
+function ExerciseDetail({ ex: initialEx, close, onAdd, onEditBeforeAdd, addLabel }) {
   const [selected, setSelected] = useState(initialEx)
   const ex = EXIDX[selected.id] || selected
   useLang() // the description and steps arrive in their own chunk the first time a sheet asks
@@ -992,6 +992,7 @@ function ExerciseDetail({ ex: initialEx, close }) {
     update(s => { on = toggleFav(s, ex.id) })
     toast(on ? t('Added to favourites') : t('Removed from favourites'))
   }
+  const reopen = target => exerciseDetailSheet(target, { onAdd, onEditBeforeAdd, addLabel })
   return <>
     <div className="row between" style={{ gap: 8, alignItems: 'flex-start' }}>
       <h3 className={`exdetail-name ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></h3>
@@ -1021,12 +1022,17 @@ function ExerciseDetail({ ex: initialEx, close }) {
     {descFor(ex) && <div className="exnote">{descFor(ex)}</div>}
     {best > 0 && <div className="small row" style={{ marginBottom: 6, gap: 5 }}><Icon name="trophy" style={{ fontSize: 14, color: 'var(--yellow)' }} />{t('Best:')} <b className="accent" style={{ whiteSpace: 'nowrap' }}>{fmtNum(best)} {st.unit}</b>{last ? ` · ${t('last')} ${fmtDate(last.d)}: ${last.sets.map(s => setLabel(ex.id, s, last.target, speedUnitOf(st))).join(', ')}` : ''}</div>}
     <div className="exercise-detail-actions">
-      <Button variant="primary" icon="plus" onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
-      {!ex.missing && <Button icon="plusCircle" onClick={() => { close(); exerciseVariantSheet(ex) }}>{t('Create variant')}</Button>}
+      <Button variant="primary" icon="plus" onClick={() => {
+        if (onAdd) { close(); onAdd(ex) }
+        else addToRoutineSheet(ex)
+      }}>{addLabel || t('Add to my plan')}</Button>
+      {!ex.missing && <Button icon="plusCircle" onClick={() => { close(); exerciseVariantSheet(ex, reopen) }}>{t('Create variant')}</Button>}
     </div>
+    {onEditBeforeAdd && <Button icon="pencil" style={{ marginTop: 4 }}
+      onClick={() => { close(); onEditBeforeAdd(ex) }}>{t('Edit details before adding')}</Button>}
     {last && <Button icon="history" style={{ marginTop: 4 }} onClick={() => exerciseHistorySheet(ex.id)}>{t('History')}</Button>}
     {isCustomEx(ex) && <div className="row" style={{ gap: 8, marginTop: 8 }}>
-      <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
+      <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex, onAdd ? reopen : undefined) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
     </div>}
     {(modeOf({ id: ex.id }) === 'reps' || isBellEx(ex) || (!isCardio(ex) && !isAssisted(ex))) &&
@@ -1054,7 +1060,8 @@ function ExerciseDetail({ ex: initialEx, close }) {
       <Icon name="pencil" /> {t('Suggest a fix for this exercise')}</a>}
   </>
 }
-export const exerciseDetailSheet = ex => ui().openSheet(close => <ExerciseDetail ex={ex} close={close} />)
+export const exerciseDetailSheet = (ex, { onAdd, onEditBeforeAdd, addLabel } = {}) =>
+  ui().openSheet(close => <ExerciseDetail ex={ex} close={close} onAdd={onAdd} onEditBeforeAdd={onEditBeforeAdd} addLabel={addLabel} />)
 
 /* ============================ exercise history ============================ */
 // What you did on this exercise before, reachable mid-workout (issue #43): the curve first,
@@ -1327,18 +1334,26 @@ export function deleteCustomEx(ex, afterDelete) {
 }
 
 /* ============================ exercise picker ============================ */
-function ExercisePicker({ onPick, title, like, routineId }) {
+function ExercisePicker({ onPick, title, like, routineId, detailLabel }) {
+  const open = ex => detailLabel
+    ? exerciseDetailSheet(ex, {
+      onAdd: selected => onPick(selected, true),
+      onEditBeforeAdd: selected => onPick(selected),
+      addLabel: detailLabel,
+    })
+    : onPick(ex)
   return <>
     <h3>{title || t('Add exercise')}</h3>
     <ExerciseBrowser embedded picking routineId={routineId} like={like}
-      onOpen={ex => onPick(ex)} onAdd={ex => onPick(ex, true)}
-      onCreate={query => customExSheet(null, ex => onPick(ex), query)} />
+      onOpen={open} onAdd={ex => onPick(ex, true)}
+      onCreate={query => customExSheet(null, open, query)} />
   </>
 }
 // `title` names what the pick is for when it is not an add — the routine editor's Replace (#110).
 // `like` is the exercise a swap or a replace is away from: the picker then opens on the ones that
 // train the same muscle, same equipment first (#473).
-export const exercisePicker = (onPick, { title, like, routineId } = {}) => ui().openSheet(() => <ExercisePicker onPick={onPick} title={title} like={like} routineId={routineId} />)
+export const exercisePicker = (onPick, { title, like, routineId, detailLabel } = {}) =>
+  ui().openSheet(() => <ExercisePicker onPick={onPick} title={title} like={like} routineId={routineId} detailLabel={detailLabel} />)
 
 /** Start a safe swap for one exact active-workout occurrence. */
 export function swapActiveWorkoutExercise(index) {

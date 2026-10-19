@@ -232,6 +232,7 @@ async function addExerciseThroughSheets(ex = { id: 'added-exercise' }, cfg = { m
 
   const pickerCall = mocks.exercisePicker.mock.calls.at(-1)
   expect(pickerCall?.[0]).toEqual(expect.any(Function))
+  expect(pickerCall[1]).toEqual({ detailLabel: 'Add to this workout' })
   await act(async () => { pickerCall[0](ex) })
 
   const configCall = mocks.exConfigSheet.mock.calls.at(-1)

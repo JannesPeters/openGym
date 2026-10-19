@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'Rutinikonok megjelenítése',
   'Group name': 'Csoport neve',
+  'Name': 'Név',
+  'Edit details before adding': 'Részletek szerkesztése hozzáadás előtt',
   'Create new group': 'Új csoport létrehozása',
   'Choose at least two exercise options.': 'Válassz legalább két gyakorlatot.',
   'Week & Today': 'Hét és Mai nap',

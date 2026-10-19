@@ -540,8 +540,7 @@ h4.sec{
 .routine-setting-details{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;width:100%;max-width:100%;text-align:start;color:inherit}
 .routine-setting-details>span{min-width:0;overflow-wrap:anywhere}
 .routine-setting-details>.icn{color:var(--label-3);font-size:15px;flex:none}
-.routine-details .routine-name-field{flex-wrap:wrap}
-.routine-details .routine-name-field>.input{flex:1 1 160px;min-width:0;background:var(--surface-2)}
+.routine-name-field{display:block;margin-bottom:16px}
 .chev{color:var(--label);flex:none;font-size:15px;--icon-stroke:2.4}
 .tag{
   display:inline-flex;align-items:center;gap:3px;background:var(--surface-2);

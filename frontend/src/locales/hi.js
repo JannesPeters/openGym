@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': 'रूटीन आइकन दिखाएं',
   'Group name': 'समूह का नाम',
+  'Name': 'नाम',
+  'Edit details before adding': 'जोड़ने से पहले विवरण संपादित करें',
   'Create new group': 'नया समूह बनाएँ',
   'Choose at least two exercise options.': 'व्यायाम के कम से कम दो विकल्प चुनें।',
   'Week & Today': 'सप्ताह और आज',

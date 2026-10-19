@@ -2,6 +2,8 @@
 export default {
   'Show routine icons': '显示训练计划图标',
   'Group name': '组名称',
+  'Name': '名称',
+  'Edit details before adding': '添加前编辑详情',
   'Create new group': '创建新组',
   'Choose at least two exercise options.': '请至少选择两个动作选项。',
   'Week & Today': '本周与今天',
