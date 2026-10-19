@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tempData, sampleState } from './helpers.mjs';
+import { tempData, sampleState, daysAgo } from './helpers.mjs';
 
 tempData();
 const payload = await import('../coach/core/payload.js');
@@ -63,8 +63,8 @@ test('review payload carries the plan, the window, effort and aggregates', () =>
 test('a stalling exercise shows up in the aggregates the way the engine counts it', () => {
   const S = sampleState();
   // Three sessions that all fell short of the 10-rep target.
-  S.workouts = ['2026-07-06', '2026-07-13', '2026-07-20'].map((d, i) => ({
-    id: 'w' + i, d, name: 'A', start: 0, end: 60000, entries: [{
+  S.workouts = [16, 9, 2].map((days, i) => ({
+    id: 'w' + i, d: daysAgo(days), name: 'A', start: 0, end: 60000, entries: [{
       id: '0001', target: { sets: 3, reps: 10, weight: 20 },
       sets: [{ w: 20, r: 9, done: true }, { w: 20, r: 8, done: true }, { w: 20, r: 7, done: true }]
     }]
@@ -78,7 +78,7 @@ test('a stalling exercise shows up in the aggregates the way the engine counts i
 test('a set that was never ticked off is a miss, not a gap', () => {
   const S = sampleState();
   S.workouts = [{
-    id: 'w1', d: '2026-07-20', name: 'A', start: 0, end: 60000, entries: [{
+    id: 'w1', d: daysAgo(2), name: 'A', start: 0, end: 60000, entries: [{
       id: '0001', target: { sets: 3, reps: 10, weight: 20 },
       sets: [{ w: 20, r: 10, done: true }, { w: 20, r: 10, done: true }, { w: 20, r: 10, done: false }]
     }]
@@ -211,6 +211,7 @@ test('declined changes are carried forward so the Coach does not nag', () => {
 
 /* ---------- debriefs and the cohort ---------- */
 const debriefState = () => sampleState({
+  bodyweight: [{ d: '2026-07-01', w: 78 }, { d: '2026-07-20', w: 78.5 }],
   workouts: [
     { id: 'w0', d: '2026-07-06', name: 'Full body A', start: 1000, end: 1000 + 40 * 60000, vol: 500, prs: [], entries: [{ id: '0001', sets: [{ w: 18, r: 10, done: true }] }] },
     { id: 'wx', d: '2026-07-10', name: 'Other', start: 1000, end: 1000 + 30 * 60000, vol: 100, prs: [], entries: [{ id: '0007', sets: [{ sec: 45, done: true }] }] },
@@ -228,6 +229,7 @@ test('a debrief payload carries one session, its predecessors of the same routin
   assert.equal('library' in p, false);
   assert.equal('window' in p, false);
   assert.ok(p.aggregates && Array.isArray(p.aggregates.exercises));
+  assert.equal(p.bodyweight.series.length, 2);
   assert.ok(p.bodyweight.series.every(b => b.d <= '2026-07-20'));
 });
 
@@ -401,7 +403,7 @@ test('a session note reaches the model whole, bounded only at the app\'s own cap
     id: 'w' + d, d, name: 'A', start: 0, end: 60000, prs: [], note,
     entries: [{ id: '0001', target: { sets: 3, reps: 10, weight: 20 }, sets: [{ w: 20, r: 10, done: true }] }]
   });
-  S.workouts = [mk('2026-09-02', whole), mk('2026-09-03', 'y'.repeat(payload.NOTE_MAX + 100))];   // only a document edited outside the app carries the second
+  S.workouts = [mk(daysAgo(2), whole), mk(daysAgo(1), 'y'.repeat(payload.NOTE_MAX + 100))];   // only a document edited outside the app carries the second
   const p = payload.build(S, { handle: handleFor('u1'), kind: 'review' });
   const [full, edited] = p.window.workouts;
   assert.equal(full.compact, undefined, 'both sessions are in full detail');

@@ -1,0 +1,16 @@
+/* Gallery layout only. The controls and tokens come from src/index.css unchanged. */
+.og-preview{max-width:760px;margin-inline:auto;padding:24px 20px;background:var(--bg);color:var(--label)}
+.og-preview .og-stack{display:grid;gap:16px}
+.og-preview .og-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:16px}
+.og-preview .og-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.og-preview .og-intro{margin-bottom:24px}
+.og-preview .og-intro h1{font-size:28px;line-height:1.15;margin-bottom:10px}
+.og-preview .og-intro p{font-size:15px;line-height:1.5;color:var(--label-2)}
+.og-preview .og-note{font-size:13px;line-height:1.5;color:var(--label-2)}
+.og-preview .og-swatch{height:64px;border:var(--hair) solid var(--sep);margin-bottom:10px;border-radius:var(--r-sm)}
+.og-preview .og-token{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow-wrap:anywhere}
+.og-preview .og-sample{padding:16px;background:var(--surface);border-radius:var(--r-card)}
+.og-preview .og-label{display:grid;gap:8px;font-size:15px}
+.og-preview .og-narrow{max-width:520px}
+.og-preview .og-number{width:120px}
+.og-preview .og-radius{height:72px;background:var(--acc-soft);border:1px solid var(--acc-line);margin-bottom:10px}
