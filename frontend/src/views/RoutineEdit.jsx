@@ -24,7 +24,7 @@ import { MOBILE, printHtml } from '../lib/mobile.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { POLICIES_FOR, POLICY_NAME, POLICY_DESC } from '../lib/progression.js'
 import RoutineMuscleMap from '../components/RoutineMuscleMap.jsx'
-import { optionsOf, hasOptions, optionConfig, addOption } from '../lib/exercise-options.js'
+import { optionsOf, hasOptions, optionConfig, addOption, cleanGroupName } from '../lib/exercise-options.js'
 import WorkoutGroupSheet from '../components/WorkoutGroupSheet.jsx'
 
 export const ROUTINE_LONG_PRESS_MS = 380
@@ -438,13 +438,14 @@ export default function RoutineEdit() {
   })
 
   const addExercise = () => nav(`/plan/r/${encodeURIComponent(id)}/exercises`, { state: { planBack: `/plan/r/${id}` } })
-  const createGroup = () => useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} routine={r} onCreate={configs => {
+  const createGroup = () => useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} routine={r} onCreate={(configs, name) => {
     if (!useStore.getState().S.routines.some(routine => routine.id === id)) {
       useUI.getState().toast(t('Too late, that one’s gone'))
       return false
     }
     edit(exercises => {
       const slot = configs.slice(1).reduce((group, config) => addOption(group, config), optionConfig(configs[0]))
+      if (cleanGroupName(name)) slot.groupName = cleanGroupName(name)
       exercises.push(slot)
     })
     return true
@@ -569,7 +570,7 @@ export default function RoutineEdit() {
           {ssPos.has(i) && <span className="ss-pos" aria-label={t('Superset position {0}', ssPos.get(i))}>{ssPos.get(i)}</span>}
           <Thumb ex={ex} />
           <button type="button" className="grow item-open" data-row-open><span className={`tt ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></span><span className="ss">{exLine(e, S.unit, speedUnitOf(S))}</span>
-            {hasOptions(e) && <span className="small accent">{t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
+            {hasOptions(e) && <span className="small accent workout-group-name">{cleanGroupName(e.groupName) || t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
             {e.note && <span className="small dim" style={{ marginTop: 2 }}>{e.note}</span>}</button>
           {noEquip && <span className="tag" style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }} title={t('Needs {0}, which isn’t in your active profile', t(ex.eq))}><Icon name="warning" /></span>}
           <button type="button" className="iconbtn" data-exercise-menu aria-haspopup="dialog"

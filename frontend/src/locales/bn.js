@@ -1,5 +1,6 @@
 // Bengali UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'গ্রুপের নাম',
   'Create new group': 'নতুন গ্রুপ তৈরি করুন',
   'Choose at least two exercise options.': 'অন্তত দুটি ব্যায়ামের বিকল্প বেছে নিন।',
   'Week & Today': 'সপ্তাহ ও আজ',

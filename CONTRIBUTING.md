@@ -37,6 +37,9 @@ cd mcp && npm test
 In a running workout or saved-workout editor, **Create new group** (below the exercises or
 in the Add menu) opens a draft exercise-choice group. Add at least two different exercises,
 optionally configuring each prescription, then create it and choose which option to perform.
+An optional **Group name** labels the choice slot in routines and workouts, including after
+selection or reset. Names are trimmed and limited to 60 characters; unnamed and older groups
+keep the existing Choose one / Choose exercise labels.
 Cancelling leaves the workout unchanged. This creates a separate slot in this workout, not
 a superset or an edit to its routine. Only chosen, logged exercises enter the finished history.
 

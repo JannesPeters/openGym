@@ -1,5 +1,6 @@
 // Hungarian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'Csoport neve',
   'Create new group': 'Új csoport létrehozása',
   'Choose at least two exercise options.': 'Válassz legalább két gyakorlatot.',
   'Week & Today': 'Hét és Mai nap',

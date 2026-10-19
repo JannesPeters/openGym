@@ -17,6 +17,35 @@ const makeState = () => {
 }
 
 describe('workout choices', () => {
+  it('carries a routine group name through reload, selection, added options, reset and finish', () => {
+    let state = makeState()
+    state.routines[0].ex[0].groupName = 'Chest options'
+    state.active.entries = buildCombinedEntries(state, ['r']).entries
+    state = JSON.parse(JSON.stringify(state))
+    expect(state.active.entries[0].groupName).toBe('Chest options')
+    expect(state.active.entries[0].target.groupName).toBeUndefined()
+    expect(state.active.entries[0].choiceOptions.every(option => !option.groupName)).toBe(true)
+    chooseWorkoutOption(state, 0, '0009')
+    chooseWorkoutOption(state, 0, '0025', { add: true })
+    expect(state.active.entries[0].groupName).toBe('Chest options')
+    expect(state.active.entries[2].groupName).toBe('Chest options')
+    resetWorkoutOption(state, 0)
+    expect(state.active.entries[0].groupName).toBe('Chest options')
+    chooseWorkoutOption(state, 0, '0025')
+    state.active.entries[0].sets[0].done = true
+    expect(buildCompletedWorkout(state.active).entries[0].groupName).toBe('Chest options')
+  })
+  it('names workout-only groups without writing to the routine or changing legacy unnamed entries', () => {
+    const state = makeState()
+    const routines = structuredClone(state.routines)
+    const at = addWorkoutChoiceGroup(state, [{ id: '0025', sets: 3 }, { id: '0009', sets: 2 }], '  Upper body  ')
+    expect(state.active.entries[at].groupName).toBe('Upper body')
+    expect(state.active.entries[0].groupName).toBeUndefined()
+    expect(state.routines).toEqual(routines)
+    chooseWorkoutOption(state, at, '0009')
+    expect(state.active.entries[at].groupName).toBe('Upper body')
+    expect(state.active.entries[at].target.groupName).toBeUndefined()
+  })
   const newOptions = () => [
     { id: '0025', sets: 3, reps: 8, weight: 60, sg: 'must-not-inherit', slotId: 'old' },
     { id: '0009', sets: 2, reps: 12, weight: 25 },

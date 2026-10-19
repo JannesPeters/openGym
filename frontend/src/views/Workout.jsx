@@ -51,6 +51,7 @@ import { withMeaning, historyAs, dbLoadFor, entryDbLoad, bellsIn, ownedWeightsFo
 import WorkoutOptions from '../components/WorkoutOptions.jsx'
 import WorkoutGroupSheet from '../components/WorkoutGroupSheet.jsx'
 import { addWorkoutChoiceGroup } from '../lib/workout-options.js'
+import { cleanGroupName } from '../lib/exercise-options.js'
 
 // How long after a key starts a hold the same key is not yet its "Done" (#133). A USB button
 // that bounces, or a double press, sends two presses a moment apart: the first starts the hold,
@@ -1437,14 +1438,14 @@ function ActiveWorkout() {
   })
   const createGroup = () => {
     const activeId = A.id
-    useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} onCreate={configs => {
+    useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} onCreate={(configs, name) => {
       if (useStore.getState().S.active?.id !== activeId) {
         useUI.getState().toast(t('Too late, that one’s gone'))
         return false
       }
       if (focusMode) focusPointerEpoch.current++
       update(s => {
-        const at = addWorkoutChoiceGroup(s, configs)
+        const at = addWorkoutChoiceGroup(s, configs, name)
         useUI.getState().shiftRestOwner(at, 1)
       }, true)
       return true
@@ -2012,6 +2013,7 @@ function ActiveWorkout() {
                 </span>
                 return <span key={idx} className="wl-summary-ex">
                   <SummaryBody className={jayLayout ? 'wl-summary-open' : undefined} {...(jayLayout ? openProps : {})}>
+                  {cleanGroupName(A.entries[idx].groupName) && <span className="small accent workout-group-name">{cleanGroupName(A.entries[idx].groupName)}</span>}
                   <span className="row between" style={{ gap: 8 }}>
                     <span className={exerciseNameClass(exOr(A.entries[idx].id))} style={{ fontWeight: 600 }}><ExerciseName ex={exOr(A.entries[idx].id)} /></span>
                     {!jayLayout && status}

@@ -1,5 +1,6 @@
 // Arabic UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'اسم المجموعة',
   'Create new group': 'إنشاء مجموعة جديدة',
   'Choose at least two exercise options.': 'اختر خيارين للتمرين على الأقل.',
   'Week & Today': 'الأسبوع واليوم',

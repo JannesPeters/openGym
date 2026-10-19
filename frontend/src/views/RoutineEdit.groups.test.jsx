@@ -61,6 +61,12 @@ it('exposes a distinct new-group action above the saved routine list and persist
   const create = button(header, 'Create new group')
   expect(create.compareDocumentPosition(host.querySelector('.routine-list')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   click(create)
+  const name = draft().querySelector('input')
+  expect(name.labels[0].textContent).toBe('Group name')
+  act(() => {
+    Object.getOwnPropertyDescriptor(name.constructor.prototype, 'value').set.call(name, '  Chest options  ')
+    name.dispatchEvent(new Event('input', { bubbles: true }))
+  })
   expect(button(draft(), 'Create new group').disabled).toBe(true)
   add('0025')
   expect(button(draft(), 'Create new group').disabled).toBe(true)
@@ -77,10 +83,19 @@ it('exposes a distinct new-group action above the saved routine list and persist
   expect(exercises[3].slotId).toBeTruthy()
   expect(exercises[3].slotId).not.toBe('old-choice')
   expect(exercises[3].sg).toBeUndefined()
+  expect(exercises[3].groupName).toBe('Chest options')
+  expect(exercises[3].alternatives[0].groupName).toBeUndefined()
   expect(exercises[3].alternatives).toEqual([{ id: '0289', sets: 4, reps: 9, mode: 'reps', weight: 22 }])
   expect(JSON.parse(localStorage.getItem('gym_state_v1')).routines[0].ex).toEqual(exercises)
   expect(draft()).toBeNull()
   expect(host.textContent).toContain('Choose one')
+  expect(host.textContent).toContain('Chest options')
+  const reloaded = JSON.parse(localStorage.getItem('gym_state_v1')).routines[0].ex
+  act(() => root.unmount())
+  host.remove()
+  mount(reloaded)
+  expect(host.querySelector('.routine-list').textContent).toContain('Chest options')
+  expect(useStore.getState().S.routines[0].ex).toEqual(exercises)
 })
 
 it('supports empty routines and cancelling a populated draft without persisting it', () => {

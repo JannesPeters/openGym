@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPlanBundle, mergePlan, parsePlan } from './plan-share.js'
+import { buildPlanBundle, mergePlan, parsePlan, planPrintHTML } from './plan-share.js'
 import { convertStateUnit } from './units.js'
 import { mergeStates, stampChange } from './sync-merge.js'
 import { canonicalPlan, hashPlan } from './coach.js'
@@ -18,6 +18,19 @@ const state = () => ({
 })
 
 describe('exercise option exchange', () => {
+  it('keeps named groups through sharing, importing, unit conversion and older-writer sync', () => {
+    const s = state()
+    s.routines[0].ex[0].groupName = 'Chest <options>'
+    const bundle = buildPlanBundle(s)
+    const destination = { unit: 'lb', routines: [], customEx: [], week: {} }
+    mergePlan(destination, parsePlan(bundle, 'lb'))
+    expect(destination.routines[0].ex[0].groupName).toBe('Chest <options>')
+    expect(planPrintHTML(s)).toContain('Chest &lt;options&gt;')
+    expect(convertStateUnit(s, 'lb').routines[0].ex[0].groupName).toBe('Chest <options>')
+    const old = state()
+    keepUnknown(s, old)
+    expect(old.routines[0].ex[0].groupName).toBe('Chest <options>')
+  })
   it('shares every option and referenced custom exercise with remapped IDs and converted loads', () => {
     const bundle = buildPlanBundle(state())
     expect(bundle.opengym_plan).toBe(2)

@@ -305,6 +305,8 @@ describe('workout exercise alternatives', () => {
     const sheetRoot = createRoot(sheet)
     const close = vi.fn()
     await act(async () => { sheetRoot.render(mocks.openSheet.mock.calls.at(-1)[0](close)) })
+    const name = sheet.querySelector('input')
+    expect(name.closest('label').textContent).toBe('Group name')
     const create = () => [...sheet.querySelectorAll('button')].find(b => b.textContent === 'Create new group')
     const add = () => [...sheet.querySelectorAll('button')].find(b => b.textContent === 'Add exercise')
     expect(create().disabled).toBe(true)
@@ -329,16 +331,22 @@ describe('workout exercise alternatives', () => {
     await click(create())
     expect(close).toHaveBeenCalledOnce()
     await act(async () => { sheetRoot.unmount() })
+    mocks.S.active.entries[1].groupName = 'Chest options'
     await rerender()
     expect(mocks.S.active.entries).toHaveLength(2)
     expect(mocks.S.active.entries[0]).toEqual(before.active.entries[0])
-    expect(mocks.S.active.entries[1]).toMatchObject({ choicePending: true, sets: [], choiceOptions: [
+    expect(mocks.S.active.entries[1]).toMatchObject({ groupName: 'Chest options', choicePending: true, sets: [], choiceOptions: [
       expect.objectContaining({ id: '0025' }),
       expect.objectContaining({ id: '0009', sets: 2, reps: 12, weight: 25 }),
     ] })
+    expect(container.querySelector('[data-testid="workout-choice"] h2').textContent).toBe('Chest options')
     await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
     await rerender()
     expect(mocks.S.active.entries[1].sets).toHaveLength(2)
+    expect(container.querySelector('.workout-group-name').textContent).toBe('Chest options')
+    await click(container.querySelectorAll('.wl-fold')[1])
+    await rerender()
+    expect(container.querySelector('.wl-summary .workout-group-name').textContent).toBe('Chest options')
     expect(mocks.S.routines).toEqual(before.routines)
   })
 

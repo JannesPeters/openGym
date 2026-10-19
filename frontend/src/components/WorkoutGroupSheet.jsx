@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { exercisePicker, exConfigSheet } from '../sheets.jsx'
@@ -8,9 +8,14 @@ import { defaultConfig, exLine } from '../lib/history.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { t } from '../lib/i18n.js'
 import { Button } from './ui.jsx'
+import { cleanGroupName, GROUP_NAME_MAX } from '../lib/exercise-options.js'
+import { useSheetKeyboard } from '../lib/use-sheet-keyboard.js'
 
 export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
   const [options, setOptions] = useState([])
+  const [name, setName] = useState('')
+  const inputRef = useRef(null)
+  const onFocus = useSheetKeyboard(inputRef)
   const state = useStore(s => s.S)
   const add = () => {
     const picker = exercisePicker((ex, quick) => {
@@ -28,6 +33,11 @@ export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
   }
   return <>
     <h3>{t('Create new group')}</h3>
+    <label className="measure-date">
+      <span className="small dim">{t('Group name')}</span>
+      <input ref={inputRef} className="input" type="text" maxLength={GROUP_NAME_MAX} value={name}
+        placeholder={t('Choose exercise')} onFocus={onFocus} onChange={event => setName(event.target.value)} />
+    </label>
     <p className="small dim">{t('Choose at least two exercise options.')}</p>
     <div className="list">
       {options.map(option => <div className="item" key={option.id}>
@@ -43,7 +53,7 @@ export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
     <Button icon="plus" onClick={add}>{t('Add exercise')}</Button>
     <div style={{ height: 12 }} />
     <Button variant="primary" disabled={options.length < 2} onClick={() => {
-      if (onCreate(options)) close()
+      if (onCreate(options, cleanGroupName(name))) close()
     }}>{t('Create new group')}</Button>
   </>
 }

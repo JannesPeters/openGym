@@ -1678,6 +1678,8 @@ body.no-tabbar #timer.working{box-shadow:inset 0 var(--hair) 0 var(--acc),0 -10p
 .routine-muscle-card .bm-v{height:150px;max-height:150px}
 .routine-muscle-card .bm-ph{height:150px}
 .routine-muscle-summary{min-width:0}
+.workout-group-name{display:block;overflow-wrap:anywhere;margin-bottom:6px}
+.workout-choice h2{min-width:0;overflow-wrap:anywhere}
 .routine-muscle-summary .mchips{margin-top:8px}
 .routine-muscle-card > p{grid-column:1/-1;margin:0}
 .routine-muscle-viewer{position:absolute;inset:0;overflow:auto;background:var(--bg);padding:calc(var(--sat) + 12px) 16px calc(var(--sab) + 16px);overscroll-behavior:contain}

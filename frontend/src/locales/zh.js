@@ -1,5 +1,6 @@
 // Simplified Chinese UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': '组名称',
   'Create new group': '创建新组',
   'Choose at least two exercise options.': '请至少选择两个动作选项。',
   'Week & Today': '本周与今天',

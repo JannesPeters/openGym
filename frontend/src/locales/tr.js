@@ -1,5 +1,6 @@
 // Turkish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'Grup adı',
   'Create new group': 'Yeni grup oluştur',
   'Choose at least two exercise options.': 'En az iki egzersiz seçeneği belirleyin.',
   'Week & Today': 'Hafta ve Bugün',

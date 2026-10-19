@@ -1,5 +1,6 @@
 // Polish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'Nazwa grupy',
   'Create new group': 'Utwórz nową grupę',
   'Choose at least two exercise options.': 'Wybierz co najmniej dwie opcje ćwiczeń.',
   'Week & Today': 'Tydzień i Dzisiaj',
