@@ -23,9 +23,9 @@ import { markEntryUndone } from '../lib/sync-merge.js'
 import { MOBILE, printHtml } from '../lib/mobile.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { POLICIES_FOR, POLICY_NAME, POLICY_DESC } from '../lib/progression.js'
-import BodyMap from '../components/BodyMap.jsx'
-import { loadOfRoutine, rankOf, MUSCLE_NAME } from '../lib/muscles.js'
-import { optionsOf, hasOptions } from '../lib/exercise-options.js'
+import RoutineMuscleMap from '../components/RoutineMuscleMap.jsx'
+import { optionsOf, hasOptions, optionConfig, addOption, cleanGroupName } from '../lib/exercise-options.js'
+import WorkoutGroupSheet from '../components/WorkoutGroupSheet.jsx'
 
 export const ROUTINE_LONG_PRESS_MS = 380
 export const ROUTINE_DRAG_SLOP = 8
@@ -438,6 +438,18 @@ export default function RoutineEdit() {
   })
 
   const addExercise = () => nav(`/plan/r/${encodeURIComponent(id)}/exercises`, { state: { planBack: `/plan/r/${id}` } })
+  const createGroup = () => useUI.getState().openSheet(close => <WorkoutGroupSheet close={close} routine={r} onCreate={(configs, name) => {
+    if (!useStore.getState().S.routines.some(routine => routine.id === id)) {
+      useUI.getState().toast(t('Too late, that one’s gone'))
+      return false
+    }
+    edit(exercises => {
+      const slot = configs.slice(1).reduce((group, config) => addOption(group, config), optionConfig(configs[0]))
+      if (cleanGroupName(name)) slot.groupName = cleanGroupName(name)
+      exercises.push(slot)
+    })
+    return true
+  }} />)
 
   const units = supersetUnits(r.ex)
   const unitFirst = new Set(units.filter(u => u.length > 1).map(u => u[0]))
@@ -505,8 +517,9 @@ export default function RoutineEdit() {
 
     {/* "Add exercise" heads the list (v1.3.11): with it under the last exercise, a long routine
         had to be scrolled to the bottom before anything could be added. */}
-    <div className="row plan-sec-h routine-ex-h" style={{ justifyContent: 'flex-end', marginTop: 0 }}>
+    <div className="row plan-sec-h routine-ex-h" style={{ justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 0 }}>
       <Button size="sm" variant="tinted" icon="plus" onClick={addExercise}>{t('Add exercise')}</Button>
+      <Button size="sm" variant="tinted" icon="plusCircle" onClick={createGroup}>{t('Create new group')}</Button>
     </div>
     {r.ex.length ? <div ref={reorder.listRef} onClickCapture={reorder.onClickCapture}
       role="group" aria-label={t('Exercises')}
@@ -557,7 +570,7 @@ export default function RoutineEdit() {
           {ssPos.has(i) && <span className="ss-pos" aria-label={t('Superset position {0}', ssPos.get(i))}>{ssPos.get(i)}</span>}
           <Thumb ex={ex} />
           <button type="button" className="grow item-open" data-row-open><span className={`tt ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></span><span className="ss">{exLine(e, S.unit, speedUnitOf(S))}</span>
-            {hasOptions(e) && <span className="small accent">{t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
+            {hasOptions(e) && <span className="small accent workout-group-name">{cleanGroupName(e.groupName) || t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
             {e.note && <span className="small dim" style={{ marginTop: 2 }}>{e.note}</span>}</button>
           {noEquip && <span className="tag" style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }} title={t('Needs {0}, which isn’t in your active profile', t(ex.eq))}><Icon name="warning" /></span>}
           <button type="button" className="iconbtn" data-exercise-menu aria-haspopup="dialog"
@@ -588,17 +601,7 @@ export default function RoutineEdit() {
 
     {/* Coverage of the routine as planned, so a gap shows up while you're building it
         rather than after a month of training around it. */}
-    {r.ex.length > 0 && (() => {
-      const load = loadOfRoutine(r)
-      const { worked } = rankOf(load)
-      return <div className="card" role="group" aria-label={t('What this session hits')} style={{ marginTop: 12 }}>
-        <BodyMap load={load} body={S.body} />
-        {r.ex.some(hasOptions) && <p className="small dim">{t('Planned muscle coverage uses the first option in each group. Your workout statistics use the exercises you actually perform.')}</p>}
-        <div className="mchips">
-          {worked.slice(0, 6).map(m => <span key={m} className="mchip">{t(MUSCLE_NAME[m])}</span>)}
-        </div>
-      </div>
-    })()}
+    {r.ex.length > 0 && <RoutineMuscleMap routine={r} body={S.body} />}
 
   </div>
 }

@@ -5,6 +5,7 @@ import { exerciseNameText } from '../lib/format.js'
 import { exerciseChips } from '../lib/exercise-chips.js'
 import { revealChip } from '../lib/use-sheet-keyboard.js'
 import { t } from '../lib/i18n.js'
+import { cleanGroupName } from '../lib/exercise-options.js'
 
 // The chip row at the top of a running workout (#323, the "coloured dots" of #163): one numbered
 // chip per exercise, a superset as one chip, filled as far as it is done (empty, half, full), so
@@ -32,7 +33,7 @@ export default function WorkoutChips({ entries, cur, onPick }) {
   if (!chips.length) return null
   return <nav ref={strip} className="chips wchips" aria-label={t('Exercises in this workout')}>
     {chips.map(c => {
-      const names = c.unit.map(idx => exerciseNameText(exOr(entries[idx].id))).join(' + ')
+      const names = c.unit.map(idx => [cleanGroupName(entries[idx].groupName), exerciseNameText(exOr(entries[idx].id))].filter(Boolean).join(': ')).join(' + ')
       const label = c.unit.length > 1
         ? t('Superset {0}: {1} ({2})', c.n, names, STATE_WORD[c.state]())
         : t('Exercise {0}: {1} ({2})', c.n, names, STATE_WORD[c.state]())

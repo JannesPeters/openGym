@@ -190,7 +190,7 @@ export default function Home() {
       </div>
     )}
 
-    {S.showHistoryCard === true && <div className="card">
+    {S.showHistoryCard === true && <div className="card home-recent">
       <h2 className="big" style={{ fontSize: 22, color: 'var(--label)', margin: '0 0 12px' }}>{t('Recent workouts')}</h2>
       {recent.length ? <div className="list">{recent.map(w =>
         <WorkoutRow key={w.id} w={w} onClick={() => workoutDetailSheet(w)} />

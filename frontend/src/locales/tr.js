@@ -1,5 +1,8 @@
 // Turkish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'Grup adı',
+  'Create new group': 'Yeni grup oluştur',
+  'Choose at least two exercise options.': 'En az iki egzersiz seçeneği belirleyin.',
   'Week & Today': 'Hafta ve Bugün',
   'Show the week and Today card on Home. Active workouts stay visible.': 'Ana sayfada haftayı ve Bugün kartını birlikte göster. Devam eden antrenmanlar görünür kalır.',
   'Show your five latest workouts on Home.': 'Ana sayfada son beş antrenmanını göster.',

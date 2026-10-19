@@ -1,5 +1,8 @@
 // Ukrainian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'Назва групи',
+  'Create new group': 'Створити нову групу',
+  'Choose at least two exercise options.': 'Виберіть щонайменше два варіанти вправ.',
   'Week & Today': 'Тиждень і Сьогодні',
   'Show the week and Today card on Home. Active workouts stay visible.': 'Показувати тиждень і картку «Сьогодні» разом на Головній. Поточні тренування залишаються видимими.',
   'Show your five latest workouts on Home.': 'Показувати п’ять останніх тренувань на Головній.',

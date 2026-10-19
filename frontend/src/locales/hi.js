@@ -1,5 +1,8 @@
 // Hindi UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Group name': 'समूह का नाम',
+  'Create new group': 'नया समूह बनाएँ',
+  'Choose at least two exercise options.': 'व्यायाम के कम से कम दो विकल्प चुनें।',
   'Week & Today': 'सप्ताह और आज',
   'Show the week and Today card on Home. Active workouts stay visible.': 'होम पर सप्ताह और आज का कार्ड एक साथ दिखाएँ। चल रहे वर्कआउट दिखाई देते रहेंगे।',
   'Show your five latest workouts on Home.': 'होम पर अपने पाँच सबसे हाल के वर्कआउट दिखाएँ।',
