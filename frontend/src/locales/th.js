@@ -1,5 +1,11 @@
 // Thai UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'เลือกแล้ว',
+  '{0} selected': 'เลือกแล้ว {0} รายการ',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'การล้างกลุ่มนี้จะลบเซ็ตทั้งหมดที่บันทึกไว้สำหรับท่าในกลุ่มนี้ของการออกกำลังกายครั้งนี้',
+  'Selected': 'เลือกแล้ว',
+  '{0} selected': 'เลือกแล้ว {0} รายการ',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'การล้างกลุ่มนี้จะลบเซ็ตทั้งหมดที่บันทึกไว้สำหรับท่าในกลุ่มนี้ของการออกกำลังกายครั้งนี้',
   'Show routine icons': 'แสดงไอคอนรูทีน',
   'Group name': 'ชื่อกลุ่ม',
   'Name': 'ชื่อ',

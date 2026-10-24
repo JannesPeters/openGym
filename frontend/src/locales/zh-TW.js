@@ -1,4 +1,10 @@
 export default {
+  'Selected': '已選取',
+  '{0} selected': '已選取 {0} 項',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': '清除此群組會刪除本次訓練中為群組內動作記錄的所有組數。',
+  'Selected': '已選取',
+  '{0} selected': '已選取 {0} 項',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': '清除此群組會刪除本次訓練中為群組內動作記錄的所有組數。',
   'Show routine icons': '顯示訓練計畫圖示',
   'Group name': '群組名稱',
   'Name': '名稱',

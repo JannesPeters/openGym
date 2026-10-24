@@ -1,5 +1,11 @@
 // Ukrainian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  "Selected": "Вибрано",
+  "{0} selected": "Вибрано: {0}",
+  "Clearing this group will discard all sets logged for its exercises in this workout.": "Очищення цієї групи видалить усі підходи її вправ, записані під час цього тренування.",
+  "Selected": "Вибрано",
+  "{0} selected": "Вибрано: {0}",
+  "Clearing this group will discard all sets logged for its exercises in this workout.": "Очищення цієї групи видалить усі підходи її вправ, записані під час цього тренування.",
   'Show routine icons': 'Показувати піктограми тренувань',
   'Group name': 'Назва групи',
   'Name': 'Назва',

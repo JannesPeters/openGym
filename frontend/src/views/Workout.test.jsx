@@ -224,6 +224,31 @@ async function rerender() {
   await act(async () => { root.render(React.createElement(Workout)) })
 }
 
+async function mountLastSheet() {
+  const element = document.createElement('div')
+  container.appendChild(element)
+  const sheetRoot = createRoot(element)
+  await act(async () => { sheetRoot.render(mocks.openSheet.mock.calls.at(-1)[0](vi.fn())) })
+  return {
+    element,
+    unmount: async () => {
+      await act(async () => { sheetRoot.unmount() })
+      element.remove()
+    },
+  }
+}
+
+async function chooseWorkoutGroupOption(id, dialogTitle) {
+  await click(container.querySelector('.workout-choice-open'))
+  expect(mocks.openSheet.mock.calls.at(-1)[1]).toBeUndefined()
+  const picker = await mountLastSheet()
+  expect(picker.element.querySelector('[role="dialog"]').getAttribute('aria-modal')).toBe('true')
+  if (dialogTitle) expect(picker.element.querySelector('[role="dialog"]').getAttribute('aria-label')).toBe(dialogTitle)
+  await click(picker.element.querySelector(`[data-workout-choice-option="${id}"]`))
+  await rerender()
+  await picker.unmount()
+}
+
 async function addExerciseThroughSheets(ex = { id: 'added-exercise' }, cfg = { mode: 'reps', sets: 1, reps: 5, weight: 0 }) {
   const addButton = [...container.querySelectorAll('button')]
     .find(button => button.textContent.trim() === 'Add exercise')
@@ -364,8 +389,7 @@ describe('workout exercise alternatives', () => {
       expect.objectContaining({ id: '0009', sets: 2, reps: 12, weight: 25 }),
     ] })
     expect(container.querySelector('[data-testid="workout-choice"] h2').textContent).toBe('Chest options')
-    await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
-    await rerender()
+    await chooseWorkoutGroupOption('0009', 'Chest options')
     expect(mocks.S.active.entries[1].sets).toHaveLength(2)
     expect(container.querySelector('.workout-group-name').textContent).toBe('Chest options')
     await click(container.querySelectorAll('.wl-fold')[1])
@@ -394,10 +418,10 @@ describe('workout exercise alternatives', () => {
     expect(mocks.toast).toHaveBeenCalledWith('Too late, that one’s gone')
   })
 
-  const clearSelection = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Clear selection') || null
+  const clearSelection = () => container.querySelector('button[aria-label="Clear selection"]')
   const groupedRoutine = () => ({
     id: 'chest-options', name: 'Chest options', prog: 'off',
-    ex: [{ id: '0025', mode: 'reps', sets: 3, reps: 8, weight: 20, slotId: 'chest-slot',
+    ex: [{ id: '0025', mode: 'reps', sets: 3, reps: 8, weight: 20, slotId: 'chest-slot', groupName: 'Chest options',
       alternatives: [{ id: '0009', mode: 'reps', sets: 2, reps: 12, weight: 45 }] }],
   })
   it.each(['custom', 'cards', 'list', 'compact', 'focus'])('chooses, logs and adds a second full prescription in %s', async layout => {
@@ -409,23 +433,40 @@ describe('workout exercise alternatives', () => {
     expect(choice).toBeTruthy()
     if (layout === 'custom') {
       expect(choice.closest('.workout-custom .wl-unit')).toBeTruthy()
-      expect(choice.querySelector('.workout-choice-head h2').textContent).toBe('Choose exercise')
+      expect(choice.querySelector('.workout-choice-head h2').textContent).toBe('Chest options')
       expect(choice.querySelector('.workout-choice-head .wl-fold')).toBeTruthy()
     }
-    expect(container.querySelectorAll('[data-testid="workout-choice"] .item-open > .small.dim')).toHaveLength(layout === 'custom' ? 0 : 2)
+    expect(container.querySelector('[data-testid="workout-choice"] .list')).toBeNull()
     expect(clearSelection()).toBeNull()
     expect(container.querySelector('[role="checkbox"]')).toBeNull()
-    await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
+    await click(container.querySelector('.workout-choice-open'))
+    expect(mocks.openSheet.mock.calls.at(-1)[1]).toBeUndefined()
+    const picker = await mountLastSheet()
+    expect(picker.element.querySelectorAll('.item-open > .small.dim')).toHaveLength(layout === 'custom' ? 0 : 2)
+    await click(picker.element.querySelector('[data-workout-choice-option="0009"]'))
     await rerender()
+    await picker.unmount()
     expect(mocks.S.active.entries[0].id).toBe('0009')
     expect(mocks.S.active.entries[0].sets).toHaveLength(2)
     expect(mocks.S.active.entries[0].sets[0]).toMatchObject({ w: 45, r: 12, done: false })
+    const groupName = container.querySelector('.workout-group-name')
+    expect(groupName.textContent).toBe('Chest options')
+    expect(groupName.classList.contains('dim')).toBe(true)
+    expect(groupName.classList.contains('accent')).toBe(false)
+    const actions = container.querySelector('.workout-choice-actions')
+    expect(actions.getAttribute('role')).toBe('group')
+    expect(actions.getAttribute('aria-label')).toBe('Chest options')
+    const divider = container.querySelector('.workout-choice-divider')
+    expect(divider.getAttribute('role')).toBe('separator')
+    const markup = container.innerHTML
+    const exerciseHeader = layout === 'focus' ? 'class="focus-card-header"' : 'class="row between exhd"'
+    expect(markup.indexOf('workout-choice-divider')).toBeLessThan(markup.indexOf(exerciseHeader))
     expect(!!clearSelection()).toBe(layout === 'custom')
     if (layout === 'focus') await click(buttonNamed('Complete set'))
     else await toggleSet(0)
     await rerender()
-    expect(container.textContent).not.toContain('Change exercise')
-    await click([...container.querySelectorAll('button')].find(b => b.textContent === 'Add another exercise from this group'))
+    expect(container.querySelector('[aria-label="Change exercise"]')).toBeTruthy()
+    await click(buttonNamed('Add another exercise from this group'))
     const sheet = document.createElement('div')
     container.appendChild(sheet)
     const sheetRoot = createRoot(sheet)
@@ -439,6 +480,19 @@ describe('workout exercise alternatives', () => {
     expect(mocks.S.active.entries[1]).toMatchObject({ id: '0025', slotId: 'chest-slot' })
     expect(mocks.S.active.entries[1].sets).toHaveLength(3)
     expect(mocks.S.active.entries[1].sets[0]).toMatchObject({ w: 20, r: 8, done: false })
+    expect(mocks.S.active.entries[0].choiceGroupId).toBe(mocks.S.active.entries[1].choiceGroupId)
+    if (['custom', 'list', 'compact'].includes(layout)) {
+      expect(container.querySelectorAll('.workout-group-name')).toHaveLength(1)
+      expect(container.querySelector('.wl-choice-group-start')).toBeTruthy()
+      expect(container.querySelector('.wl-choice-group-end')).toBeTruthy()
+      expect(container.querySelector('.workout-choice-divider-continuation')).toBeTruthy()
+    }
+  })
+  it('keeps ordinary exercise rows free of group controls and separators', async () => {
+    await mount([exercise('plain-bench', [false])])
+    expect(container.querySelector('.workout-choice-actions')).toBeNull()
+    expect(container.querySelector('.workout-choice-divider')).toBeNull()
+    expect(container.querySelector('.workout-group-name')).toBeNull()
   })
   it('confirms clearing a selected group, discards its logged sets and permits a fresh choice', async () => {
     const routine = groupedRoutine()
@@ -446,17 +500,20 @@ describe('workout exercise alternatives', () => {
     state.active.entries = buildCombinedEntries(state, [routine.id]).entries
     chooseWorkoutOption(state, 0, '0009')
     state.active.entries[0].sets[0].done = true
+    chooseWorkoutOption(state, 0, '0025', { add: true })
+    state.active.entries[1].sets[0].done = true
     await mount(state.active.entries, 0, { routines: [routine], workoutView: 'custom' })
     const before = structuredClone(mocks.S)
     await click(clearSelection())
     const confirmation = mocks.confirmSheet.mock.calls.at(-1)[0]
     expect(confirmation).toMatchObject({
       title: 'Clear selection', confirmText: 'Clear selection', danger: true,
-      message: 'The sets you logged for this exercise in this session will be lost.',
+      message: 'Clearing this group will discard all sets logged for its exercises in this workout.',
     })
     expect(mocks.S).toEqual(before)
     await act(async () => { confirmation.onConfirm() })
     await rerender()
+    expect(mocks.S.active.entries).toHaveLength(1)
     expect(mocks.S.active.entries[0]).toMatchObject({ id: '0025', choicePending: true, sets: [] })
     expect(mocks.S.routines).toEqual(before.routines)
     expect(mocks.stopWork).toHaveBeenCalled()
@@ -464,8 +521,7 @@ describe('workout exercise alternatives', () => {
     expect(container.querySelectorAll('[role="checkbox"]')).toHaveLength(0)
     expect(clearSelection()).toBeNull()
     expect(container.querySelector('[data-testid="workout-choice"]')).toBeTruthy()
-    await click(container.querySelector('[data-testid="workout-choice"] .list button:last-child'))
-    await rerender()
+    await chooseWorkoutGroupOption('0009')
     expect(mocks.S.active.entries[0].sets).toHaveLength(2)
     expect(mocks.S.active.entries[0].sets.every(set => set.w === 45 && !set.done)).toBe(true)
   })
@@ -504,10 +560,12 @@ describe('workout exercise alternatives', () => {
     const firstUnit = container.querySelector('.wl-unit')
     expect(firstUnit.querySelector('.wl-summary')).toBeTruthy()
     expect(mocks.S.active.entries[0].sets.every(s => s.done)).toBe(true)
+    expect(firstUnit.querySelector('.workout-group-name').classList.contains('dim')).toBe(true)
+    expect(firstUnit.querySelector('.workout-group-name').classList.contains('accent')).toBe(false)
     await click(firstUnit.querySelector('.wl-summary-open'))
     expect(firstUnit.querySelectorAll('.setrow')).toHaveLength(2)
-    expect(firstUnit.textContent).not.toContain('Change exercise')
-    expect(firstUnit.textContent).toContain('Add another exercise from this group')
+    expect(firstUnit.querySelector('[aria-label="Change exercise"]')).toBeTruthy()
+    expect(firstUnit.querySelector('[aria-label="Add another exercise from this group"]')).toBeTruthy()
     expect(mocks.S.active.entries[0].target).toMatchObject({ weight: 45, reps: 12, sets: 2 })
     expect(mocks.S.active.entries[1].target).toMatchObject({ weight: 20, reps: 8, sets: 3 })
     expect(mocks.S.collapseCompleted).toBe(false)
@@ -524,8 +582,7 @@ describe('workout exercise alternatives', () => {
     expect(mocks.S.active.cur).toBe(1)
     expect(container.textContent).toContain('Choose exercise')
     expect(mocks.workoutCompleteSheet).not.toHaveBeenCalled()
-    await click(container.querySelector('[data-testid="workout-choice"] button:last-child'))
-    await rerender()
+    await chooseWorkoutGroupOption('0025')
     expect(container.textContent).toContain('Exercise 2 of 2')
     expect(buttonNamed('Complete set')).toBeTruthy()
     expect(mocks.S.active.entries[1].target.sg).toBe('pair')
@@ -2680,6 +2737,27 @@ describe('workout view header menu', () => {
 })
 
 describe("Jay's layout", () => {
+  it('starts with the layout-aware Small default and lets the thumbnail expand', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { gifSize: 'default', workoutView: 'custom' })
+    const thumb = container.querySelector('.wthumb')
+    expect(thumb).toBeTruthy()
+    expect(thumb.getAttribute('aria-label')).toBe('Expand')
+    await click(thumb)
+    expect(mocks.S.gifSize).toBe('full')
+    await rerender()
+    expect(container.querySelector('.wthumb')).toBeNull()
+  })
+
+  it.each(['cards', 'list', 'focus'])('keeps the default Full media size in %s', async layout => {
+    await mount([exercise('plain-bench', [false])], 0, { gifSize: 'default', workoutView: layout })
+    expect(container.querySelector('.wthumb')).toBeNull()
+  })
+
+  it('respects an explicit Full preference in Jay’s layout', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { gifSize: 'full', workoutView: 'custom' })
+    expect(container.querySelector('.wthumb')).toBeNull()
+  })
+
   it.each(['custom', 'list', 'cards'])('only hides muscle, equipment, plan and progression details in Jay layout (%s)', async layout => {
     await mount([exercise('0334', [false], {
       planned: { sets: 3, reps: 12 },

@@ -29,10 +29,12 @@ describe('exercise animations default', () => {
     expect(freshState().gifSize).toBe('mini')
   })
 
-  it('DEF keeps Full, so an existing profile without the key is not changed under it', () => {
-    expect(DEF.gifSize).toBe('full')
+  it('older profiles without a saved choice use the layout-aware default', () => {
+    expect(DEF.gifSize).toBe('default')
     const S = restoredStateFor({ workouts: [], routines: [], bodyweight: [], customEx: [] }, { workouts: [{ id: 'w1' }], routines: [] })
-    expect(S.gifSize).toBe('full')
+    expect(S.gifSize).toBe('default')
+    const full = restoredStateFor({ workouts: [], routines: [], bodyweight: [], customEx: [] }, { workouts: [{ id: 'w1' }], routines: [], gifSize: 'full' })
+    expect(full.gifSize).toBe('full')
   })
 })
 

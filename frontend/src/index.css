@@ -1683,6 +1683,20 @@ body.no-tabbar #timer.working{box-shadow:inset 0 var(--hair) 0 var(--acc),0 -10p
 .routine-muscle-card > p{grid-column:1/-1;margin:0}
 .routine-muscle-viewer{position:absolute;inset:0;overflow:auto;background:var(--bg);padding:calc(var(--sat) + 12px) 16px calc(var(--sab) + 16px);overscroll-behavior:contain}
 .routine-muscle-viewer > [role="dialog"]{max-width:960px;min-height:100%;margin:auto;display:flex;flex-direction:column;gap:16px}
+.workout-choice-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;max-width:100%;margin-bottom:8px;padding:3px;background:var(--surface-2);border-radius:var(--r-sm)}
+.workout-choice-actions .workout-group-name{flex:1;min-width:0;margin-bottom:0;padding-inline:8px}
+.workout-choice-actions .btn{min-height:44px;padding:6px 10px;border-radius:6px;white-space:nowrap}
+.workout-choice-actions .btn.ghost{color:var(--label-2)}
+.workout-choice-actions .btn.ghost:active{background:var(--surface-3);color:var(--label)}
+.workout-choice-actions .btn.ghost.workout-choice-action-clear{color:var(--red)}
+.workout-choice-divider{height:var(--hair);background:var(--sep);margin:0 0 12px;border:0}
+.workout-choice-divider-continuation{margin-top:-8px}
+.workout-choice-option.is-selected{background:var(--surface-2)}
+.workout-choice-option[aria-disabled="true"]{cursor:not-allowed}
+.workout-choice-editor-footer{margin-top:12px}
+.workout-choice-open{width:100%;text-align:start}
+.workout-choice-picker-bar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.workout-choice-picker-bar h3{min-width:0;margin:0;overflow-wrap:anywhere}
 .routine-muscle-bar{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .routine-muscle-bar h2{margin:0}
 .routine-muscle-viewer .bodymap{flex:1;align-items:center}
@@ -1889,6 +1903,9 @@ body.no-tabbar.resting #toast{bottom:calc(100px + var(--sab))}
    the session name wraps; the fallback is the height of a one-line header. */
 .wl-unit{scroll-margin-top:calc(var(--whdr-h, var(--sat) + var(--conn) + 80px) + 16px)}
 .wl-unit.cur{box-shadow:inset 0 0 0 1.5px var(--acc-line)}
+.wl-unit.wl-choice-group-start{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.wl-unit.wl-choice-group-middle{margin-top:-14px;padding-top:0;border-radius:0}
+.wl-unit.wl-choice-group-end{margin-top:-14px;padding-top:0;border-top-left-radius:0;border-top-right-radius:0}
 .wl-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .wl-icon{width:32px;height:32px;background:none;color:var(--label-2)}
 .wl-icon .icn{width:16px;height:16px}

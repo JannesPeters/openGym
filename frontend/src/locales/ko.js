@@ -1,5 +1,11 @@
 // Korean UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': '선택됨',
+  '{0} selected': '{0}개 선택됨',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': '이 그룹을 초기화하면 이번 운동에서 그룹 내 운동에 기록한 모든 세트가 사라집니다.',
+  'Selected': '선택됨',
+  '{0} selected': '{0}개 선택됨',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': '이 그룹을 초기화하면 이번 운동에서 그룹 내 운동에 기록한 모든 세트가 사라집니다.',
   'Show routine icons': '루틴 아이콘 표시',
   'Group name': '그룹 이름',
   'Name': '이름',

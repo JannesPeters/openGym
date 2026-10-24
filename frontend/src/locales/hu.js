@@ -1,5 +1,11 @@
 // Hungarian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'Kiválasztva',
+  '{0} selected': '{0} kiválasztva',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'A csoport törlésével elvesznek az ebben az edzésben a gyakorlataihoz rögzített sorozatok.',
+  'Selected': 'Kiválasztva',
+  '{0} selected': '{0} kiválasztva',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'A csoport törlésével elvesznek az ebben az edzésben a gyakorlataihoz rögzített sorozatok.',
   'Show routine icons': 'Rutinikonok megjelenítése',
   'Group name': 'Csoport neve',
   'Name': 'Név',

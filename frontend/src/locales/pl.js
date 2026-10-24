@@ -1,5 +1,11 @@
 // Polish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'Wybrane',
+  '{0} selected': 'Wybrano: {0}',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Wyczyszczenie tej grupy usunie wszystkie zapisane w tym treningu serie jej ćwiczeń.',
+  'Selected': 'Wybrane',
+  '{0} selected': 'Wybrano: {0}',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Wyczyszczenie tej grupy usunie wszystkie zapisane w tym treningu serie jej ćwiczeń.',
   'Show routine icons': 'Pokazuj ikony rutyn',
   'Group name': 'Nazwa grupy',
   'Name': 'Nazwa',

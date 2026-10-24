@@ -1,5 +1,11 @@
 // Turkish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'Seçili',
+  '{0} selected': '{0} seçili',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Bu grubu temizlemek, bu antrenmanda gruptaki egzersizler için kaydedilen tüm setleri siler.',
+  'Selected': 'Seçili',
+  '{0} selected': '{0} seçili',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Bu grubu temizlemek, bu antrenmanda gruptaki egzersizler için kaydedilen tüm setleri siler.',
   'Show routine icons': 'Rutin simgelerini göster',
   'Group name': 'Grup adı',
   'Name': 'Ad',
