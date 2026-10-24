@@ -348,6 +348,43 @@ describe('Modals scroll restore on close', () => {
     expect(dom.scrollTo).toHaveBeenLastCalledWith(0, 320)
     vi.useRealTimers()
   })
+
+  it.each([false, true])('owns and cancels restore callbacks when unmounted (already closed: %s)', async closed => {
+    vi.useFakeTimers()
+    const view = window
+    const page = document
+    const frames = []
+    view.requestAnimationFrame = fn => { frames.push(fn); return frames.length }
+    view.cancelAnimationFrame = vi.fn()
+    const queued = vi.fn()
+    try {
+      await setSheets([sheet('leaving-page')])
+      if (closed) {
+        await setSheets([])
+        afterScrollRestore(queued)
+        expect(scrollRestorePending()).toBe(true)
+      }
+      await act(async () => { root.unmount() })
+      root = null
+      view.scrollTo.mockClear()
+      delete globalThis.window
+      delete globalThis.document
+      expect(() => {
+        vi.advanceTimersByTime(1000)
+        frames.forEach(fn => fn())
+      }).not.toThrow()
+      expect(view.scrollTo).not.toHaveBeenCalled()
+      expect(queued).not.toHaveBeenCalled()
+      expect(view.cancelAnimationFrame).toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+      expect(scrollRestorePending()).toBe(false)
+    } finally {
+      globalThis.window = view
+      globalThis.document = page
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+  })
 })
 
 // The page behind a sheet is pinned (body fixed, shifted by the scroll position) and put back

@@ -45,6 +45,7 @@ const convTarget = (cfg, from, to) => {
   // A pyramid's own weight per set; 0 ("no plan for this set") stays 0.
   if (Array.isArray(out.pyramidWeight)) out.pyramidWeight = out.pyramidWeight.map(w => (w > 0 ? convertWeight(w, from, to) : w))
   if (Array.isArray(out.alternatives)) out.alternatives = out.alternatives.map(option => convTarget(option, from, to))
+  if (out.optionConfigs) out.optionConfigs = Object.fromEntries(Object.entries(out.optionConfigs).map(([key, config]) => [key, convTarget(config, from, to)]))
   return out
 }
 // A bar is a stamped object, not a number: the 45 lb bar IS the 20 kg bar (44.1 lb), so an
@@ -69,6 +70,10 @@ const convEntry = (e, from, to) => {
   if (!e || typeof e !== 'object') return e
   return {
     ...e,
+    ...(e.groupInstance ? { groupInstance: { ...e.groupInstance, options: e.groupInstance.options.map(option => ({
+      ...option, config: convTarget(option.config, from, to),
+      ...(option.prescription ? { prescription: convEntry(option.prescription, from, to) } : {}),
+    })) } } : {}),
     ...(e.topW != null ? { topW: convertWeight(e.topW, from, to) } : {}),
     ...(e.target ? { target: convTarget(e.target, from, to) } : {}),
     // The plan the entry was built from (lib/session-start.js) carries the routine's weight too.

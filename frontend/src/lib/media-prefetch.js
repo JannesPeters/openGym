@@ -19,6 +19,8 @@
 //
 // Not in the phone app: it has no service worker, and its media comes from the CDN.
 import { EXIDX, imgSrc, gifSrc, isCustomEx, figureOf, mediaExerciseOf } from './exercises.js'
+import { optionsOf } from './exercise-options.js'
+import { workoutOptions } from '../../../api/coach/core/exercise-groups.js'
 
 // The worker's media cache, public/sw.js MEDIA. Duplicated because the worker is not bundled;
 // sw-media.test.js pins the two together.
@@ -34,8 +36,8 @@ const MAX_FAILURES = 3
 export function planMediaUrls(S, base = globalThis.location?.href, index = EXIDX) {
   if (!base) return []
   const ids = new Set()
-  ;(S?.routines || []).forEach(r => (r?.ex || []).forEach(e => { if (e?.id) ids.add(e.id) }))
-  ;(S?.active?.entries || []).forEach(en => { if (en?.id) ids.add(en.id) })
+  ;(S?.routines || []).forEach(r => (r?.ex || []).flatMap(slot => optionsOf(slot, S)).forEach(e => { if (e?.id) ids.add(e.id) }))
+  ;(S?.active?.entries || []).forEach(en => { if (en?.id) ids.add(en.id); for (const option of workoutOptions(en) || []) ids.add(option.id) })
   const origin = new URL(base).origin
   const urls = new Set()
   for (const id of ids) {

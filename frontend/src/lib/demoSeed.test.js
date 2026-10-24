@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { buildDemoState } from './demoSeed.js'
 import { EXIDX } from './exercises.js'
 import { cleanGroupName, hasOptions, optionsOf } from './exercise-options.js'
+import { groupOf } from './exercise-groups.js'
 import {
   effortSummary, effortWeeks, effortHistogram, hasEffort, displayScale, avgRir,
   rirOf, isHardSet, MIN_RATED, HARD_RIR
@@ -20,18 +21,18 @@ describe('demo seed — exercise choice groups', () => {
     const slotIds = []
     for (const routine of S.routines) {
       const group = routine.ex.find(slot =>
-        hasOptions(slot) && cleanGroupName(slot.groupName) && optionsOf(slot).length >= 3)
+        hasOptions(slot) && cleanGroupName(groupOf(S, slot)?.name) && optionsOf(slot, S).length >= 3)
       expect(group, `${routine.name} has a named choice group with at least three options`).toBeDefined()
       if (!group) continue
 
-      expect(group.groupName).toBe(cleanGroupName(group.groupName))
+      expect(groupOf(S, group).name).toBe(cleanGroupName(groupOf(S, group).name))
       expect(group.slotId).toEqual(expect.any(String))
       slotIds.push(group.slotId)
-      expect(group.alternatives).toHaveLength(2)
-      const options = optionsOf(group)
+      expect(groupOf(S, group).options).toHaveLength(3)
+      const options = optionsOf(group, S)
       expect(new Set(options.map(option => option.id)).size).toBe(options.length)
 
-      for (const alternative of group.alternatives) {
+      for (const alternative of options) {
         for (const key of ['sg', 'sgName', 'sgRest', 'slotId', 'groupName', 'alternatives']) {
           expect(alternative).not.toHaveProperty(key)
         }

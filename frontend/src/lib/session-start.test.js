@@ -13,8 +13,10 @@ describe('buildSessionEntries', () => {
       alternatives: [{ id: '0009', sets: 2, reps: 12, weight: 45 }],
     }
     const [entry] = buildSessionEntries(st, { id: 'r', prog: 'off', ex: [cfg] })
-    expect(entry.choiceGroupId).toBe(entry.choiceId)
-    expect(entry.choiceOptions.map(option => option.id)).toEqual(['0025', '0009'])
+    expect(entry.groupInstance.id).toEqual(expect.any(String))
+    expect(entry.entryId).not.toBe(entry.groupInstance.id)
+    expect(entry.id).toBeUndefined()
+    expect(entry.groupInstance.options.map(option => option.exerciseId)).toEqual(['0025', '0009'])
     expect(entry.target).not.toHaveProperty('choiceGroupId')
     expect(cfg).not.toHaveProperty('choiceGroupId')
   })

@@ -37,6 +37,31 @@ describe('webauthnOK', () => {
 })
 
 describe('api()', () => {
+  it('reports a future state as an update requirement instead of a network failure or empty state', async () => {
+    const { api } = await import('./api.js')
+    const original = globalThis.fetch
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ stateVersion: 2, state: { stateVersion: 99, routines: [], workouts: [] } }) })
+    try {
+      await expect(api('/api/data')).rejects.toMatchObject({ code: 'state-version', status: 426 })
+    } finally { globalThis.fetch = original }
+  })
+
+  it('refuses to send reusable definitions to an older server that does not advertise support', async () => {
+    const { api, setRemoteAuth } = await import('./api.js')
+    const original = globalThis.fetch
+    setRemoteAuth('')
+    const calls = []
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url, method: init.method || 'GET' })
+      return { ok: true, json: async () => ({ rev: 1 }) }
+    }
+    try {
+      await expect(api('/api/data', { method: 'PUT', body: JSON.stringify({ state: { stateVersion: 2, exerciseGroups: [{ id: 'g' }] } }) }))
+        .rejects.toMatchObject({ code: 'state-version', status: 426 })
+      expect(calls).toEqual([{ url: '/api/data/rev', method: 'GET' }])
+    } finally { globalThis.fetch = original; setRemoteAuth('') }
+  })
+
   it('a failed request throws with the status and the parsed body attached', async () => {
     const { api } = await import('./api.js')
     const original = globalThis.fetch

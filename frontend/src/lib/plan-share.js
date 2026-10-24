@@ -22,6 +22,7 @@ import { convertWeight } from './units.js'
 import { fmtSpeed, speedUnitOf } from './speed.js'
 import { MUSCLES, inMuscleOrder } from './muscles.js'
 import { optionsOf, hasOptions, mapOptions, freshSlotIds, cleanGroupName } from './exercise-options.js'
+import { isGroup, groupOf, migrateExerciseGroups, validateGroupState } from './exercise-groups.js'
 
 const PLAN_FMT = 1
 const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0]   // every getDay() index; only the reader's own
@@ -46,6 +47,7 @@ function declaredPlanUnit(data) {
 
 function convertedExercise(e, sourceUnit, destinationUnit) {
   if (!sourceUnit || sourceUnit === destinationUnit) return e
+  if (isGroup(e)) return mapOptions(e, config => convertedExercise(config, sourceUnit, destinationUnit))
   const out = { ...e }
   if (out.weight != null) out.weight = convertWeight(out.weight, sourceUnit, destinationUnit)
   // A timed increment is seconds, not a load. Rep-mode increments are load overrides.
@@ -70,6 +72,11 @@ function convertedBundle(bundle, destinationUnit) {
 
 // Keep only the meaningful config fields, so the file stays small and readable.
 function cleanEx(e) {
+  if (isGroup(e)) return {
+    kind: 'group', slotId: e.slotId, groupId: e.groupId,
+    ...Object.fromEntries(['sg', 'sgName', 'sgRest'].filter(key => e[key] != null).map(key => [key, e[key]])),
+    optionConfigs: Object.fromEntries(Object.entries(e.optionConfigs).map(([key, config]) => [key, cleanEx(config)])),
+  }
   const o = { id: e.id, sets: e.sets }
   const mode = modeOf(e)
   if (mode === 'cardio') {
@@ -211,6 +218,7 @@ function cleanCustom(c) {
 
 /** Build the shareable bundle: every routine, the week schedule, referenced customs. */
 export function buildPlanBundle(S, name) {
+  S = migrateExerciseGroups(S)
   const unit = planUnit(S.unit == null ? 'kg' : S.unit)
   if (!unit) unitError()
   const routines = (S.routines || []).map(r => ({
@@ -219,14 +227,18 @@ export function buildPlanBundle(S, name) {
     ...(r.excludeFromProgression === true ? { excludeFromProgression: true } : {}),
     ex: (r.ex || []).map(cleanEx)
   }))
-  const usedIds = new Set(routines.flatMap(r => r.ex.flatMap(slot => optionsOf(slot).map(e => e.id))))
+  const usedIds = new Set(routines.flatMap(r => r.ex.flatMap(slot => optionsOf(slot, S).map(e => e.id))))
   const customEx = referencedCustomExercises(S.customEx || [], usedIds).map(cleanCustom)
   // A weekday can hold several routines (merge order preserved). `[].concat` normalises a
   // legacy scalar id to a one-element list, so a bundle written before this change and one
   // written after are read the same way at the other end.
   const week = {}
   WEEK_DAYS.forEach(d => { if (S.week?.[d]?.length) week[d] = [].concat(S.week[d]) })
-  return { opengym_plan: routines.some(r => r.ex.some(hasOptions)) ? 2 : PLAN_FMT, exported: todayISO(), name: name || '', unit, week, routines, customEx }
+  const referencedGroups = new Set(routines.flatMap(r => r.ex.filter(isGroup).map(slot => slot.groupId)))
+  const exerciseGroups = (S.exerciseGroups || []).filter(group => referencedGroups.has(group.id))
+    .map(group => ({ id: group.id, name: group.name, options: structuredClone(group.options), ...(group.archived ? { archived: true } : {}) }))
+  return { opengym_plan: exerciseGroups.length ? 3 : PLAN_FMT, exported: todayISO(), name: name || '', unit, week, routines, customEx,
+    ...(exerciseGroups.length ? { stateVersion: 2, exerciseGroups } : {}) }
 }
 
 /**
@@ -246,7 +258,8 @@ export function parsePlan(raw, destinationUnit = 'kg') {
   if (!data || typeof data !== 'object' || Array.isArray(data) || !data.opengym_plan || !Array.isArray(data.routines) || !destination) {
     throw notPlan()
   }
-  if (![1, 2].includes(data.opengym_plan)) throw new Error(t('This plan format needs a newer version of openGym.'))
+  if (![1, 2, 3].includes(data.opengym_plan)) throw new Error(t('This plan format needs a newer version of openGym.'))
+  if (data.opengym_plan === 3) validateGroupState(data)
   const sourceUnit = declaredPlanUnit(data)
   const customEx = (Array.isArray(data.customEx) ? data.customEx : []).filter(c => c && c.id)
   const known = new Set(customEx.map(c => c.id))
@@ -268,6 +281,17 @@ export function parsePlan(raw, destinationUnit = 'kg') {
   }
   const parseSlot = slot => {
     if (!slot || typeof slot !== 'object' || Array.isArray(slot)) { dropped++; return null }
+    if (isGroup(slot)) {
+      if (data.opengym_plan !== 3) throw notPlan()
+      const group = groupOf(data, slot)
+      if (group.options.some(option => !known.has(option.exerciseId) && !EXIDX[option.exerciseId])) {
+        throw new Error(t('An exercise in this group is missing. Update the group before starting.'))
+      }
+      return mapOptions(slot, config => {
+        if (!known.has(config.id) && !EXIDX[config.id]) return config
+        return parseExercise(config)
+      })
+    }
     if (slot.alternatives != null && !Array.isArray(slot.alternatives)) throw notPlan()
     if (slot.alternatives?.some(option => !option || typeof option !== 'object' || Array.isArray(option) || option.alternatives != null)) throw notPlan()
     if (!hasOptions(slot)) {
@@ -283,15 +307,21 @@ export function parsePlan(raw, destinationUnit = 'kg') {
     if (!configs.length) return null
     const meta = Object.fromEntries(['sg', 'sgName', 'sgRest'].filter(key => slot[key] != null).map(key => [key, slot[key]]))
     if (cleanGroupName(slot.groupName)) meta.groupName = cleanGroupName(slot.groupName)
-    return { ...configs[0], ...meta, ...(configs.length > 1 ? { slotId: typeof slot.slotId === 'string' && slot.slotId ? slot.slotId : uid(), alternatives: configs.slice(1) } : {}) }
+    return { ...configs[0], ...meta, ...(slot.slotId ? { slotId: slot.slotId } : {}), alternatives: configs.slice(1) }
   }
   const routines = data.routines.filter(r => r && Array.isArray(r.ex)).map(r => ({
     ...r,
     ex: r.ex.map(parseSlot).filter(Boolean)
   }))
+  const exerciseGroups = (data.exerciseGroups || []).map(group => ({
+    ...group, options: group.options.map(option => ({
+      ...option, exerciseId: known.has(option.exerciseId) ? option.exerciseId : canonicalExId(option.exerciseId),
+    })),
+  }))
+  const converted = migrateExerciseGroups({ routines, exerciseGroups, stateVersion: data.stateVersion })
   return {
     name: (data.name || '').trim(),
-    routines,
+    routines: converted.routines, exerciseGroups: converted.exerciseGroups,
     week: data.week || {},
     customEx,
     dropped,
@@ -316,7 +346,7 @@ export function parsePlan(raw, destinationUnit = 'kg') {
 export function mergePlan(s, bundle, { schedule } = {}) {
   const destination = planUnit(s.unit == null ? 'kg' : s.unit)
   if (!destination) unitError()
-  const source = convertedBundle(bundle, destination)
+  const source = migrateExerciseGroups(convertedBundle(bundle, destination))
   s.customEx = s.customEx || []
   const exIdMap = {}
   const customs = source.customEx || []
@@ -335,6 +365,16 @@ export function mergePlan(s, bundle, { schedule } = {}) {
     if (mappedBase) clean.baseExerciseId = mappedBase
     s.customEx.push({ ...clean, id: nid, ...(clean.secondaries ? { sm: clean.secondaries } : {}), custom: true })
   })
+  s.exerciseGroups ||= []
+  const groupIdMap = {}
+  for (const group of source.exerciseGroups || []) {
+    const id = uid()
+    groupIdMap[group.id] = id
+    s.exerciseGroups.push({ id, name: group.name,
+      options: group.options.map(option => ({ ...option, exerciseId: exIdMap[option.exerciseId] || canonicalExId(option.exerciseId) })),
+      ...(group.archived ? { archived: true } : {}),
+    })
+  }
   const ridMap = {}
   source.routines.forEach(r => {
     const nid = uid()
@@ -345,7 +385,11 @@ export function mergePlan(s, bundle, { schedule } = {}) {
       emoji: r.emoji,
       ...(r.prog ? { prog: r.prog } : {}),
       ...(r.excludeFromProgression === true ? { excludeFromProgression: true } : {}),
-      ex: freshSlotIds((r.ex || []).map(slot => mapOptions(slot, e => ({ ...e, id: exIdMap[e.id] || canonicalExId(e.id) }))))
+      ex: freshSlotIds((r.ex || []).map(slot => {
+        const next = mapOptions(slot, e => ({ ...e, id: exIdMap[e.id] || canonicalExId(e.id) }))
+        if (isGroup(next)) next.groupId = groupIdMap[next.groupId]
+        return next
+      }))
     })
   })
   if (schedule) {
@@ -405,10 +449,14 @@ function units(ex) {
 
 // `bare` leaves out the routine's own heading, for a page that is this one routine and already
 // names it at the top.
-function routineHTML(r, unit, { bare = false, speedUnit } = {}) {
+function routineHTML(r, unit, { bare = false, speedUnit, state } = {}) {
   const rows = units(r.ex).map(u => {
     const items = u.map(e => {
-      const ex = EXIDX[e.id]
+      if (isGroup(e)) return `<div class="ex"><div class="ex-row"><div class="ex-n">${esc(groupOf(state, e)?.name || t('Exercise group'))}</div></div>${optionsOf(e, state).map(option => {
+        const exercise = EXIDX[option.id] || state.customEx?.find(exercise => exercise.id === option.id)
+        return `<div class="ex-row"><div class="ex-n">${esc(exercise ? exerciseNameFor(exercise) : t('Unknown exercise'))}</div><div class="ex-s">${esc(option.needsConfig ? t('Configure') : scheme(option, unit, speedUnit))}</div></div>`
+      }).join('')}</div>`
+      const ex = EXIDX[e.id] || state.customEx?.find(exercise => exercise.id === e.id)
       const name = ex ? exerciseNameFor(ex) : t('Unknown exercise')
       // Translated, and set apart by a real space: glued to the name, "capitalize" read the two as
       // one word and printed "Curlupper Legs".
@@ -449,11 +497,12 @@ function weekHTML(S) {
  * schedule is left out and the routine's name is the page title.
  */
 export function planPrintHTML(S, owner, { routineId } = {}) {
+  S = migrateExerciseGroups(S)
   const unit = S.unit || 'kg'
   const single = routineId ? (S.routines || []).find(r => r.id === routineId) || null : null
   const routines = routineId ? [single].filter(Boolean) : (S.routines || []).filter(r => r.ex && r.ex.length)
   const body = routines.length
-    ? routines.map(r => routineHTML(r, unit, { bare: !!single, speedUnit: speedUnitOf(S) })).join('')
+    ? routines.map(r => routineHTML(r, unit, { bare: !!single, speedUnit: speedUnitOf(S), state: S })).join('')
     : `<p class="none">${esc(t('No routines yet.'))}</p>`
   const title = single ? single.name : t('Weekly Training Plan')
   const sub = [single ? exCount(single.ex.length) : null, owner, todayISO()].filter(Boolean).map(esc).join(' · ')

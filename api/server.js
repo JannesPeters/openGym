@@ -35,6 +35,10 @@ import { effectiveRoutineId } from './queue.js';
 import { stampPut } from './sync-stamps.js';
 import { atomicWrite as durableWrite } from './durable.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
+import { STATE_VERSION, assertStateVersion, validateGroupState } from './coach/core/exercise-groups.js';
+
+const supportsGroups = req => req.headers['x-opengym-state-version'] === String(STATE_VERSION);
+const needsGroupUpdate = res => json(res, 426, { error: 'Refresh or update openGym before syncing this account.', code: 'state-version' });
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -1910,7 +1914,7 @@ const routes = {
   // what "unhealthy" is for. The 200 keeps the shape it had, plus the flag it is now asserting.
   'GET /api/health': async (req, res) => {
     if (!dataWritable()) return json(res, 503, { ok: false, writable: false });
-    json(res, 200, { ok: true, users: db.users.length, writable: true });
+    json(res, 200, { ok: true, users: db.users.length, writable: true, stateVersion: STATE_VERSION });
   },
 
   // Public config the login screen needs before anyone is signed in. `coach` is absent unless
@@ -2176,8 +2180,9 @@ const routes = {
     if (!user) return json(res, 401, { error: 'not signed in' });
     const state = readStateStrict(user.id);
     if (state === UNREADABLE) { console.error('state file unreadable for', user.id); return json(res, 503, { error: 'state unreadable' }); }
+    if (state?.stateVersion >= STATE_VERSION && !supportsGroups(req)) return needsGroupUpdate(res);
     notePull(user);
-    json(res, 200, { state: forClient(state), rev: state?._rev || 0 });
+    json(res, 200, { state: forClient(state), rev: state?._rev || 0, ...(supportsGroups(req) ? { stateVersion: STATE_VERSION } : {}) });
   },
   // Just the revision: the client asks this every half minute while it is open and on every
   // return to the foreground, and fetches the document only when the number moved — a signed-in
@@ -2189,7 +2194,8 @@ const routes = {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     const doc = readStateCached(user.id);
-    json(res, 200, { rev: doc?._rev || 0, ...(doc?._wid ? { wid: doc._wid } : {}) });
+    if (doc?.stateVersion >= STATE_VERSION && !supportsGroups(req)) return needsGroupUpdate(res);
+    json(res, 200, { rev: doc?._rev || 0, ...(doc?._wid ? { wid: doc._wid } : {}), ...(supportsGroups(req) ? { stateVersion: STATE_VERSION } : {}) });
   },
 
   'PUT /api/data': async (req, res) => {
@@ -2230,6 +2236,10 @@ const routes = {
     const cur = readStateStrict(user.id);
     if (cur === UNREADABLE) { console.error('state file unreadable for', user.id); return json(res, 503, { error: 'state unreadable' }); }
     const curRev = cur?._rev || 0;
+    if ((cur?.stateVersion >= STATE_VERSION || body.state.stateVersion >= STATE_VERSION) && !supportsGroups(req)) return needsGroupUpdate(res);
+    if (cur?.stateVersion >= STATE_VERSION && body.state.stateVersion !== STATE_VERSION) return needsGroupUpdate(res);
+    try { assertStateVersion(body.state); if (body.state.stateVersion === STATE_VERSION) validateGroupState(body.state); }
+    catch (e) { return json(res, e.code === 'state-version' ? 426 : 400, { error: e.message, code: e.code || 'invalid-groups' }); }
     // `_rev` is a counter, so after the data directory went back in time (a restored backup, a
     // write lost to a power cut) the same number names a different document. Every write also gets
     // a write id (`_wid`) and keeps its ancestors' (`_wids`): a client quoting the id it last saw
@@ -2271,8 +2281,22 @@ const routes = {
     // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
     // nested some thousands deep. No client builds one; it is a bad request, not a server error.
     let text;
+    if (body.state.stateVersion === STATE_VERSION) {
+      try { validateGroupState(body.state); }
+      catch (error) { return json(res, 400, { error: error.message, code: 'invalid-groups' }); }
+    }
     try { text = JSON.stringify(body.state); }
     catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
+    // Keep the exact pre-conversion account, once. Failure aborts this write, not the backup.
+    if (cur && cur.stateVersion !== STATE_VERSION && body.state.stateVersion === STATE_VERSION) {
+      const backup = stateFile(user.id) + '.pre-groups-v1.json';
+      if (!fs.existsSync(backup)) {
+        atomicWrite(backup, fs.readFileSync(stateFile(user.id), 'utf8'));
+      } else {
+        const saved = JSON.parse(fs.readFileSync(backup, 'utf8'));
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('Pre-migration account backup is not readable.');
+      }
+    }
     atomicWrite(stateFile(user.id), text);
     // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
     // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
@@ -2642,7 +2666,7 @@ const server = http.createServer(async (req, res) => {
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
       // The CF-Access-* pair: a phone's Cloudflare Access service token (frontend lib/cf-access.js),
       // for an Access application that passes OPTIONS through to the origin.
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, CF-Access-Client-Id, CF-Access-Client-Secret',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, CF-Access-Client-Id, CF-Access-Client-Secret, X-OpenGym-State-Version',
       'Access-Control-Max-Age': '86400',
       ...(pna ? { 'Access-Control-Allow-Private-Network': 'true' } : {})
     });

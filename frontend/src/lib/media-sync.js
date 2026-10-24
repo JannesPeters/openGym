@@ -336,8 +336,14 @@ export function createMediaSync(deps = {}) {
     const want = () => {
       const S = store.getState().S
       const ids = new Set()
-      ;(S?.routines || []).forEach(r => (r?.ex || []).forEach(e => { if (e?.id) ids.add(e.id) }))
-      ;(S?.active?.entries || []).forEach(en => { if (en?.id) ids.add(en.id) })
+      ;(S?.routines || []).forEach(r => (r?.ex || []).forEach(slot => {
+        if (slot?.id) ids.add(slot.id)
+        for (const option of (S.exerciseGroups || []).find(group => group.id === slot?.groupId)?.options || slot.alternatives || []) ids.add(option.exerciseId || option.id)
+      }))
+      ;(S?.active?.entries || []).forEach(en => {
+        if (en?.id) ids.add(en.id)
+        for (const option of en.groupInstance?.options || en.choiceOptions || []) ids.add(option.exerciseId || option.id)
+      })
       const used = { customEx: (S?.customEx || []).filter(c => c && ids.has(c.id)) }
       const withMedia = (Array.isArray(S?.workouts) ? S.workouts : []).filter(w => Array.isArray(w?.media) && w.media.length)
       const posters = referencedFiles({ workouts: withMedia.slice(-RECENT_WORKOUT_POSTERS) }).filter(f => f.poster)

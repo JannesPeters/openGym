@@ -3,6 +3,7 @@ import { t } from './i18n-core.js'
 import { MOBILE } from './mobile.js'
 import { appBase } from './app-base.js'
 import { nativeFetch } from './capacitor-fetch.js'
+import { STATE_VERSION, migrateExerciseGroups as migrateResponseState } from '../../../api/coach/core/exercise-groups.js'
 
 export const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)
 export const IS_ANDROID = /Android/.test(navigator.userAgent)
@@ -23,7 +24,8 @@ export const webauthnOK = () => typeof window.PublicKeyCredential !== 'undefined
 // same-origin cookies, so remoteBase/remoteToken stay empty and api() behaves exactly as before.
 let remoteBase = ''
 let remoteToken = null
-export function setRemoteAuth(base, token) { remoteBase = base || ''; remoteToken = token || null }
+let stateCapability = 0
+export function setRemoteAuth(base, token) { remoteBase = base || ''; remoteToken = token || null; stateCapability = 0 }
 // A Cloudflare Access service token (lib/cf-access.js): sent only to the origin it was entered
 // for, never on a same-origin request, where the browser's own Access session cookie already
 // does the job, and never to a server that merely happens to be paired or typed in.
@@ -49,6 +51,13 @@ const failure = (message, code, status) => Object.assign(new Error(message), { c
 
 export async function api(path, opts) {
   const { timeout, ...init } = opts || {}
+  if (path === '/api/data' && init.method === 'PUT' && JSON.parse(init.body || '{}').state?.exerciseGroups?.length) {
+    if (stateCapability < STATE_VERSION) {
+      const capability = await api('/api/data/rev')
+      if (capability.stateVersion !== STATE_VERSION) throw failure('Update your openGym server before syncing reusable exercise groups.', 'state-version', 426)
+    }
+  }
+  const stateRequest = /^\/api\/data(?:\/rev)?$/.test(path)
   // A phone with no server to talk to: local mode, or a pairing that is gone. There is no
   // relative URL to fall back on here — the WebView's own origin is Capacitor's local asset
   // server, which answers ANY path, PUT included, with index.html and a 200, so a push "landed"
@@ -56,12 +65,22 @@ export async function api(path, opts) {
   // undefined: this is not "offline", and the store must not show it as such.
   if (MOBILE && !remoteBase) throw failure(t('This phone is not connected to a server.'), 'not-paired', 0)
   const headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers, remoteHeaders())
+  if (stateRequest) headers['X-OpenGym-State-Version'] = String(STATE_VERSION)
   // A paired phone has an absolute base of its own; everyone else is relative to where the app
   // is served, so a subpath deployment reaches its own API instead of the proxy's root.
   const url = remoteBase ? remoteBase + path : appBase().replace(/\/$/, '') + path
   const ms = timeout != null ? timeout : (init.method || 'GET').toUpperCase() === 'GET' ? TIMEOUT_GET_MS : TIMEOUT_MS
-  return request(url, Object.assign({}, init, { headers }), ms)
+  const result = await request(url, Object.assign({}, init, { headers }), ms)
+  if (stateRequest) {
+    stateCapability = result.stateVersion || 0
+    if (result.state) {
+      try { result.state = migrateResponseState(result.state) }
+      catch (error) { error.status = error.code === 'state-version' ? 426 : 400; throw error }
+    }
+  }
+  return result
 }
+
 
 // One exchange, bounded by `ms`. No status on the timeout, like a fetch that failed outright: to
 // the store both mean the server could not be reached, and the device says it is offline instead
@@ -90,7 +109,7 @@ async function exchange(url, init) {
   try { data = await r.json() } catch { parsed = false }
   const body = parsed && data && typeof data === 'object' ? data : null
   // The body rides along on the error: a 409 from /api/data carries the server's document.
-  if (!r.ok) { const e = new Error((body && body.error) || ('HTTP ' + r.status)); e.status = r.status; e.data = body || {}; throw e }
+  if (!r.ok) { const e = new Error((body && body.error) || ('HTTP ' + r.status)); e.status = r.status; e.code = body?.code; e.data = body || {}; throw e }
   if (!body) throw failure(t('The server answered with something other than openGym data.'), 'bad-response', r.status)
   return body
 }

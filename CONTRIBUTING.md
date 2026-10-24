@@ -61,8 +61,13 @@ Cancelling leaves the workout unchanged. This creates a separate slot in this wo
 a superset or an edit to its routine. Only chosen, logged exercises enter the finished history.
 
 In Plan's saved-routine editor, **Create new group** sits beside **Add exercise** above the
-exercise list. It uses the same draft builder but saves a new independent choice slot to that
-routine for future workouts; cancelling does not change the routine.
+exercise list. It saves a reusable definition and a placement with independent prescriptions.
+**Reuse exercise group** places an existing definition; copying a routine also keeps the shared
+definition but copies its prescriptions. Empty drafts and one-option groups keep their identity.
+The group editor distinguishes shared name/membership edits from this routine's exercise
+settings, shows affected routines, and offers **Make independent copy** and **Archive group**.
+Archive hides reuse without breaking existing routines or history. See
+[the schema and migration contract](docs/dev/EXERCISE_GROUPS.md) before changing group writers.
 
 The routine's muscle map is compact inline; **Expand** opens the same planned coverage in a
 full-screen dialog. Close or Escape returns focus to Expand without leaving the editor.

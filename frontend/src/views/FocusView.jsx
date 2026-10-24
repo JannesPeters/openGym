@@ -130,7 +130,8 @@ function FocusExercise({
   const [pointerState, setPointerState] = useState(() => ({ epoch: pointerEpoch, pointers: new Map() }))
   const pointers = pointerState.epoch === pointerEpoch ? pointerState.pointers : new Map()
   const stored = pointers.get(entryIdx)
-  const setIdx = clampSet(entry, stored?.id === entry.id && stored?.choiceId === entry.choiceId ? stored.setIdx : firstIncomplete(entry))
+  const entryIdentity = entry.entryId || entry.choiceId
+  const setIdx = clampSet(entry, stored?.id === entry.id && stored?.choiceId === entryIdentity ? stored.setIdx : firstIncomplete(entry))
   const set = entry.sets[setIdx]
   const firstOpenSet = firstIncomplete(entry)
   const locked = !set.done && setIdx > firstOpenSet
@@ -146,7 +147,7 @@ function FocusExercise({
   const stepLoad = owned ? (v, _step, dir) => stepOwned(owned, v, dir) : stepWeight
   const selectSet = index => setPointerState(current => {
     const next = new Map(current.epoch === pointerEpoch ? current.pointers : [])
-    next.set(entryIdx, { id: entry.id, choiceId: entry.choiceId, setIdx: clampSet(entry, index) })
+    next.set(entryIdx, { id: entry.id, choiceId: entryIdentity, setIdx: clampSet(entry, index) })
     return { epoch: pointerEpoch, pointers: next }
   })
   const sequence = unit.length > 1 ? supersetSequence(S.active.entries, unit) : []

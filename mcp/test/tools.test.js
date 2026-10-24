@@ -8,6 +8,10 @@ import { EXDB, exOr } from '../../frontend/src/lib/exercises.js'
 import { _seedStateForTests } from '../src/state.js'
 import { TOOLS } from '../src/tools.js'
 import { bestSetOf } from '../../frontend/src/lib/onerm.js'
+import { buildCombinedEntries } from '../../frontend/src/lib/session-merge.js'
+import { chooseWorkoutOption } from '../../frontend/src/lib/workout-options.js'
+import { buildCompletedWorkout } from '../../frontend/src/lib/finish-workout.js'
+import { placeExerciseGroup } from '../../frontend/src/lib/exercise-groups.js'
 
 // Re-stated here so the assertions stand alone without reaching into lib internals to learn
 // the demo state's exact values.
@@ -24,6 +28,13 @@ const LEG_PRESS_BEST = { w: 152.5, r: 12, epley: 213.5, brzycki: 219.6 }
 const byName = Object.fromEntries(TOOLS.map(t => [t.name, t.handler]))
 
 let S = null
+const firstConfig = () => {
+  const slot = S.routines[0].ex[0]
+  if (slot.kind !== 'group') return slot
+  const group = S.exerciseGroups.find(group => group.id === slot.groupId)
+  return slot.optionConfigs[group.options[0].id]
+}
+const firstExercise = detail => detail.exercises[0].kind === 'group' ? detail.exercises[0].alternatives[0] : detail.exercises[0]
 
 function call(name, params = {}) {
   const h = byName[name]
@@ -94,6 +105,29 @@ describe('list_routines', () => {
 /* ---------- get_routine ---------- */
 
 describe('get_routine', () => {
+  test('reads repeated reusable placements and performed-entry provenance without fake exercise ids', () => {
+    const group = S.exerciseGroups[0]
+    S.routines[0].ex = [S.routines[0].ex[0], placeExerciseGroup(S, group.id)]
+    const detail = call('get_routine', { routine_id: S.routines[0].id })
+    expect(detail.exercises.map(slot => slot.group_id)).toEqual([group.id, group.id])
+    expect(detail.exercises[0]).not.toHaveProperty('id')
+    expect(detail.exercises[0].slot_id).not.toBe(detail.exercises[1].slot_id)
+    const option = group.options[1]
+    delete S.routines[0].ex[1].optionConfigs[option.id]
+    const needsSetup = call('get_routine', { routine_id: S.routines[0].id }).exercises[1].alternatives[1]
+    expect(needsSetup).toMatchObject({ id: option.exerciseId, option_id: option.id, needs_configuration: true })
+    expect(needsSetup).not.toHaveProperty('sets')
+    S.routines[0].ex[1] = placeExerciseGroup(S, group.id)
+    S.active = { id: 'group-session', cur: 0, d: FAKE_TODAY_ISO, entries: buildCombinedEntries(S, [S.routines[0].id]).entries }
+    chooseWorkoutOption(S, 0, option.exerciseId)
+    S.active.entries[0].sets[0].done = true
+    S.workouts.push(buildCompletedWorkout(S.active))
+    const workout = call('get_workout', { workout_id: 'group-session' })
+    expect(workout.entries[0]).toMatchObject({
+      id: option.exerciseId, entry_id: S.active.entries[0].entryId, option_id: option.id,
+      group_instance: { id: S.active.entries[0].groupInstance.id, group_id: group.id },
+    })
+  })
   test('reports interchangeable options and previews each independently without adding planned positions', () => {
     S.routines = [{ id: 'choices', name: 'Push', prog: 'off', ex: [{
       id: '0025', slotId: 'slot', sets: 3, reps: 10, weight: 20,
@@ -127,7 +161,7 @@ describe('get_routine', () => {
     expect(r.name).toBe('Push Day')
     expect(r.exercises.length).toBe(push.exercise_count)
     expect(r.policy_name).toBeTruthy()
-    r.exercises.forEach(e => {
+    r.exercises.flatMap(e => e.kind === 'group' ? e.alternatives : [e]).forEach(e => {
       expect(['reps', 'time', 'cardio']).toContain(e.mode)
       // Every summary has "N × M" with a non-ASCII × (the lib uses U+00D7, not ASCII 'x')
       expect(e.summary).toMatch(/\d+\s*×\s*\d+/)
@@ -149,42 +183,42 @@ describe('get_routine', () => {
   })
 
   test('returns both bounds of a reps range', () => {
-    const cfg = S.routines[0].ex[0]
+    const cfg = firstConfig()
     Object.assign(cfg, { mode: 'reps', reps: 8, repsMin: 8, repsMax: 12 })
 
     const r = call('get_routine', { routine_id: S.routines[0].id })
-    expect(r.exercises[0]).toMatchObject({ reps: 8, reps_min: 8, reps_max: 12 })
+    expect(firstExercise(r)).toMatchObject({ reps: 8, reps_min: 8, reps_max: 12 })
   })
 
   test('summarises a double-progression range as the range, not as its top', () => {
-    Object.assign(S.routines[0].ex[0], { mode: 'reps', sets: 3, reps: 12, repsMin: 8, weight: 40 })
+    Object.assign(firstConfig(), { mode: 'reps', sets: 3, reps: 12, repsMin: 8, weight: 40 })
     const r = call('get_routine', { routine_id: S.routines[0].id })
-    expect(r.exercises[0].summary).toBe('3 × 8–12 · 40 kg')
+    expect(firstExercise(r).summary).toBe('3 × 8–12 · 40 kg')
   })
 
   test('reports pyramid sets as the per-set targets, not as sets × reps', () => {
-    const cfg = S.routines[0].ex[0]
+    const cfg = firstConfig()
     Object.assign(cfg, { mode: 'reps', sets: 5, reps: 12, weight: 0, pyramid: [12, 8, 6, 'max', 12] })
     delete cfg.repsMin
     const r = call('get_routine', { routine_id: S.routines[0].id })
-    expect(r.exercises[0]).toMatchObject({ pyramid: [12, 8, 6, 'max', 12], policy: 'off', summary: '12 · 8 · 6 · Max · 12' })
+    expect(firstExercise(r)).toMatchObject({ pyramid: [12, 8, 6, 'max', 12], policy: 'off', summary: '12 · 8 · 6 · Max · 12' })
   })
 
   test('reports a pyramid\'s planned weight per set, and leaves it out when none is planned (#445)', () => {
-    const cfg = S.routines[0].ex[0]
+    const cfg = firstConfig()
     Object.assign(cfg, { mode: 'reps', sets: 3, reps: 12, weight: 0, pyramid: [12, 8, 6], pyramidWeight: [40, 0, 60] })
     delete cfg.repsMin
-    expect(call('get_routine', { routine_id: S.routines[0].id }).exercises[0].pyramid_weight).toEqual([40, 0, 60])
+    expect(firstExercise(call('get_routine', { routine_id: S.routines[0].id })).pyramid_weight).toEqual([40, 0, 60])
     delete cfg.pyramidWeight
-    expect(call('get_routine', { routine_id: S.routines[0].id }).exercises[0].pyramid_weight).toBeUndefined()
+    expect(firstExercise(call('get_routine', { routine_id: S.routines[0].id })).pyramid_weight).toBeUndefined()
   })
 
   test('reports an exercise\'s own rest, and leaves it out when it inherits the timer', () => {
-    S.routines[0].ex[0].restSec = 180
+    firstConfig().restSec = 180
     delete S.routines[0].ex[1]?.restSec
 
     const r = call('get_routine', { routine_id: S.routines[0].id })
-    expect(r.exercises[0].rest_sec).toBe(180)
+    expect(firstExercise(r).rest_sec).toBe(180)
     // An exercise with no rest of its own inherits the global timer. Absent says that;
     // a zero would read as "no rest at all", which is a different prescription.
     expect(JSON.parse(JSON.stringify(r)).exercises[1]).not.toHaveProperty('rest_sec')
@@ -192,23 +226,23 @@ describe('get_routine', () => {
 
   test('projects routine and exercise progression rules from prog', () => {
     S.routines[0].prog = 'greyskull'
-    S.routines[0].ex[0].prog = 'double'
+    firstConfig().prog = 'double'
 
     const r = call('get_routine', { routine_id: S.routines[0].id })
     expect(r).toMatchObject({ policy: 'greyskull', policy_name: 'Greyskull LP' })
-    expect(r.exercises[0].policy_override).toBe('double')
+    expect(firstExercise(r).policy_override).toBe('double')
   })
 
   test('a routine with no prog reports the policy the app actually runs, not off', () => {
     delete S.routines[0].prog
-    delete S.routines[0].ex[0].prog
+    delete firstConfig().prog
 
     // policyFor defaults reps to linear (progression.js:73) and RoutineEdit.jsx:59 shows
     // that same default, so reporting 'off' here would misdescribe every untouched routine.
     const r = call('get_routine', { routine_id: S.routines[0].id })
     expect(r.policy).toBe('linear')
-    expect(r.exercises[0].policy).toBe('linear')
-    expect(r.exercises[0].policy_override).toBeNull()
+    expect(firstExercise(r).policy).toBe('linear')
+    expect(firstExercise(r).policy_override).toBeNull()
   })
 
   test('a policy the mode cannot run is clamped, not echoed back raw', () => {

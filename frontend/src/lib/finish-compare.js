@@ -44,7 +44,9 @@ export function finishCompare(st, w) {
     let next = null
     const routine = entry.rid ? (st.routines || []).find(r => r.id === entry.rid) : null
     const cfg = routine && !routine.excludeFromProgression && !entry.noProg && !w.noProg
-      ? (routine.ex || []).find(c => c?.id === entry.id) : null
+      ? (routine.ex || []).flatMap(slot => slot.kind === 'group'
+        ? (slot.slotId === entry.slotId && slot.optionConfigs?.[entry.optionId]?.id === entry.id ? [slot.optionConfigs[entry.optionId]] : [])
+        : [slot, ...(slot.alternatives || [])]).find(c => c?.id === entry.id) : null
     if (cfg) {
       try {
         const built = buildPlannedEntry(st, cfg, routine)

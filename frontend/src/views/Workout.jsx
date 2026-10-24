@@ -972,7 +972,7 @@ function ActiveWorkout() {
   // layouts prefer the session's choice over the saved one without overwriting either.
   const collapseOn = workoutView === 'custom' || (listMode && !!(A.collapseCompleted ?? S.collapseCompleted))
   const choiceGroupPosition = groupUnit => {
-    const memberIndex = groupUnit.find(index => A.entries[index]?.choiceOptions)
+    const memberIndex = groupUnit.find(index => A.entries[index]?.groupInstance || A.entries[index]?.choiceOptions)
     if (memberIndex == null) return null
     const groupIndices = workoutChoiceGroupIndices(A.entries, memberIndex)
     if (groupIndices.length < 2
@@ -1277,7 +1277,7 @@ function ActiveWorkout() {
     if (!found) return null
     const activeId = A.id
     const entryId = entry.id
-    const choiceId = entry.choiceId
+    const choiceId = entry.entryId || entry.choiceId
     return {
       // A rest reads as the wheel shows it: "3:00", and 0 (no rest of its own) as the default.
       sub: found.changes.map(c => c.key === 'note' ? t('Note')
@@ -1293,7 +1293,7 @@ function ActiveWorkout() {
             // The sheet can outlive the workout, or the exercise at this index: fail closed.
             const target = s.routines.find(r => r.id === routine.id)
             if (!target || s.active?.id !== activeId || s.active.entries?.[idx]?.id !== entryId
-              || (choiceId && s.active.entries[idx].choiceId !== choiceId)) return
+              || (choiceId && (s.active.entries[idx].entryId || s.active.entries[idx].choiceId) !== choiceId)) return
             applied = updateRoutineFromEntry(target, s.active.entries, idx)
           })
           if (applied) useUI.getState().toast(t('Routine updated'))
@@ -1311,7 +1311,7 @@ function ActiveWorkout() {
   }
   const blockProps = idx => ({
     editing,
-    onSwap: A.entries[idx]?.choiceOptions ? undefined : () => swapExercise(idx),
+    onSwap: A.entries[idx]?.groupInstance || A.entries[idx]?.choiceOptions ? undefined : () => swapExercise(idx),
     onMoveUp: () => moveUnitAt(idx, -1, true),
     onMoveDown: () => moveUnitAt(idx, 1, true),
     canMoveUp: canMoveActiveWorkoutEntry(A, idx, -1),
@@ -1586,7 +1586,7 @@ function ActiveWorkout() {
     if (!e) return
     const hasDone = (e.sets || []).some(s => s.done)
     confirmSheet({
-      title: t('Remove {0}?', exerciseNameText(exOr(e.id))),
+      title: t('Remove {0}?', e.choicePending ? cleanGroupName(e.groupInstance?.name ?? e.groupName) || t('Exercise group') : exerciseNameText(exOr(e.id))),
       message: hasDone
         ? t('The sets you logged for this exercise in this session will be lost.')
         : t('This removes the exercise from your current session.'),
@@ -1601,7 +1601,9 @@ function ActiveWorkout() {
           <div className="muted small" style={{ marginBottom: 12 }}>{t('Which exercise in this superset do you want to remove?')}</div>
           <div className="list">
             {unit.map(idx => <div key={idx} className="item" onClick={() => { close(); confirmRemoveExercise(idx) }}>
-              <div className="grow"><div className={`tt ${exerciseNameClass(exOr(A.entries[idx]?.id))}`}><ExerciseName ex={exOr(A.entries[idx]?.id)} /></div></div>
+              <div className="grow"><div className={`tt ${A.entries[idx]?.choicePending ? '' : exerciseNameClass(exOr(A.entries[idx]?.id))}`}>
+                {A.entries[idx]?.choicePending ? cleanGroupName(A.entries[idx].groupInstance?.name ?? A.entries[idx].groupName) || t('Exercise group') : <ExerciseName ex={exOr(A.entries[idx]?.id)} />}
+              </div></div>
               <Icon name="chevronRight" />
             </div>)}
           </div>
@@ -2024,7 +2026,7 @@ function ActiveWorkout() {
             {isCollapsed ? <Summary className="wl-summary" {...(!jayLayout ? openProps : {})}>
               {u.map(idx => {
                 const complete = finished([idx])
-                const groupIndices = A.entries[idx].choiceOptions ? workoutChoiceGroupIndices(A.entries, idx) : []
+                const groupIndices = A.entries[idx].groupInstance || A.entries[idx].choiceOptions ? workoutChoiceGroupIndices(A.entries, idx) : []
                 const groupOffset = groupIndices.indexOf(idx)
                 const status = <span className={'tag nocap' + (complete ? ' acc' : '')}>
                   {complete && <Icon name="check" />}
@@ -2035,8 +2037,8 @@ function ActiveWorkout() {
                     && <span className="workout-choice-divider workout-choice-divider-continuation"
                       role="separator" aria-orientation="horizontal" />}
                   <SummaryBody className={jayLayout ? 'wl-summary-open' : undefined} {...(jayLayout ? openProps : {})}>
-                  {(!groupIndices.length || groupIndices[0] === idx) && cleanGroupName(A.entries[idx].groupName)
-                    && <span className="small dim workout-group-name">{cleanGroupName(A.entries[idx].groupName)}</span>}
+                  {(!groupIndices.length || groupIndices[0] === idx) && cleanGroupName(A.entries[idx].groupInstance?.name ?? A.entries[idx].groupName)
+                    && <span className="small dim workout-group-name">{cleanGroupName(A.entries[idx].groupInstance?.name ?? A.entries[idx].groupName)}</span>}
                   <span className="row between" style={{ gap: 8 }}>
                     <span className={exerciseNameClass(exOr(A.entries[idx].id))} style={{ fontWeight: 600 }}><ExerciseName ex={exOr(A.entries[idx].id)} /></span>
                     {!jayLayout && status}
@@ -2160,7 +2162,7 @@ function ActiveWorkout() {
       </div>
       <div style={{ height: 6 }} />
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <Button size="sm" icon="swap" aria-label={t('Swap exercise')} disabled={!!work || !!A.entries[cur]?.choiceOptions}
+        <Button size="sm" icon="swap" aria-label={t('Swap exercise')} disabled={!!work || !!A.entries[cur]?.groupInstance || !!A.entries[cur]?.choiceOptions}
           onClick={() => swapExercise(cur)}>{t('Swap exercise')}</Button>
       </div>
       <div style={{ height: 6 }} />

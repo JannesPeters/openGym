@@ -12,6 +12,7 @@
  */
 import { glyphStr } from './glyphs.js';
 import { LIBRARY, LIB_BY_ID, libraryHas, libraryName, librarySlice, isStretch, MAX_LIBRARY } from './library.js';
+import { isGroup, groupOf, resolvedOptions } from './exercise-groups.js';
 
 export const CONTRACT = 1;
 // Bounds from FR-22. A review reads a training block, not a training career: more history
@@ -89,7 +90,7 @@ const num = v => ((typeof v === 'number' && Number.isFinite(v)) || (typeof v ===
 // A date is the ISO day every screen writes; anything else is not a date.
 const day = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
 const list = v => (Array.isArray(v) ? v : []);
-const planOptions = e => [e, ...list(e.alternatives).filter(option => option && typeof option === 'object')];
+const planOptions = (e, state) => isGroup(e) ? resolvedOptions(e, state) : [e, ...list(e.alternatives).filter(option => option && typeof option === 'object')];
 // The equipment of the profile the app is filtering by, or nothing when filtering is off.
 function activeEquipment(S) {
   if (!S.equipFilterOn) return [];
@@ -238,6 +239,10 @@ export function canonicalPlan(S) {
   const custom = new Map((S.customEx || []).map(c => [c.id, c]));
   const exOf = id => LIB_BY_ID.get(id) || custom.get(id);
   const canonicalExercise = e => {
+    if (isGroup(e)) return {
+      kind: 'group', groupId: e.groupId, slotId: e.slotId, name: groupOf(S, e)?.name || '', sg: e.sg || '',
+      options: resolvedOptions(e, S).map(option => ({ optionId: option.optionId, ...(option.needsConfig ? { needsConfiguration: true } : {}), ...canonicalExercise(option) })),
+    };
     const mode = modeOf(e, exOf(e.id));
     return {
       id: e.id, mode, sets: e.sets || 0,
@@ -272,7 +277,13 @@ export function cleanPlan(S) {
     id: ident(r.id), name: r.name == null ? r.name : text(String(r.name), NAME_MAX),
     emoji: r.emoji == null ? r.emoji : glyphStr(String(r.emoji)),
     ...(policy(r.prog) ? { prog: r.prog } : {}),
-    ex: list(r.ex).filter(e => e && typeof e === 'object').map(cleanEx)
+    ex: list(r.ex).filter(e => e && typeof e === 'object').map(e => isGroup(e) ? {
+      kind: 'group', groupId: ident(e.groupId), slotId: ident(e.slotId), name: text(groupOf(S, e)?.name, 60),
+      ...(e.sg ? { sg: ident(e.sg) } : {}),
+      options: resolvedOptions(e, S).map(option => option.needsConfig
+        ? { id: ident(option.id), optionId: ident(option.optionId), needsConfiguration: true }
+        : { optionId: ident(option.optionId), ...cleanEx(option) }),
+    } : cleanEx(e))
   }));
   // A weekday holds routine ids, so each entry is bounded like one.
   const week = {};
@@ -304,7 +315,7 @@ function aggregates(S, workouts) {
   // Per-exercise stall/deload picture, computed over the same sessions the engine would see.
   const byEx = new Map();
   const planCfg = new Map();
-  (S.routines || []).forEach(r => (r.ex || []).flatMap(planOptions).forEach(e => planCfg.set(e.id, e)));
+  (S.routines || []).forEach(r => (r.ex || []).flatMap(e => planOptions(e, S)).forEach(e => planCfg.set(e.id, e)));
   (S.workouts || []).forEach(w => (w.entries || []).forEach(en => {
     if (!en.sets?.some(s => s.done)) return;
     if (!byEx.has(en.id)) byEx.set(en.id, []);
@@ -348,7 +359,7 @@ function aggregates(S, workouts) {
  *  be able to refer to, so they ride in the library slice whatever the cap or the filter. */
 function trainedIds(S, workouts) {
   const ids = new Set();
-  (S.routines || []).forEach(r => (r.ex || []).flatMap(planOptions).forEach(e => ids.add(e.id)));
+  (S.routines || []).forEach(r => (r.ex || []).flatMap(e => planOptions(e, S)).forEach(e => ids.add(e.id)));
   (workouts || []).forEach(w => (w.entries || []).forEach(en => ids.add(en.id)));
   return [...ids];
 }

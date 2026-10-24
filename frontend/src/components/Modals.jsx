@@ -153,6 +153,7 @@ export default function Modals() {
   const suppressPop = useRef(false)
   const pushedEntries = useRef(0)
   const sheetEntries = useRef([])
+  const restoreJobs = useRef(new Set())
 
   // Every opened sheet gets a history entry so Android back dismisses it instead of
   // leaving the page (issue #63). Keep the pushed-entry count and each active sheet's
@@ -235,10 +236,27 @@ export default function Modals() {
       // dev, on time in production. In production this cleanup runs on the close path alone.
       const close = useUI.getState().sheets.length ? 0 : ++closes
       if (close) restoreUntil = Date.now() + RESTORE_MS
-      window.scrollTo(0, restoreY)
+      const view = window
+      let active = true
+      let frame = null
+      let timer = null
+      let anchored = false
+      const onAnchor = () => { anchored = true }
+      const cancel = () => {
+        active = false
+        if (frame != null) view.cancelAnimationFrame?.(frame)
+        if (timer != null) view.clearTimeout(timer)
+        view.removeEventListener('workout-scroll-anchor', onAnchor)
+        restoreJobs.current.delete(cancel)
+      }
+      restoreJobs.current.add(cancel)
+      view.scrollTo(0, restoreY)
       // iOS scrolls asynchronously; a restore issued in the same task as the un-pin can be applied
       // a frame late or against the still-short layout. Say it once more on the next frame.
-      if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(() => { if (document.body.style.position !== 'fixed') window.scrollTo(0, restoreY) })
+      if (typeof view.requestAnimationFrame === 'function') frame = view.requestAnimationFrame(() => {
+        frame = null
+        if (active && b.position !== 'fixed') view.scrollTo(0, restoreY)
+      })
       // If the sheet closed with the keyboard still up (tap "+" in the picker, then finish),
       // iOS scrolls the page again while the keyboard dismisses — after the line above ran.
       // Ask once more when that animation is over. The window-level guard in
@@ -257,16 +275,24 @@ export default function Modals() {
       // A workout list that collapsed a finished exercise while the sheet was up has already put
       // its own anchor back (WorkoutScrollAnchor); it says so, and the re-assert stands down.
       const hadKeyboard = keyboardOpen()
-      let anchored = false
-      const onAnchor = () => { anchored = true }
-      window.addEventListener('workout-scroll-anchor', onAnchor, { once: true })
-      window.setTimeout(() => {
-        window.removeEventListener('workout-scroll-anchor', onAnchor)
-        if (hadKeyboard && !anchored && document.body.style.position !== 'fixed') window.scrollTo(0, restoreY)
+      view.addEventListener('workout-scroll-anchor', onAnchor, { once: true })
+      timer = view.setTimeout(() => {
+        if (!active) return
+        timer = null
+        cancel()
+        if (hadKeyboard && !anchored && b.position !== 'fixed') view.scrollTo(0, restoreY)
         drainScrollRestore(close)
       }, RESTORE_MS)
     }
   }, [sheets.length > 0])
+
+  // Unpin cleanup above can schedule a final restore even during unmount.
+  useLayoutEffect(() => () => {
+    for (const cancel of restoreJobs.current) cancel()
+    restoreJobs.current.clear()
+    restoreUntil = 0
+    waiting = []
+  }, [])
 
   if (!sheets.length) return null
   return (

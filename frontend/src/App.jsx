@@ -5,7 +5,7 @@ import { useUI } from './store/useUI.js'
 import { bindUI } from './components/ui.jsx'
 import { setWeightDecimals } from './lib/format.js'
 import { accentValue, applyAccent } from './lib/accent.js'
-import { setLang, useLang, baseLang } from './lib/i18n.js'
+import { setLang, useLang, baseLang, t } from './lib/i18n.js'
 import { effectiveLang } from './lib/default-lang.js'
 import { setPlayOnSilent, setVibrate, setAlarmBuzzer } from './lib/sound.js'
 import { buzzAsAlarm } from './lib/rest-alert.js'
@@ -257,6 +257,7 @@ function Shell() {
 
 export default function App() {
   const boot = useStore(s => s.boot)
+  const loadError = useStore(s => s.loadError)
   useEffect(() => { boot() }, [boot])
   // Android system back — sheet, then page, then press-again-to-exit (see lib/back.js)
   useEffect(() => {
@@ -264,5 +265,10 @@ export default function App() {
     initBackButton().then(fn => { if (gone) fn(); else stop = fn })
     return () => { gone = true; stop?.() }
   }, [])
+  if (loadError) return <main className="narrow" role="alert">
+    <h1>{t('Saved data could not be opened')}</h1>
+    <p>{t('Your original saved data has not been changed. Update openGym or restore a compatible backup before continuing.')}</p>
+    <p>{loadError.message}</p>
+  </main>
   return <HashRouter><Shell /></HashRouter>
 }

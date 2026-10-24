@@ -24,6 +24,7 @@ import { sha256Hex } from './sha256.js'
 import { mediaStore } from './media-store.js'
 import { DEFAULT_LIMITS, MB } from './media-limits.js'
 import { t } from './i18n-core.js'
+import { migrateExerciseGroups } from '../../../api/coach/core/exercise-groups.js'
 
 export const BACKUP_JSON = 'opengym-backup.json'
 const MEDIA_ENTRY = /^media\/([0-9a-f]{64})\.(jpg|png|webp|gif|mp4|mov|webm)$/
@@ -90,6 +91,7 @@ const notBackup = () => Object.assign(new Error('not an openGym backup'), { code
  * a developer ('not-zip', a JSON.parse complaint) and used to be toasted as they were.
  */
 export function backupImportError(e) {
+  if (e?.code === 'state-version') return t('This data format needs a newer version of openGym.')
   if (e?.code === 'compressed') return t('That zip was repacked. Import the original backup file.')
   if (e?.code === 'not-backup' || e?.code === 'not-zip' || e?.code === 'encrypted' || e instanceof SyntaxError) return t('That file isn’t an openGym backup.')
   return t('Couldn’t read that file.')
@@ -122,7 +124,7 @@ export async function readBackupFile(file) {
     state = JSON.parse(await file.text())
     if (!isBackup(state)) throw notBackup()
   }
-  return { state: sanitizeCustomMedia(state), files, zip }
+  return { state: sanitizeCustomMedia(migrateExerciseGroups(state)), files, zip }
 }
 
 /**

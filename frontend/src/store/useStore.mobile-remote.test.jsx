@@ -153,6 +153,55 @@ afterEach(async () => {
   localStorage.clear()
 })
 
+describe('one-time group migration of the durable phone copy', () => {
+  it.each(['remote', 'local'])('refuses a future %s mirror without overwriting it', async mode => {
+    const future = { ...clone(SERVER_STATE), stateVersion: 99, _ts: 2000 }
+    pairedPhone({ localStorage: false, mirror: future })
+    if (mode === 'local') h.files.set('DATA/opengym-remote.json', JSON.stringify({ mode: 'local' }))
+    const raw = h.files.get('DATA/opengym-state.json')
+    h.server = refusing
+    const store = await freshStore()
+    await store.getState().boot()
+    expect(store.getState().loadError?.code).toBe('state-version')
+    expect(h.files.get('DATA/opengym-state.json')).toBe(raw)
+    expect(localStorage.getItem('gym_state_v1')).toBeNull()
+  })
+
+  it.each([false, true])('preserves a recoverable original before replacing the mirror (backup refused: %s)', async refused => {
+    const original = {
+      ...clone(SERVER_STATE), _ts: 2000,
+      routines: [{ id: 'push', name: 'Push', ex: [{
+        id: '0025', slotId: 'press', sets: 3, reps: 5, weight: 60,
+        alternatives: [{ id: '0289', sets: 2, reps: 8, weight: 30 }],
+      }] }],
+    }
+    pairedPhone({ localStorage: false, mirror: original })
+    const raw = h.files.get('DATA/opengym-state.json')
+    const backup = 'opengym-pre-groups-v1-u1.json'
+    if (refused) h.refuse.add(backup)
+    h.server = refusing
+    const store = await freshStore()
+    await store.getState().boot()
+    window.dispatchEvent(new Event('pagehide'))
+    await sleep(30)
+    expect(store.getState().S.routines[0].ex[0].kind).toBe('group')
+    if (refused) {
+      expect(h.files.get('DATA/opengym-state.json')).toBe(raw)
+      expect(readFile(backup)).toBeNull()
+    } else {
+      const recovery = readFile(backup)
+      expect(recovery.owner).toBe(USER.id)
+      expect(JSON.parse(recovery.raw).routines[0].ex[0].alternatives[0]).toEqual(original.routines[0].ex[0].alternatives[0])
+      expect(readFile('opengym-state.json').stateVersion).toBe(2)
+      expect(readFile('opengym-state.json').routines[0].ex[0].kind).toBe('group')
+      store.getState().update(state => { state.exerciseGroups[0].name = 'Renamed' }, false)
+      window.dispatchEvent(new Event('pagehide'))
+      await sleep(30)
+      expect(readFile(backup)).toEqual(recovery)
+    }
+  })
+})
+
 describe('boot when the server refuses the pairing token', () => {
   it('keeps the pairing, the account and the data, and says the server refuses this phone', async () => {
     pairedPhone()
@@ -341,6 +390,9 @@ describe('Disconnect anyway keeps the owed changes for the next pairing', () => 
     await sleep(900)
     expect(await useStore.getState().disconnectServer({ force: true })).toMatchObject({ stashed: true })
 
+    expect(useStore.getState().S.workouts, 'memory after disconnect').toEqual([])
+    expect(JSON.parse(localStorage.getItem('gym_state_v1')).workouts, 'browser copy after disconnect').toEqual([])
+    expect(readFile('opengym-state.json').workouts, 'native mirror after disconnect').toEqual([])
     useStore = await freshStore()
     await useStore.getState().boot()
     expect(useStore.getState().user).toBeNull()

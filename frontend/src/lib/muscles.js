@@ -297,8 +297,20 @@ export function muscleBalanceWindow(workouts, win, now = Date.now(), today = tod
 }
 
 /** Load a routine *would* produce, from its planned set counts. */
-export const loadOfRoutine = (routine, exercises = {}) =>
-  loadOf((routine?.ex || []).map(c => ({ id: c.id, ex: exercises[c.id] || c, sets: c.sets || 1 })))
+export const loadOfRoutine = (routine, exercises = {}, state = {}) => {
+  const load = {}
+  for (const slot of routine?.ex || []) {
+    const options = slot.kind === 'group'
+      ? (state.exerciseGroups || []).find(group => group.id === slot.groupId)?.options.map(option =>
+        ({ ...slot.optionConfigs?.[option.id], id: option.exerciseId })) || []
+      : [slot, ...(slot.alternatives || [])]
+    for (const config of options) {
+      const current = loadOf([{ id: config.id, ex: exercises[config.id] || config, sets: config.sets || 1 }])
+      for (const [muscle, sets] of Object.entries(current)) load[muscle] = (load[muscle] || 0) + sets / options.length
+    }
+  }
+  return load
+}
 
 /**
  * Effective sets programmed by the live recurring week; overrides and history are not plans.
@@ -318,7 +330,7 @@ export function loadOfWeeklyPlan(S) {
   for (const id of ids) {
     const routine = routines.get(id)
     if (!routine) continue
-    for (const [slug, sets] of Object.entries(loadOfRoutine(routine, exercises))) {
+    for (const [slug, sets] of Object.entries(loadOfRoutine(routine, exercises, S))) {
       load[slug] = (load[slug] || 0) + sets
     }
   }

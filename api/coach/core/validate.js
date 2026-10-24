@@ -71,7 +71,7 @@ const ALREADY_IN = (where, c, routine) =>
   `${where} (${c.type}) brings in after.id "${(c.after || {}).id}", which is already in routine "${routine.name}" `
   + `(routineId "${routine.id}") — a swap-exercise or add-exercise must bring in an exercise that routine does not have yet. `
   + `Its exercises now are: ${exIdsOf(routine)}. Pick a different library id, or leave this change out`;
-const exIdsOf = routine => (routine.ex || []).map(e => `"${e.id}"`).join(', ') || '(none)';
+const exIdsOf = routine => (routine.ex || []).flatMap(e => e.kind === 'group' ? e.options || [] : [e]).map(e => `"${e.id}"`).join(', ') || '(none)';
 const ODD_PER_SIDE = where =>
   `${where} is a per-side exercise, so reps are the total across both sides and must be an even number`;
 const INVERTED_RANGE = where =>
@@ -292,11 +292,21 @@ export function validateReview(data, plan, ctx = {}) {
     let planned = null;
     if (needsEx.includes(c.type)) {
       if (!target.exId) { errors.push(`${where}.target.exId is required for type "${c.type}"`); return; }
-      planned = (routine.ex || []).find(e => e.id === target.exId) || null;
+      const matches = (routine.ex || []).flatMap(e => e.kind === 'group' ? e.options || [] : [e]).filter(e => e.id === target.exId);
+      if (matches.length > 1) { errors.push(`${where}: this exercise appears in several placements; configure its exact placement in the routine editor`); return; }
+      planned = matches[0] || null;
+      if (planned?.needsConfiguration) { errors.push(`${where}: configure this option in the routine editor before proposing changes`); return; }
       if (!planned) {
         errors.push(`${where}.target.exId "${target.exId}" is not in routine "${routine.name}" (routineId "${routine.id}") — `
           + `a change's target.exId must be one of that routine's own exercises: ${exIdsOf(routine)}`); return;
       }
+      if (['remove-exercise', 'swap-exercise', 'superset'].includes(c.type)
+        && (routine.ex || []).some(e => e.kind === 'group' && e.options?.some(option => option.id === target.exId))) {
+        errors.push(`${where}: shared group membership and execution relationships must be edited explicitly in the routine editor`); return;
+      }
+    }
+    if (c.type === 'reorder' && routine?.ex?.some(e => e.kind === 'group')) {
+      errors.push(`${where}: reorder group placements explicitly in the routine editor`); return;
     }
 
     // Two changes under one id share a checkbox on the review screen: ticking one applies
