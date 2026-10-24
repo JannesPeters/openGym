@@ -71,6 +71,17 @@ describe('the in-workout settings sheet', () => {
     expect(S()).toMatchObject({ sound: true, vibrate: false, timerFlash: true, keepAwake: false, effort: 'rir', gifSize: 'mini' })
   })
 
+  it('shows the layout-aware default for an older profile', () => {
+    act(() => useStore.setState({
+      S: { ...S(), gifSize: 'default', active: { ...S().active, workoutView: 'custom' } },
+    }))
+    expect([...row('Exercise animations').querySelectorAll('button')].find(b => b.textContent === 'Small').getAttribute('aria-pressed')).toBe('true')
+    act(() => useStore.setState({
+      S: { ...S(), active: { ...S().active, workoutView: 'cards' } },
+    }))
+    expect([...row('Exercise animations').querySelectorAll('button')].find(b => b.textContent === 'Full').getAttribute('aria-pressed')).toBe('true')
+  })
+
   it('shows this session’s layout, and a pick here is saved and replaces it', () => {
     expect(row('Layout').querySelector('button.on').textContent).toBe('List')
     act(() => [...row('Layout').querySelectorAll('button')].find(b => b.textContent === 'Compact').click())

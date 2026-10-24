@@ -3,7 +3,7 @@ import { useUI } from '../store/useUI.js'
 import { t } from '../lib/i18n.js'
 import { effortOf } from '../lib/history.js'
 import { workoutControls } from '../lib/workout-controls.js'
-import { activeWorkoutLayout } from '../lib/workout-layout.js'
+import { activeWorkoutLayout, workoutMediaSize } from '../lib/workout-layout.js'
 import { unlock, vibrateSupported, appleTouchDevice } from '../lib/sound.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { MOBILE } from '../lib/mobile.js'
@@ -25,7 +25,7 @@ export function WorkoutSettings({ close }) {
   const iPhone = appleTouchDevice()
   const wakeOK = wakeLockSupported()
   const layout = activeWorkoutLayout(S)
-  const gif = S.gifSize === 'mini' || S.gifSize === 'off' ? S.gifSize : 'full'
+  const gif = workoutMediaSize(S)
   const allSettings = () => closeThenNav(close, '/settings/workout')
   return <div className="ws-sheet">
     <div className="row between" style={{ marginBottom: 2 }}>

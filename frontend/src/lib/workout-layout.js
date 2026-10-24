@@ -8,3 +8,8 @@ export function workoutLayout(value) {
 export function activeWorkoutLayout(S) {
   return workoutLayout(S.active?.workoutView || S.workoutView)
 }
+
+export function workoutMediaSize(S) {
+  if (S.gifSize === 'default') return activeWorkoutLayout(S) === 'custom' ? 'mini' : 'full'
+  return S.gifSize === 'mini' || S.gifSize === 'off' ? S.gifSize : 'full'
+}

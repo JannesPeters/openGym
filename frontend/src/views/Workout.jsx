@@ -4,7 +4,7 @@ import SwipeRow from '../components/SwipeRow.jsx'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { workoutControls } from '../lib/workout-controls.js'
-import { activeWorkoutLayout, workoutLayout } from '../lib/workout-layout.js'
+import { activeWorkoutLayout, workoutLayout, workoutMediaSize } from '../lib/workout-layout.js'
 import { useUI } from '../store/useUI.js'
 import { exOr, betterWeight } from '../lib/exercises.js'
 import { usesBar } from '../lib/bar.js'
@@ -192,7 +192,7 @@ function ResolvedExerciseBlock({ entryIdx, compact, dense, editing, onToggle, on
     return { ...setClusterAt(row, ci, { r: v }), r: Math.max(0, (row.r || 0) + delta) }
   })
   const ex = exOr(entry.id)
-  const thumb = !dense && S.gifSize === 'mini' && hasWorkoutMedia(ex)
+  const thumb = !dense && workoutMediaSize(S) === 'mini' && hasWorkoutMedia(ex)
   const mode = modeOf({ ...(entry.target || {}), id: entry.id })
   const cardio = mode === 'cardio'
   const timed = mode === 'time'
