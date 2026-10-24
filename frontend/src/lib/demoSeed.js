@@ -4,6 +4,7 @@ import { isoOf, uid } from './format.js'
 import { starterRoutines } from './starter.js'
 import { modeOf } from './history.js'
 import { emptyMeasurement } from './measurements.js'
+import { addOption } from './exercise-options.js'
 
 // Starting weight and weekly increment per exercise of the starter plan (kg).
 // Chest dips are body-weight only here, so they log reps at 0 added weight.
@@ -57,9 +58,22 @@ const at = (date, h, m) => { const d = new Date(date); d.setHours(h, m, 0, 0); r
 // straddle two points and average itself away in both.
 const monday = date => { const d = new Date(date); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); d.setHours(12, 0, 0, 0); return +d }
 
-// A full example profile: 12 weeks of Mon/Wed/Fri sessions on the starter plan, with linear
-// progression, the odd missed session, twice-weekly weigh-ins trending toward the goal, and
-// per-set effort ratings on most (not all) of it.
+function withChoiceGroup(routine, parentId, slotId, groupName, alternatives) {
+  const index = routine.ex.findIndex(cfg => cfg.id === parentId)
+  if (index < 0) throw new Error(`Demo choice group "${groupName}" is missing parent exercise ${parentId}`)
+
+  // Stable slot ids avoid consuming uid() and shifting the seeded workout-id stream.
+  const slot = alternatives.reduce((group, option) => addOption(group, option), {
+    ...routine.ex[index], slotId
+  })
+  const ex = [...routine.ex]
+  ex[index] = { ...slot, groupName }
+  return { ...routine, ex }
+}
+
+// A full example profile: 12 weeks of Mon/Wed/Fri sessions on the starter plan, with named
+// choice groups, linear progression, the odd missed session, twice-weekly weigh-ins trending
+// toward the goal, and per-set effort ratings on most (not all) of it.
 export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
   const rnd = rng(20260723)
   // Measurements draw from their own stream. They are logged on a different cadence than the
@@ -68,7 +82,19 @@ export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
   // and silently rewrite the demo history that mcp/test/tools.test.js pins exact values against.
   // Anything added here later wants its own generator too, not a share of this one.
   const mrnd = rng(20260724)
-  const [push, pull, legs] = starterRoutines(idFactory)
+  const [starterPush, starterPull, starterLegs] = starterRoutines(idFactory)
+  const push = withChoiceGroup(starterPush, '0025', 'demo-choice-push-press', 'Chest press', [
+    { id: '0289', sets: 3, reps: 10, weight: 0 },
+    { id: '0576', sets: 3, reps: 10, weight: 0 }
+  ])
+  const pull = withChoiceGroup(starterPull, '0027', 'demo-choice-pull-row', 'Row', [
+    { id: '0293', sets: 3, reps: 10, weight: 0 },
+    { id: '5661', sets: 3, reps: 10, weight: 0 }
+  ])
+  const legs = withChoiceGroup(starterLegs, '0043', 'demo-choice-legs-squat', 'Squat', [
+    { id: '0042', sets: 3, reps: 8, weight: 0 },
+    { id: '1760', sets: 3, reps: 10, weight: 0 }
+  ])
   const byWeekday = { 1: push, 3: pull, 5: legs }
 
   const nowH = now.getHours()

@@ -72,6 +72,9 @@ describe('local preview seed', () => {
     expect(a.showHistoryCard).toBe(true)
     expect(a.workouts.some(workout => workout.note)).toBe(true)
     expect(a.workouts.some(workout => workout.entries.some(entry => entry.note))).toBe(true)
+    expect(a.routines.every(routine => routine.ex.some(slot =>
+      slot.groupName && Array.isArray(slot.alternatives) && slot.alternatives.length >= 2
+    ))).toBe(true)
 
     const bench = a.workouts.flatMap(workout => workout.entries
       .filter(entry => entry.id === '0025')
