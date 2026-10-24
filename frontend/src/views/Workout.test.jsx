@@ -2680,6 +2680,27 @@ describe('workout view header menu', () => {
 })
 
 describe("Jay's layout", () => {
+  it('starts with the layout-aware Small default and lets the thumbnail expand', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { gifSize: 'default', workoutView: 'custom' })
+    const thumb = container.querySelector('.wthumb')
+    expect(thumb).toBeTruthy()
+    expect(thumb.getAttribute('aria-label')).toBe('Expand')
+    await click(thumb)
+    expect(mocks.S.gifSize).toBe('full')
+    await rerender()
+    expect(container.querySelector('.wthumb')).toBeNull()
+  })
+
+  it.each(['cards', 'list', 'focus'])('keeps the default Full media size in %s', async layout => {
+    await mount([exercise('plain-bench', [false])], 0, { gifSize: 'default', workoutView: layout })
+    expect(container.querySelector('.wthumb')).toBeNull()
+  })
+
+  it('respects an explicit Full preference in Jay’s layout', async () => {
+    await mount([exercise('plain-bench', [false])], 0, { gifSize: 'full', workoutView: 'custom' })
+    expect(container.querySelector('.wthumb')).toBeNull()
+  })
+
   it.each(['custom', 'list', 'cards'])('only hides muscle, equipment, plan and progression details in Jay layout (%s)', async layout => {
     await mount([exercise('0334', [false], {
       planned: { sets: 3, reps: 12 },

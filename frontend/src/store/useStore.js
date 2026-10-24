@@ -104,7 +104,7 @@ export const DEF = {
   // to keep Rotation selected, and the weekday grid hidden, from the moment it's chosen in
   // Settings/Plan through to the first routine being added — there's no queue yet to derive it from.
   scheduleMode: null,
-  exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
+  exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'default',
   // Stats activity heatmap metric. Profiles without this key continue to open on time.
   heatmapMetric: 'time',
   // Custom starts with List presentation and can evolve independently. Only profiles without
@@ -264,8 +264,8 @@ export function freshState() {
   s.lang = detectedLang()
   s.langAuto = true
   s.weighIn = false
-  // Exercise animations: Small (v1.3.11), a thumbnail beside the exercise name that a tap opens,
-  // so the first set is on screen without scrolling. DEF stays 'full' for a profile saved before.
+  // New profiles start with Small animations (v1.3.11). Older profiles without a saved choice
+  // use the layout-aware default from DEF: Small in Jay's layout, Full elsewhere.
   s.gifSize = 'mini'
   return s
 }

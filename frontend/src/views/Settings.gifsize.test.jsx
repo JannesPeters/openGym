@@ -81,6 +81,16 @@ describe('Settings — exercise animations', () => {
     expect(mocks.S.gifSize).toBe('mini')
   })
 
+  it('shows the layout-aware default for an older profile with no saved size', () => {
+    mocks.S.gifSize = 'default'
+    mocks.S.workoutView = 'custom'
+    mount()
+    expect(segButton('Small').getAttribute('aria-pressed')).toBe('true')
+    mocks.S.workoutView = 'cards'
+    mount()
+    expect(segButton('Full').getAttribute('aria-pressed')).toBe('true')
+  })
+
   it('shows a legacy/absent value as Full', () => {
     delete mocks.S.gifSize
     mount()

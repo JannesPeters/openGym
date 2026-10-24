@@ -53,6 +53,32 @@ describe('Media gifSize', () => {
     expect(host.querySelector('.exmedia.mini')).toBeTruthy()
   })
 
+  it("uses Jay's layout default while keeping the expand/minimize control", () => {
+    mocks.S = { gifSize: 'default', workoutView: 'custom' }
+    const props = { ex: EXIDX['0001'], minimizable: true }
+    mount(props)
+    expect(host.querySelector('.exmedia.mini')).toBeTruthy()
+    expect(host.querySelector('.giftoggle').textContent).toContain('Expand')
+
+    act(() => { host.querySelector('.giftoggle').click() })
+    expect(mocks.S.gifSize).toBe('full')
+    mount(props)
+    expect(host.querySelector('.exmedia.mini')).toBeFalsy()
+    expect(host.querySelector('.giftoggle').textContent).toContain('Minimize')
+
+    act(() => { host.querySelector('.giftoggle').click() })
+    expect(mocks.S.gifSize).toBe('mini')
+    mount(props)
+    expect(host.querySelector('.exmedia.mini')).toBeTruthy()
+  })
+
+  it.each(['cards', 'list', 'compact', 'focus'])('keeps the default Full media size in %s', layout => {
+    mocks.S = { gifSize: 'default', workoutView: layout }
+    mount({ ex: EXIDX['0001'], minimizable: true })
+    expect(host.querySelector('.exmedia.mini')).toBeFalsy()
+    expect(host.querySelector('.giftoggle').textContent).toContain('Minimize')
+  })
+
   it("renders nothing at all in the workout when gifSize is 'off'", () => {
     mocks.S = { gifSize: 'off' }
     mount({ minimizable: true })
@@ -287,6 +313,26 @@ describe('Media — a custom exercise', () => {
     await mountCustom(custom({ media: image, url: 'https://youtu.be/x' }), { minimizable: true })
     expect(host.querySelector('.exmedia.mini')).toBeTruthy()
     expect(host.querySelector('.exlink-card')).toBeNull()   // the card waits for the full size
+  })
+
+  it("uses Jay's default compact presentation for custom photos and keeps the size control", async () => {
+    await holding(MAIN, POSTER)
+    mocks.S = { gifSize: 'default', workoutView: 'custom' }
+    const ex = custom({ media: image })
+    await mountCustom(ex, { minimizable: true })
+    expect(host.querySelector('.exmedia.mini')).toBeTruthy()
+    expect(host.querySelector('.giftoggle').textContent).toContain('Expand')
+
+    act(() => { host.querySelector('.giftoggle').click() })
+    expect(mocks.S.gifSize).toBe('full')
+    await mountCustom(ex, { minimizable: true })
+    expect(host.querySelector('.exmedia.mini')).toBeFalsy()
+    expect(host.querySelector('.giftoggle').textContent).toContain('Minimize')
+
+    act(() => { host.querySelector('.giftoggle').click() })
+    expect(mocks.S.gifSize).toBe('mini')
+    await mountCustom(ex, { minimizable: true })
+    expect(host.querySelector('.exmedia.mini')).toBeTruthy()
   })
 
   it('a link alone is a card that opens it without an opener or a referrer — no img, no iframe, nothing fetched', async () => {

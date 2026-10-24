@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, useSyncExternalStore } from 'react'
-import { workoutLayout } from '../lib/workout-layout.js'
+import { workoutLayout, workoutMediaSize } from '../lib/workout-layout.js'
 import { useNavigate, useParams, useLocation, Navigate } from 'react-router-dom'
 import { useStore, DEF, hasData } from '../store/useStore.js'
 import { healthStatus, loadHealth, enableHealth, disableHealth, openHealthConnect, onHealthChange } from '../lib/health-sync.js'
@@ -514,11 +514,12 @@ export default function Settings({ page = null, find = null, via = null }) {
         )}
         {/* 'full'/'mini' is also what the tap-toggle on the workout animation writes; 'off' hides
             workout media entirely (library, detail sheet and picker thumbs are unaffected).
-            Legacy/unknown values read as 'full'. */}
+            A missing saved choice uses Small in Jay's layout and Full elsewhere; unknown values
+            read as Full. */}
         <Row icon="image" iconTint="var(--teal)" title={t('Exercise animations')}>
           <Segmented className="seg-inline"
             options={[{ value: 'full', label: t('Full') }, { value: 'mini', label: t('Small') }, { value: 'off', label: t('Hidden') }]}
-            value={S.gifSize === 'mini' || S.gifSize === 'off' ? S.gifSize : 'full'}
+            value={workoutMediaSize(S)}
             onChange={v => update(s => { s.gifSize = v })} />
         </Row>
       </Section>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { imgSrc, gifSrc, isVideoSrc, isCustomEx, figureOf, mediaExerciseOf } from '../lib/exercises.js'
 import { MOBILE } from '../lib/mobile.js'
 import { useStore } from '../store/useStore.js'
+import { workoutMediaSize } from '../lib/workout-layout.js'
 import { t, exerciseNameFor } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
 import CustomMedia, { CustomThumb } from './CustomMedia.jsx'
@@ -20,9 +21,10 @@ export default function Media(p) {
 // Still first; tap plays the animation or returns to the still. `compact` shrinks it (superset cards).
 // `minimizable` (workout view) adds a persistent minimize/expand control so the animation stops
 // eating the screen; the chosen size is saved to settings and carries across exercises and
-// future workouts (issue #12). Settings can also turn workout media off entirely
-// (gifSize 'off') — then nothing renders here and the exercise card closes up, exactly like
-// an exercise without media. Any other/legacy value behaves as 'full'.
+// future workouts (issue #12). Profiles without a saved size use Small in Jay's layout and
+// Full elsewhere. Settings can also turn workout media off entirely (gifSize 'off') — then
+// nothing renders here and the exercise card closes up, exactly like an exercise without media.
+// Any other/legacy value behaves as 'full'.
 function BuiltinMedia({ ex, id, compact, minimizable }) {
   const [playing, setPlaying] = useState(false)
   // 'gif' → the animation failed, the still is showing; 'all' → the still failed too. Media is
@@ -31,7 +33,7 @@ function BuiltinMedia({ ex, id, compact, minimizable }) {
   // on a white block. Now the still stands in for the animation, a neutral tile stands in for
   // both, and a tap tries again — no text, so nothing new to translate.
   const [failed, setFailed] = useState(null)
-  const gifSize = useStore(s => s.S.gifSize)
+  const gifSize = useStore(s => workoutMediaSize(s.S))
   const body = useStore(s => figureOf(s.S))
   const update = useStore(s => s.update)
   const clip = ex.gif && isVideoSrc(gifSrc(ex, body)) ? gifSrc(ex, body) : null
