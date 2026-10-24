@@ -13,6 +13,24 @@ const rebuild = cfg => buildSessionEntries(
 )[0]
 
 describe('routineFromSession', () => {
+  it('does not carry active choice-group identity into a saved routine', () => {
+    const routine = routineFromSession({
+      entries: [entry('0025', {
+        mode: 'reps', sets: 1, reps: 8, weight: 40, choiceGroupId: 'active-group',
+      }, [row()])],
+    })
+    expect(routine.ex[0]).not.toHaveProperty('choiceGroupId')
+  })
+
+  it('does not copy an active choice-group identity into a saved routine', () => {
+    const routine = routineFromSession({
+      entries: [entry('0025', {
+        mode: 'reps', sets: 1, reps: 8, weight: 40, choiceGroupId: 'active-group',
+      }, [row()], { choiceGroupId: 'active-group' })],
+    })
+    expect(routine.ex[0].choiceGroupId).toBeUndefined()
+  })
+
   it('saves a per-side timed hold with its planned sets, not one per side row (#322)', () => {
     const hold = side => ({ sec: 40, w: 0, side, done: true })
     const w = { id: 'w-hold', entries: [entry('plank', { mode: 'time', side: true, sets: 2, sec: 30 }, [hold('L'), hold('R'), hold('L'), hold('R')])] }

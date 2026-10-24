@@ -39,6 +39,11 @@ describe('routine exercise options', () => {
     expect(addOption(slot, { id: '0031' }).groupName).toBe('Chest options')
     expect(mapOptions(slot, config => ({ ...config, weight: 99 })).groupName).toBe('Chest options')
   })
+  it('keeps active selection identity out of reusable routine option configs', () => {
+    const slot = { ...addOption(first, second), choiceId: 'choice', choiceGroupId: 'active-group' }
+    expect(optionConfig(slot)).not.toHaveProperty('choiceGroupId')
+    expect(optionConfig(slot)).not.toHaveProperty('choiceId')
+  })
   it('normalizes optional names without assuming valid legacy metadata', () => {
     expect(cleanGroupName('  Chest options  ')).toBe('Chest options')
     expect(cleanGroupName('x'.repeat(100))).toHaveLength(60)

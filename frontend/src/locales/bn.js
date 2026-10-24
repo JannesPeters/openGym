@@ -1,5 +1,11 @@
 // Bengali UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'নির্বাচিত',
+  '{0} selected': '{0}টি নির্বাচিত',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'এই গ্রুপ মুছলে এই ওয়ার্কআউটে এর ব্যায়ামগুলোর জন্য লগ করা সব সেট মুছে যাবে।',
+  'Selected': 'নির্বাচিত',
+  '{0} selected': '{0}টি নির্বাচিত',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'এই গ্রুপ মুছলে এই ওয়ার্কআউটে এর ব্যায়ামগুলোর জন্য লগ করা সব সেট মুছে যাবে।',
   'Show routine icons': 'রুটিনের আইকন দেখান',
   'Group name': 'গ্রুপের নাম',
   'Name': 'নাম',

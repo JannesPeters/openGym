@@ -1,5 +1,11 @@
 // Simplified Chinese UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': '已选',
+  '{0} selected': '已选 {0} 项',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': '清除此组会删除本次训练中为组内动作记录的所有组数。',
+  'Selected': '已选',
+  '{0} selected': '已选 {0} 项',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': '清除此组会删除本次训练中为组内动作记录的所有组数。',
   'Show routine icons': '显示训练计划图标',
   'Group name': '组名称',
   'Name': '名称',

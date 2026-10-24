@@ -7,6 +7,18 @@ import { isWarmupRow } from './workout-model.js'
 describe('buildSessionEntries', () => {
   const st = { unit: 'kg', workouts: [], exWeights: {}, routines: [] }
 
+  it('stamps one active identity for each routine choice group without leaking it into targets', () => {
+    const cfg = {
+      id: '0025', slotId: 'press-slot', groupName: 'Press options', sets: 3, reps: 8, weight: 60,
+      alternatives: [{ id: '0009', sets: 2, reps: 12, weight: 45 }],
+    }
+    const [entry] = buildSessionEntries(st, { id: 'r', prog: 'off', ex: [cfg] })
+    expect(entry.choiceGroupId).toBe(entry.choiceId)
+    expect(entry.choiceOptions.map(option => option.id)).toEqual(['0025', '0009'])
+    expect(entry.target).not.toHaveProperty('choiceGroupId')
+    expect(cfg).not.toHaveProperty('choiceGroupId')
+  })
+
   it('ramps the warm-ups on the exercise’s own increment, not the unit default', () => {
     const r = { id: 'r', prog: 'off', ex: [{ id: '0025', sets: 3, reps: 5, weight: 60, inc: 1.25, warmupSets: 2 }] }
     const entries = buildSessionEntries(st, r)

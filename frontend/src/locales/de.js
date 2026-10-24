@@ -1,5 +1,11 @@
 // German UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'Ausgewählt',
+  '{0} selected': '{0} ausgewählt',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Wenn du diese Gruppe leerst, gehen alle dafür in diesem Workout protokollierten Sätze verloren.',
+  'Selected': 'Ausgewählt',
+  '{0} selected': '{0} ausgewählt',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Wenn du diese Gruppe leerst, gehen alle dafür in diesem Workout protokollierten Sätze verloren.',
   'Show routine icons': 'Routinen-Symbole anzeigen',
   'Group name': 'Gruppenname',
   'Name': 'Name',

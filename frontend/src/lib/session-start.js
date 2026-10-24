@@ -30,7 +30,7 @@ export const startsFromLast = st => st?.startFrom === 'last'
  * `noProg` builds the routine's own numbers with no prescription, as an excluded routine does.
  */
 export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
-  const { alternatives, slotId, groupName, choiceId, choiceRoutine, choiceOptions, choicePending, ...config } = cfg
+  const { alternatives, slotId, groupName, choiceId, choiceGroupId, choiceRoutine, choiceOptions, choicePending, ...config } = cfg
   cfg = config
   // What a dumbbell weight means for this exercise today (lib/dumbbells.js): the history it
   // progresses from is read in that meaning, so a switch from "40 total" to per bell opens at
@@ -125,12 +125,13 @@ export function buildSessionEntries(st, r) {
   const noProg = r?.excludeFromProgression === true
   return (r ? r.ex : []).map(cfg => {
     const built = buildPlannedEntry(st, cfg, r, { noProg })
+    const choiceId = hasOptions(cfg) ? uid() : null
     return {
       id: cfg.id, sg: cfg.sg, ...built,
       ...(cfg.slotId ? { slotId: cfg.slotId } : {}),
       ...(hasOptions(cfg) ? {
         ...(cleanGroupName(cfg.groupName) ? { groupName: cleanGroupName(cfg.groupName) } : {}),
-        choiceId: uid(), choiceOptions: structuredClone(optionsOf(cfg)), choicePending: true, sets: [],
+        choiceId, choiceGroupId: choiceId, choiceOptions: structuredClone(optionsOf(cfg)), choicePending: true, sets: [],
         choiceRoutine: { id: r.id, ...(r.prog ? { prog: r.prog } : {}), ...(noProg ? { excludeFromProgression: true } : {}) }
       } : {}),
       ...(noProg ? { noProg: true } : {})

@@ -50,7 +50,7 @@ import FocusView from './FocusView.jsx'
 import { withMeaning, historyAs, dbLoadFor, entryDbLoad, bellsIn, ownedWeightsFor, stepOwned } from '../lib/dumbbells.js'
 import WorkoutOptions from '../components/WorkoutOptions.jsx'
 import WorkoutGroupSheet from '../components/WorkoutGroupSheet.jsx'
-import { addWorkoutChoiceGroup } from '../lib/workout-options.js'
+import { addWorkoutChoiceGroup, workoutChoiceGroupIndices } from '../lib/workout-options.js'
 import { cleanGroupName } from '../lib/exercise-options.js'
 
 // How long after a key starts a hold the same key is not yet its "Done" (#133). A USB button
@@ -971,6 +971,21 @@ function ActiveWorkout() {
   // Jay's layout always folds completed units, with no current-unit exemption. Other stacked
   // layouts prefer the session's choice over the saved one without overwriting either.
   const collapseOn = workoutView === 'custom' || (listMode && !!(A.collapseCompleted ?? S.collapseCompleted))
+  const choiceGroupPosition = groupUnit => {
+    const memberIndex = groupUnit.find(index => A.entries[index]?.choiceOptions)
+    if (memberIndex == null) return null
+    const groupIndices = workoutChoiceGroupIndices(A.entries, memberIndex)
+    if (groupIndices.length < 2
+      || !groupIndices.every((index, offset) => offset === 0 || index === groupIndices[offset - 1] + 1)) return null
+    const groupUnits = groupIndices.map(index => units.findIndex(unit => unit.includes(index)))
+    if (new Set(groupUnits).size !== groupIndices.length
+      || !groupUnits.every((position, offset) => offset === 0 || position === groupUnits[offset - 1] + 1)) return null
+    const offset = groupIndices.findIndex(index => groupUnit.includes(index))
+    if (offset < 0) return null
+    if (offset === 0) return 'start'
+    if (offset === groupIndices.length - 1) return 'end'
+    return 'middle'
+  }
   // Manual card visibility is local to this screen; reloading restores automatic completion-based
   // folding. Jay's layout also lets unfinished cards fold without changing any logged data.
   // Keyed by index like the units, so a different number of exercises starts over.
@@ -1978,6 +1993,7 @@ function ActiveWorkout() {
           const isCollapsed = collapsed.has(u.join('-'))
           // Finished and tapped open again: it says it can fold back, and does on a tap.
           const reopened = collapseOn && !isCur && !isCollapsed && opened.has(u.join('-')) && finished(u)
+          const groupPosition = listMode ? choiceGroupPosition(u) : null
           const foldControl = jayLayout && <button type="button" className="iconbtn wl-icon wl-fold"
             aria-label={isCollapsed ? t('Show the sets') : t('Fold away')}
             title={isCollapsed ? t('Show the sets') : t('Fold away')}
@@ -1988,7 +2004,9 @@ function ActiveWorkout() {
           const Summary = jayLayout ? 'div' : 'button'
           const SummaryBody = jayLayout ? 'button' : 'span'
           const openProps = { type: 'button', 'aria-expanded': false, title: t('Show the sets'), onClick: () => setUnitOpen(u.join('-'), true) }
-          return <section key={u.join('-')} className={'wl-unit' + (isCur ? ' cur' : '')} data-exidx={u[0]} data-unit-key={u.join('-')}>
+          return <section key={u.join('-')}
+            className={'wl-unit' + (isCur ? ' cur' : '') + (groupPosition ? ' wl-choice-group-' + groupPosition : '')}
+            data-exidx={u[0]} data-unit-key={u.join('-')}>
             {!jayLayout && <div className="wl-hd">
               <span className="muted small">{multi ? t('Superset {0} / {1}', ui + 1, units.length) : t('Exercise {0} / {1}', ui + 1, units.length)}</span>
               <span className="row" style={{ gap: 6 }}>
@@ -2006,13 +2024,19 @@ function ActiveWorkout() {
             {isCollapsed ? <Summary className="wl-summary" {...(!jayLayout ? openProps : {})}>
               {u.map(idx => {
                 const complete = finished([idx])
+                const groupIndices = A.entries[idx].choiceOptions ? workoutChoiceGroupIndices(A.entries, idx) : []
+                const groupOffset = groupIndices.indexOf(idx)
                 const status = <span className={'tag nocap' + (complete ? ' acc' : '')}>
                   {complete && <Icon name="check" />}
                   {t('{0} sets', complete ? A.entries[idx].sets.length : A.entries[idx].sets.filter(s => s.done).length + '/' + A.entries[idx].sets.length)}
                 </span>
                 return <span key={idx} className="wl-summary-ex">
+                  {groupOffset > 0 && groupIndices[groupOffset - 1] === idx - 1
+                    && <span className="workout-choice-divider workout-choice-divider-continuation"
+                      role="separator" aria-orientation="horizontal" />}
                   <SummaryBody className={jayLayout ? 'wl-summary-open' : undefined} {...(jayLayout ? openProps : {})}>
-                  {cleanGroupName(A.entries[idx].groupName) && <span className="small accent workout-group-name">{cleanGroupName(A.entries[idx].groupName)}</span>}
+                  {(!groupIndices.length || groupIndices[0] === idx) && cleanGroupName(A.entries[idx].groupName)
+                    && <span className="small dim workout-group-name">{cleanGroupName(A.entries[idx].groupName)}</span>}
                   <span className="row between" style={{ gap: 8 }}>
                     <span className={exerciseNameClass(exOr(A.entries[idx].id))} style={{ fontWeight: 600 }}><ExerciseName ex={exOr(A.entries[idx].id)} /></span>
                     {!jayLayout && status}
