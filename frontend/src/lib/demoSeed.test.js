@@ -3,6 +3,8 @@
 // dashes on a history that is rated too thinly or not at all.
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { buildDemoState } from './demoSeed.js'
+import { EXIDX } from './exercises.js'
+import { cleanGroupName, hasOptions, optionsOf } from './exercise-options.js'
 import {
   effortSummary, effortWeeks, effortHistogram, hasEffort, displayScale, avgRir,
   rirOf, isHardSet, MIN_RATED, HARD_RIR
@@ -12,6 +14,45 @@ import { effortOf, modeOf } from './history.js'
 const S = buildDemoState()
 const eachSet = fn => S.workouts.forEach(w => w.entries.forEach(e => e.sets.forEach(s => fn(s, w, e))))
 const sum = effortSummary(S, 0)   // 0 = the whole history
+
+describe('demo seed — exercise choice groups', () => {
+  it('gives every seeded routine a named group with multiple valid, independent options', () => {
+    const slotIds = []
+    for (const routine of S.routines) {
+      const group = routine.ex.find(slot =>
+        hasOptions(slot) && cleanGroupName(slot.groupName) && optionsOf(slot).length >= 3)
+      expect(group, `${routine.name} has a named choice group with at least three options`).toBeDefined()
+      if (!group) continue
+
+      expect(group.groupName).toBe(cleanGroupName(group.groupName))
+      expect(group.slotId).toEqual(expect.any(String))
+      slotIds.push(group.slotId)
+      expect(group.alternatives).toHaveLength(2)
+      const options = optionsOf(group)
+      expect(new Set(options.map(option => option.id)).size).toBe(options.length)
+
+      for (const alternative of group.alternatives) {
+        for (const key of ['sg', 'sgName', 'sgRest', 'slotId', 'groupName', 'alternatives']) {
+          expect(alternative).not.toHaveProperty(key)
+        }
+      }
+      for (const option of options) {
+        expect(EXIDX[option.id]).toBeDefined()
+        expect(option).toEqual(expect.objectContaining({
+          sets: expect.any(Number), reps: expect.any(Number), weight: expect.any(Number)
+        }))
+        expect(option.sets).toBeGreaterThan(0)
+        expect(option.reps).toBeGreaterThan(0)
+        expect(option.weight).toBeGreaterThanOrEqual(0)
+        for (const key of ['sg', 'sgName', 'sgRest', 'groupName', 'alternatives']) {
+          expect(option).not.toHaveProperty(key)
+        }
+      }
+      for (const key of ['sg', 'sgName', 'sgRest']) expect(group).not.toHaveProperty(key)
+    }
+    expect(new Set(slotIds).size).toBe(slotIds.length)
+  })
+})
 
 describe('demo seed — effort', () => {
   it('rates enough of the history to clear every guard in the effort stats', () => {
