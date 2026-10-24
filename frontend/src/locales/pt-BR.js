@@ -4,6 +4,12 @@
 import pt from './pt.js'
 
 export const PT_BR_OVERRIDES = {
+  'Selected': 'Selecionado',
+  '{0} selected': '{0} selecionado(s)',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Limpar este grupo vai apagar todas as séries registradas para seus exercícios neste treino.',
+  'Selected': 'Selecionado',
+  '{0} selected': '{0} selecionado(s)',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Limpar este grupo vai apagar todas as séries registradas para seus exercícios neste treino.',
   'Show routine icons': 'Mostrar ícones das rotinas',
   'Group name': 'Nome do grupo',
   'Name': 'Nome',

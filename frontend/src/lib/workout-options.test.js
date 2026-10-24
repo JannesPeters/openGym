@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildCombinedEntries } from './session-merge.js'
-import { addWorkoutChoiceGroup, chooseWorkoutOption, resetWorkoutOption } from './workout-options.js'
+import {
+  addWorkoutChoiceGroup, chooseWorkoutOption, resetWorkoutChoiceGroup, resetWorkoutOption, setWorkoutChoiceGroup,
+  workoutChoiceGroupIndices,
+} from './workout-options.js'
 import { buildCompletedWorkout } from './finish-workout.js'
 import { routineChangesFromEntry, updateRoutineFromEntry } from './routines.js'
 import { nextUnfinishedUnit, supersetFlowStep } from './supersetFlow.js'
@@ -23,23 +26,28 @@ describe('workout choices', () => {
     state.active.entries = buildCombinedEntries(state, ['r']).entries
     state = JSON.parse(JSON.stringify(state))
     expect(state.active.entries[0].groupName).toBe('Chest options')
+    expect(state.active.entries[0].choiceGroupId).toBe(state.active.entries[0].choiceId)
     expect(state.active.entries[0].target.groupName).toBeUndefined()
     expect(state.active.entries[0].choiceOptions.every(option => !option.groupName)).toBe(true)
     chooseWorkoutOption(state, 0, '0009')
     chooseWorkoutOption(state, 0, '0025', { add: true })
+    expect(state.active.entries[0].choiceGroupId).toBe(state.active.entries[2].choiceGroupId)
     expect(state.active.entries[0].groupName).toBe('Chest options')
     expect(state.active.entries[2].groupName).toBe('Chest options')
     resetWorkoutOption(state, 0)
     expect(state.active.entries[0].groupName).toBe('Chest options')
     chooseWorkoutOption(state, 0, '0025')
     state.active.entries[0].sets[0].done = true
-    expect(buildCompletedWorkout(state.active).entries[0].groupName).toBe('Chest options')
+    const completed = buildCompletedWorkout(state.active).entries[0]
+    expect(completed.groupName).toBe('Chest options')
+    expect(completed.choiceGroupId).toBeUndefined()
   })
   it('names workout-only groups without writing to the routine or changing legacy unnamed entries', () => {
     const state = makeState()
     const routines = structuredClone(state.routines)
     const at = addWorkoutChoiceGroup(state, [{ id: '0025', sets: 3 }, { id: '0009', sets: 2 }], '  Upper body  ')
     expect(state.active.entries[at].groupName).toBe('Upper body')
+    expect(state.active.entries[at].choiceGroupId).toBe(state.active.entries[at].choiceId)
     expect(state.active.entries[0].groupName).toBeUndefined()
     expect(state.routines).toEqual(routines)
     chooseWorkoutOption(state, at, '0009')
@@ -111,6 +119,89 @@ describe('workout choices', () => {
     expect(state).toEqual(before)
     state.active = null
     expect(() => addWorkoutChoiceGroup(state, newOptions())).toThrow('no longer available')
+  })
+  it('keeps a multi-exercise choice group together and protects logged selections', () => {
+    const state = makeState()
+    chooseWorkoutOption(state, 0, '0025')
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+    const groupId = state.active.entries[0].choiceGroupId
+    expect(state.active.entries[2].choiceGroupId).toBe(groupId)
+
+    state.active.entries[0].sets[0].done = true
+    expect(() => setWorkoutChoiceGroup(state, 0, ['0009'])).toThrow('Logged exercises cannot be removed')
+    setWorkoutChoiceGroup(state, 0, ['0025', '0009'])
+    expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031', '0009'])
+    expect([state.active.entries[0], state.active.entries[2]].map(entry => entry.choiceGroupId)).toEqual([groupId, groupId])
+    expect(state.active.entries[0].sets[0].done).toBe(true)
+
+    setWorkoutChoiceGroup(state, 0, ['0025'])
+    expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031'])
+    expect(state.active.entries[0].sets[0].done).toBe(true)
+    expect(() => setWorkoutChoiceGroup(state, 0, [])).toThrow('Choose at least one')
+  })
+  it('rejoins a non-adjacent legacy member with the original choice identity', () => {
+    const state = makeState()
+    chooseWorkoutOption(state, 0, '0025')
+    const original = state.active.entries[0]
+    const groupId = original.choiceId
+    delete original.choiceGroupId
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+
+    expect(state.active.entries[2].choiceGroupId).toBe(groupId)
+    expect(workoutChoiceGroupIndices(state.active.entries, 0)).toEqual([0, 2])
+    setWorkoutChoiceGroup(state, 0, ['0025', '0009'])
+    expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031', '0009'])
+    expect([state.active.entries[0], state.active.entries[2]].map(entry => entry.choiceGroupId)).toEqual([groupId, groupId])
+  })
+  it('groups non-adjacent legacy selections by their routine slot', () => {
+    const state = makeState()
+    chooseWorkoutOption(state, 0, '0025')
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+    delete state.active.entries[0].choiceGroupId
+    delete state.active.entries[2].choiceGroupId
+
+    expect(workoutChoiceGroupIndices(state.active.entries, 0)).toEqual([0, 2])
+    setWorkoutChoiceGroup(state, 0, ['0025', '0009'])
+    expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031', '0009'])
+  })
+  it('keeps separate group occurrences distinct when their group identities differ', () => {
+    const state = makeState()
+    const first = structuredClone(state.active.entries[0])
+    const second = structuredClone(first)
+    first.choiceGroupId = 'occurrence-one'
+    second.choiceGroupId = 'occurrence-two'
+    second.choiceId = 'choice-two'
+    second.id = '0009'
+    state.active.entries = [first, second]
+
+    expect(workoutChoiceGroupIndices(state.active.entries, 0)).toEqual([0])
+    expect(workoutChoiceGroupIndices(state.active.entries, 1)).toEqual([1])
+  })
+  it('changes a grouped option without splitting its existing superset partner', () => {
+    const state = makeState()
+    chooseWorkoutOption(state, 0, '0025')
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+    expect(workoutChoiceGroupIndices(state.active.entries, 0)).toEqual([0, 2])
+
+    setWorkoutChoiceGroup(state, 0, ['0009'])
+    expect(state.active.entries.map(entry => entry.id)).toEqual(['0009', '0031'])
+    expect(state.active.entries[0].sg).toBeTruthy()
+    expect(state.active.entries[0].sg).toBe(state.active.entries[1].sg)
+    expect(state.active.entries[0].sets).toHaveLength(2)
+    expect(state.active.entries[0].choiceGroupId).toBeTruthy()
+    expect(state.active.entries[1].choiceGroupId).toBeUndefined()
+  })
+  it('clears a selected group back to one pending slot after confirmation', () => {
+    const state = makeState()
+    state.active.workoutView = 'custom'
+    chooseWorkoutOption(state, 0, '0025')
+    chooseWorkoutOption(state, 0, '0009', { add: true })
+    state.active.entries[2].sets[0].done = true
+    resetWorkoutChoiceGroup(state, 0)
+    expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031'])
+    expect(state.active.entries[0]).toMatchObject({ choicePending: true, choiceOptions: expect.any(Array), sets: [] })
+    expect(state.active.entries[0].choiceGroupId).toBe(state.active.entries[0].choiceId)
+    expect(state.active.cur).toBe(0)
   })
 
   it.each([false, true])('clears selected sets and restores the original pending slot (logged: %s)', logged => {

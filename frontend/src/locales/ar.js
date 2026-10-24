@@ -1,5 +1,11 @@
 // Arabic UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'محدد',
+  '{0} selected': '{0} محدد',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'سيؤدي مسح هذه المجموعة إلى حذف جميع المجموعات المسجلة لتمارينها في هذا التمرين.',
+  'Selected': 'محدد',
+  '{0} selected': '{0} محدد',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'سيؤدي مسح هذه المجموعة إلى حذف جميع المجموعات المسجلة لتمارينها في هذا التمرين.',
   'Show routine icons': 'إظهار أيقونات الروتين',
   'Group name': 'اسم المجموعة',
   'Name': 'الاسم',

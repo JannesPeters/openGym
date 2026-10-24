@@ -5,7 +5,7 @@ export const GROUP_NAME_MAX = 60
 export const cleanGroupName = name => typeof name === 'string' ? name.trim().slice(0, GROUP_NAME_MAX) : ''
 
 export function optionConfig(slot) {
-  const { alternatives, slotId, groupName, sg, sgName, sgRest, choiceId, choiceRoutine, choiceOptions, choicePending, ...config } = slot || {}
+  const { alternatives, slotId, groupName, sg, sgName, sgRest, choiceId, choiceGroupId, choiceRoutine, choiceOptions, choicePending, ...config } = slot || {}
   return config
 }
 

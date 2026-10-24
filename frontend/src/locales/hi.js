@@ -1,5 +1,11 @@
 // Hindi UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'चयनित',
+  '{0} selected': '{0} चयनित',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'इस ग्रुप को साफ़ करने से इस वर्कआउट में इसके व्यायामों के लिए लॉग किए गए सभी सेट मिट जाएंगे।',
+  'Selected': 'चयनित',
+  '{0} selected': '{0} चयनित',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'इस ग्रुप को साफ़ करने से इस वर्कआउट में इसके व्यायामों के लिए लॉग किए गए सभी सेट मिट जाएंगे।',
   'Show routine icons': 'रूटीन आइकन दिखाएं',
   'Group name': 'समूह का नाम',
   'Name': 'नाम',

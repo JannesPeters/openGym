@@ -1,5 +1,11 @@
 // Russian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  'Selected': 'Выбрано',
+  '{0} selected': 'Выбрано: {0}',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Очистка этой группы удалит все записанные в этой тренировке подходы её упражнений.',
+  'Selected': 'Выбрано',
+  '{0} selected': 'Выбрано: {0}',
+  'Clearing this group will discard all sets logged for its exercises in this workout.': 'Очистка этой группы удалит все записанные в этой тренировке подходы её упражнений.',
   'Show routine icons': 'Показывать значки тренировок',
   'Group name': 'Название группы',
   'Name': 'Название',
