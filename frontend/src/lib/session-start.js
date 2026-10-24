@@ -9,8 +9,9 @@ import { nextPrescription, applyPrescription, defaultIncrement, weightIncrement,
 import { dropGrid } from './plates.js'
 import { backoffStepOf, applyBackoff } from './backoff.js'
 import { dbLoadFor, historyAs, ownedWeightsFor } from './dumbbells.js'
-import { hasOptions, optionsOf, cleanGroupName } from './exercise-options.js'
+import { hasOptions } from './exercise-options.js'
 import { uid } from './format.js'
+import { isGroup, migrateExerciseGroups, snapshotGroup } from './exercise-groups.js'
 
 /**
  * Where a planned session's reps come from (Settings → During a workout). 'plan', the default:
@@ -30,7 +31,7 @@ export const startsFromLast = st => st?.startFrom === 'last'
  * `noProg` builds the routine's own numbers with no prescription, as an excluded routine does.
  */
 export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {}) {
-  const { alternatives, slotId, groupName, choiceId, choiceGroupId, choiceRoutine, choiceOptions, choicePending, ...config } = cfg
+  const { alternatives, slotId, groupName, choiceId, choiceGroupId, choiceRoutine, choiceOptions, choicePending, optionId, entryId, groupInstance, ...config } = cfg
   cfg = config
   // What a dumbbell weight means for this exercise today (lib/dumbbells.js): the history it
   // progresses from is read in that meaning, so a switch from "40 total" to per bell opens at
@@ -120,20 +121,28 @@ export const builtOutOfProgression = (entry, routine) => entry?.noProg === true 
 // stamps `entry.rid`, so the single-routine and combined paths share this builder unchanged; it
 // only reads the routine's id, to start each exercise from that routine's own history (#216).
 export function buildSessionEntries(st, r) {
+  if (r?.ex.some(cfg => hasOptions(cfg) && !isGroup(cfg))) {
+    const converted = migrateExerciseGroups({ ...st, routines: [r] })
+    st = { ...st, exerciseGroups: converted.exerciseGroups }
+    r = converted.routines[0]
+  }
   // The prescription is applied as the session is built, so you walk up to the bar with the
   // right weight already on the screen instead of being told about it afterwards.
   const noProg = r?.excludeFromProgression === true
   return (r ? r.ex : []).map(cfg => {
+    if (isGroup(cfg)) {
+      const instance = snapshotGroup(cfg, st, r)
+      instance.options = instance.options.map(option => ({
+        ...option, prescription: buildPlannedEntry(st, option.config, r, { noProg }),
+      }))
+      const meta = Object.fromEntries(['sg', 'sgName', 'sgRest'].filter(key => cfg[key] != null).map(key => [key, cfg[key]]))
+      return { entryId: uid(), groupInstance: instance, slotId: cfg.slotId, ...meta,
+        target: { ...meta }, choicePending: true, sets: [], ...(noProg ? { noProg: true } : {}) }
+    }
     const built = buildPlannedEntry(st, cfg, r, { noProg })
-    const choiceId = hasOptions(cfg) ? uid() : null
     return {
       id: cfg.id, sg: cfg.sg, ...built,
       ...(cfg.slotId ? { slotId: cfg.slotId } : {}),
-      ...(hasOptions(cfg) ? {
-        ...(cleanGroupName(cfg.groupName) ? { groupName: cleanGroupName(cfg.groupName) } : {}),
-        choiceId, choiceGroupId: choiceId, choiceOptions: structuredClone(optionsOf(cfg)), choicePending: true, sets: [],
-        choiceRoutine: { id: r.id, ...(r.prog ? { prog: r.prog } : {}), ...(noProg ? { excludeFromProgression: true } : {}) }
-      } : {}),
       ...(noProg ? { noProg: true } : {})
     }
   })

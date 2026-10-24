@@ -38,7 +38,7 @@ export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
       <input ref={inputRef} className="input" type="text" maxLength={GROUP_NAME_MAX} value={name}
         placeholder={t('Choose exercise')} onFocus={onFocus} onChange={event => setName(event.target.value)} />
     </label>
-    <p className="small dim">{t('Choose at least two exercise options.')}</p>
+    <p className="small dim">{routine ? t('Groups can be saved as drafts. Add an option before starting a workout.') : t('Choose at least two exercise options.')}</p>
     <div className="list">
       {options.map(option => <div className="item" key={option.id}>
         <span className="grow item-open">
@@ -52,7 +52,7 @@ export default function WorkoutGroupSheet({ onCreate, close, routine = null }) {
     <div style={{ height: 12 }} />
     <Button icon="plus" onClick={add}>{t('Add exercise')}</Button>
     <div style={{ height: 12 }} />
-    <Button variant="primary" disabled={options.length < 2} onClick={() => {
+    <Button variant="primary" disabled={!routine && options.length < 2} onClick={() => {
       if (onCreate(options, cleanGroupName(name))) close()
     }}>{t('Create new group')}</Button>
   </>

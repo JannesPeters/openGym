@@ -82,6 +82,10 @@ export function connectionView(sync, { mobile = MOBILE, online = isOnline() } = 
         banner: sync.pending ? t('Offline. Your changes are saved on this device and sync when you’re back online.') : t('Offline. Showing the last copy synced with the server.'),
       }
     case 'error':
+      if (err.code === 'state-version' || err.status === 426) return {
+        tone: 'bad', icon: 'warning', action: null, line: t('openGym update required'),
+        banner: t('Refresh or update openGym and its server before syncing. Your changes are kept here.'),
+      }
       return err.code === 'bad-response'
         ? { tone: 'bad', icon: 'warning', action: 'retry', line: t('Not an openGym answer (HTTP {0})', err.status), banner: t('Your server’s address answered with something other than openGym (HTTP {0}). Your changes are kept here.', err.status) }
         : { tone: 'bad', icon: 'warning', action: 'retry', line: t('Server error (HTTP {0})', err.status), banner: t('Your server answered with an error (HTTP {0}). Your changes are kept here.', err.status) }

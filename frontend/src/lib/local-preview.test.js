@@ -73,7 +73,7 @@ describe('local preview seed', () => {
     expect(a.workouts.some(workout => workout.note)).toBe(true)
     expect(a.workouts.some(workout => workout.entries.some(entry => entry.note))).toBe(true)
     expect(a.routines.every(routine => routine.ex.some(slot =>
-      slot.groupName && Array.isArray(slot.alternatives) && slot.alternatives.length >= 2
+      slot.kind === 'group' && a.exerciseGroups.some(group => group.id === slot.groupId && group.name && group.options.length >= 3)
     ))).toBe(true)
 
     const bench = a.workouts.flatMap(workout => workout.entries

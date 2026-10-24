@@ -185,8 +185,9 @@ describe('mergeStates', () => {
   })
 
   it('tolerates a missing side and missing lists', () => {
-    expect(mergeStates(A(), null)).toEqual(A())
-    expect(mergeStates(null, B())).toEqual(B())
+    expect(mergeStates(A(), null)).toMatchObject(A())
+    expect(mergeStates(null, B())).toMatchObject(B())
+    expect(mergeStates(A(), null).stateVersion).toBe(2)
     const sparse = { _ts: 5, workouts: null, routines: undefined }
     const m = mergeStates(sparse, { _ts: 1, workouts: [workout('w')], bodyweight: undefined })
     expect(ids(m.workouts)).toEqual(['w'])

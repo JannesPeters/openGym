@@ -49,7 +49,7 @@ it('opens the same map, muscle chips and choice explanation in a labelled full-s
   expect(maps[1].dataset.body).toBe('female')
   expect(dialog().querySelector('.mchips').textContent).toBe(inline.querySelector('.mchips').textContent)
   expect(dialog().querySelector('p').textContent).toBe(
-    'Planned muscle coverage uses the first option in each group. Your workout statistics use the exercises you actually perform.',
+    'Planned muscle coverage averages all options in each group. Your workout statistics use the exercises you actually perform.',
   )
   expect(document.activeElement).toBe(close())
   act(() => close().click())

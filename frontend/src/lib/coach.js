@@ -20,6 +20,7 @@ import { deleteRoutine } from './routines.js'
 import { optionsOf, removeOption, hasOptions } from './exercise-options.js'
 import { POLICIES } from './progression.js'
 import { t, tn } from './i18n.js'
+import { isGroup, groupOf } from './exercise-groups.js'
 
 // Bumping this re-prompts everyone: it means what we share, or who we share it with, changed.
 // 2: the training line names the session notes, which the payload carries and version 1 never
@@ -88,6 +89,10 @@ export const hasConsent = S => !!S?.coach?.consent?.agreedAt && S.coach.consent.
  */
 export function canonicalPlan(S) {
   const canonicalExercise = e => {
+    if (isGroup(e)) return {
+      kind: 'group', groupId: e.groupId, slotId: e.slotId, name: groupOf(S, e)?.name || '', sg: e.sg || '',
+      options: optionsOf(e, S).map(option => ({ optionId: option.optionId, ...(option.needsConfig ? { needsConfiguration: true } : {}), ...canonicalExercise(option) })),
+    }
     const mode = modeOf(e)
     return {
       id: e.id, mode, sets: e.sets || 0,
@@ -119,7 +124,7 @@ export function canonicalPlan(S) {
 export function hashPlan(plan) {
   const canon = JSON.stringify({
     routines: (plan?.routines || []).map(r => [r.id, r.name, r.prog, (r.ex || []).map(e =>
-      [e.id, e.mode, e.sets, e.reps, e.sec, e.min, e.speed, e.weight, e.prog, e.inc,
+      e.kind === 'group' ? 'group:' + JSON.stringify(e) : [e.id, e.mode, e.sets, e.reps, e.sec, e.min, e.speed, e.weight, e.prog, e.inc,
         e.repsMin, e.repsMax, e.bodyweight, e.side, e.sg].join(':') + (e.alternatives?.length ? '|options:' + JSON.stringify(e.alternatives) : '')
     )]),
     // `plan` is a canonicalPlan output, so each day is already an array. `{1:['r1']}` → "1=r1",
@@ -140,7 +145,12 @@ export const planHash = S => hashPlan(canonicalPlan(S))
 /* ============================ staleness ============================ */
 
 const findRoutine = (S, id) => (S.routines || []).find(r => r.id === id) || null
-const findEx = (routine, id) => (routine?.ex || []).flatMap(e => [e, ...(e.alternatives || [])]).find(e => e.id === id) || null
+const findEx = (routine, id, state) => {
+  const matches = (routine?.ex || []).flatMap(slot => isGroup(slot)
+    ? optionsOf(slot, state).filter(option => !option.needsConfig).map(option => slot.optionConfigs[option.optionId])
+    : [slot, ...(slot.alternatives || [])]).filter(e => e.id === id)
+  return matches.length === 1 ? matches[0] : null
+}
 
 // The Coach reads a routine's name cut at 80 characters (NAME_MAX in api/coach/core/payload.js),
 // and the server copies that cut name into a rename's `before`. Compared whole, a longer name
@@ -152,7 +162,7 @@ export const ROUTINE_NAME_SEEN = 80
 /** The plan's current value for whatever a change is about — what `before` is checked against. */
 export function currentValue(S, change) {
   const r = findRoutine(S, change.target?.routineId)
-  const e = change.target?.exId ? findEx(r, change.target.exId) : null
+  const e = change.target?.exId ? findEx(r, change.target.exId, S) : null
   switch (change.type) {
     case 'sets': return e?.sets ?? null
     case 'reps': return e?.reps ?? null
@@ -183,7 +193,7 @@ export function markStale(proposal, S) {
     const r = c.target?.routineId ? findRoutine(S, c.target.routineId) : null
     let stale = false
     if (c.type !== 'add-routine' && c.type !== 'week' && !r) stale = true
-    else if (c.target?.exId && !findEx(r, c.target.exId)) stale = true
+    else if (c.target?.exId && !findEx(r, c.target.exId, S)) stale = true
     else if (c.type === 'week') {
       // The day's value is a routine-id list; `before` may be a list (a combined day) or a
       // legacy bare string. Compare by canonical join so order matters but shape does not.
@@ -262,7 +272,7 @@ export function pushSnapshot(s, proposalId, label) {
   const c = coachOf(s)
   c.snapshots = [...(c.snapshots || []), {
     at: Date.now(), proposalId: proposalId || null, label: label || '',
-    routines: clone(s.routines || []), week: clone(s.week || {})
+    routines: clone(s.routines || []), exerciseGroups: clone(s.exerciseGroups || []), week: clone(s.week || {})
   }].slice(-SNAPSHOT_MAX)
   trim(s)
 }
@@ -279,6 +289,7 @@ export function revertLast(s) {
   const snap = (c.snapshots || []).pop()
   if (!snap) return false
   s.routines = clone(snap.routines)
+  if (snap.exerciseGroups) s.exerciseGroups = clone(snap.exerciseGroups)
   s.week = clone(snap.week)
   // Snapshots taken before this field existed have nothing to put back.
   if (snap.dayPlanRestore) Object.assign(s.dayPlan, snap.dayPlanRestore)
@@ -449,6 +460,9 @@ const CHANGE_APPLY = {
   },
   'remove-exercise': (s, c) => {
     const r = need(findRoutine(s, c.target.routineId))
+    if (r.ex.some(slot => isGroup(slot) && optionsOf(slot, s).some(option => option.id === c.target.exId))) {
+      throw new Error('Edit shared group membership in the routine editor, or make an independent copy first.')
+    }
     r.ex = r.ex.map(slot => removeOption(slot, c.target.exId)).filter(Boolean)
     cleanupSg(r.ex)
   },
@@ -483,6 +497,7 @@ const CHANGE_APPLY = {
   'routine-prog': (s, c) => { need(findRoutine(s, c.target.routineId)).prog = c.after },
   reorder: (s, c) => {
     const r = need(findRoutine(s, c.target.routineId))
+    if (r.ex.some(isGroup)) throw new Error('Reorder exercise group placements in the routine editor.')
     const by = new Map(r.ex.map(e => [e.id, e]))
     const next = c.after.map(id => by.get(id)).filter(Boolean)
     // Distinct exercises, not just the right count: an order naming one id twice maps to the
@@ -543,7 +558,7 @@ const CHANGE_APPLY = {
 }
 export const CHANGE_TYPES = Object.keys(CHANGE_APPLY)
 
-function findExIn(s, c) { return findEx(findRoutine(s, c.target.routineId), c.target.exId) }
+function findExIn(s, c) { return findEx(findRoutine(s, c.target.routineId), c.target.exId, s) }
 function need(x) { if (!x) throw new Error('missing target'); return x }
 
 /**

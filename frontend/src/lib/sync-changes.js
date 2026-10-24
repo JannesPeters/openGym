@@ -22,6 +22,7 @@ function hash(v) {
 const workoutKey = w => (w?.id != null ? w.id : `${w?.d}|${w?.start}`)
 // The lists counted entry by entry, keyed the way lib/sync-merge.js unions them.
 const LISTS = {
+  g: ['exerciseGroups', group => group?.id],
   w: ['workouts', workoutKey],
   b: ['bodyweight', e => e?.d],
   r: ['routines', r => r?.id],

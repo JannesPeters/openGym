@@ -5,6 +5,7 @@ import { starterRoutines } from './starter.js'
 import { modeOf } from './history.js'
 import { emptyMeasurement } from './measurements.js'
 import { addOption } from './exercise-options.js'
+import { migrateExerciseGroups } from './exercise-groups.js'
 
 // Starting weight and weekly increment per exercise of the starter plan (kg).
 // Chest dips are body-weight only here, so they log reps at 0 added weight.
@@ -204,7 +205,7 @@ export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
     dayPlan[tIso] = order[(order.findIndex(r => r.name === lastName) + 1) % order.length].id
   }
 
-  return {
+  return migrateExerciseGroups({
     routines: [push, pull, legs],
     week: { 1: push.id, 3: pull.id, 5: legs.id },
     dayPlan,
@@ -213,5 +214,5 @@ export function buildDemoState({ now = new Date(), idFactory = uid } = {}) {
     // The history is rated, so the demo turns the column on and the stats get a scale to
     // label their aggregates with instead of guessing one (see displayScale).
     effort: 'rir'
-  }
+  })
 }

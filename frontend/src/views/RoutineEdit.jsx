@@ -24,8 +24,10 @@ import { MOBILE, printHtml } from '../lib/mobile.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { POLICIES_FOR, POLICY_NAME, POLICY_DESC } from '../lib/progression.js'
 import RoutineMuscleMap from '../components/RoutineMuscleMap.jsx'
-import { optionsOf, hasOptions, optionConfig, addOption, cleanGroupName } from '../lib/exercise-options.js'
+import { optionsOf, hasOptions, cleanGroupName } from '../lib/exercise-options.js'
 import WorkoutGroupSheet from '../components/WorkoutGroupSheet.jsx'
+import RoutineGroupSheet from '../components/RoutineGroupSheet.jsx'
+import { isGroup, groupOf, createExerciseGroup, placeExerciseGroup } from '../lib/exercise-groups.js'
 
 export const ROUTINE_LONG_PRESS_MS = 380
 export const ROUTINE_DRAG_SLOP = 8
@@ -344,7 +346,7 @@ export function removeRoutineExercise(routineId, i) {
   const now = useStore.getState().S.routines.find(x => x.id === routineId)
   const after = JSON.stringify(now?.ex)
   const del = Number(now?._f?.ex) || 0
-  useUI.getState().toast(t('“{0}” left the routine.', exerciseNameText(exOr(slot.id))),
+  useUI.getState().toast(t('“{0}” left the routine.', isGroup(slot) ? groupOf(st.S, slot)?.name || t('Exercise group') : exerciseNameText(exOr(slot.id))),
     { action: t('Undo'), onAction: () => undoRemoveRoutineExercise({ routineId, i, before, after, base, del }) })
   return true
 }
@@ -443,13 +445,13 @@ export default function RoutineEdit() {
       useUI.getState().toast(t('Too late, that one’s gone'))
       return false
     }
-    edit(exercises => {
-      const slot = configs.slice(1).reduce((group, config) => addOption(group, config), optionConfig(configs[0]))
-      if (cleanGroupName(name)) slot.groupName = cleanGroupName(name)
-      exercises.push(slot)
+    update(s => {
+      const group = createExerciseGroup(s, configs, name)
+      s.routines.find(item => item.id === id).ex.push(placeExerciseGroup(s, group.id, configs))
     })
     return true
   }} />)
+  const openGroup = slotId => useUI.getState().openSheet(close => <RoutineGroupSheet routineId={id} slotId={slotId} close={close} />)
 
   const units = supersetUnits(r.ex)
   const unitFirst = new Set(units.filter(u => u.length > 1).map(u => u[0]))
@@ -465,7 +467,7 @@ export default function RoutineEdit() {
   }
   const inSS = new Set(units.filter(u => u.length > 1).flat())
   const profile = activeProfile(S)
-  const missingCount = profile ? r.ex.filter(e => optionsOf(e).every(option => !exAvailable(S, exOr(option.id)))).length : 0
+  const missingCount = profile ? r.ex.filter(e => optionsOf(e, S).every(option => !exAvailable(S, exOr(option.id)))).length : 0
   const swipe = workoutControls(S).swipeSets
 
   return <div className="narrow">
@@ -521,16 +523,18 @@ export default function RoutineEdit() {
     <div className="row plan-sec-h routine-ex-h" style={{ justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 0 }}>
       <Button size="sm" variant="tinted" icon="plus" onClick={addExercise}>{t('Add exercise')}</Button>
       <Button size="sm" variant="tinted" icon="plusCircle" onClick={createGroup}>{t('Create new group')}</Button>
+      <Button size="sm" variant="tinted" icon="link" onClick={() => openGroup()}>{t('Reuse exercise group')}</Button>
     </div>
     {r.ex.length ? <div ref={reorder.listRef} onClickCapture={reorder.onClickCapture}
       role="group" aria-label={t('Exercises')}
       className={'list routine-list' + (reorder.drag ? ' is-reordering' : '')}>{r.ex.map((e, i) => {
       // An unresolvable id is shown rather than skipped — hiding it left an entry you
       // could neither see nor delete, but that still turned up in the workout.
-      const ex = exOr(e.id)
       const choiceGroup = hasOptions(e)
-      const groupName = choiceGroup ? cleanGroupName(e.groupName) : ''
-      const noEquip = profile && optionsOf(e).every(option => !exAvailable(S, exOr(option.id)))
+      const ex = choiceGroup ? null : exOr(e.id)
+      const groupName = choiceGroup ? groupOf(S, e)?.name || cleanGroupName(e.groupName) || t('Exercise group') : ''
+      const label = groupName || exerciseNameText(ex)
+      const noEquip = profile && optionsOf(e, S).every(option => !exAvailable(S, exOr(option.id)))
       const linkedPrev = i > 0 && e.sg && r.ex[i - 1].sg === e.sg
       // At a superset's edge an arrow takes the exercise out of it rather than past a neighbour.
       const leavesUp = inSS.has(i) && !linkedPrev
@@ -549,12 +553,12 @@ export default function RoutineEdit() {
           move(i, direction)
         }
         menuSheet({
-          title: exerciseNameText(ex),
-          titleClass: exerciseNameClass(ex),
+          title: label,
+          titleClass: ex ? exerciseNameClass(ex) : '',
           trigger: event.currentTarget,
           returnFocus: () => reorder.listRef.current?.querySelector(`[data-ex-index="${focusIndex}"] [data-exercise-menu]`),
           items: [
-            i > 0 && { icon: 'link', label: linkedPrev ? t('Unlink superset on {0}', exerciseNameText(ex)) : t('Superset with exercise above'), onClick: () => toggleLink(i) },
+            i > 0 && { icon: 'link', label: linkedPrev ? t('Unlink superset on {0}', label) : t('Superset with exercise above'), onClick: () => toggleLink(i) },
             { icon: 'chevronUp', label: t('Move up'), sub: leavesUp ? t('Move out of the superset') : null, disabled: !moveRoutineEntry(r.ex, i, -1), onClick: () => moveFromMenu(-1) },
             { icon: 'chevronDown', label: t('Move down'), sub: leavesDown ? t('Move out of the superset') : null, disabled: !moveRoutineEntry(r.ex, i, 1), onClick: () => moveFromMenu(1) },
           ],
@@ -565,19 +569,20 @@ export default function RoutineEdit() {
       // screen reader would lose inside one): the name is, a real <button> a click bubbles up
       // from. The long press treats it as the row (data-row-open, useRoutineReorder).
       const item = <div className={'item' + (inSS.has(i) ? ' in-ss' : '')} onClick={() => {
-          nav(`/plan/r/${encodeURIComponent(id)}/exercise/${i}/${encodeURIComponent(e.id)}${e.slotId ? '?slotKey=' + encodeURIComponent(e.slotId) : ''}`, { state: { planBack: `/plan/r/${id}` } })
+          if (choiceGroup) openGroup(e.slotId)
+          else nav(`/plan/r/${encodeURIComponent(id)}/exercise/${i}/${encodeURIComponent(e.id)}${e.slotId ? '?slotKey=' + encodeURIComponent(e.slotId) : ''}`, { state: { planBack: `/plan/r/${id}` } })
         }}>
           {/* Shown on pointer devices only (index.css .routine-grip); the action menu and the
               long press stay the way in for a keyboard and a finger. */}
           <span className="routine-grip" data-drag-handle aria-hidden="true" title={t('Reorder exercises')}><Icon name="grip" /></span>
           {ssPos.has(i) && <span className="ss-pos" aria-label={t('Superset position {0}', ssPos.get(i))}>{ssPos.get(i)}</span>}
-          <Thumb ex={ex} />
+          {ex && <Thumb ex={ex} />}
           <button type="button" className="grow item-open" data-row-open>
             {groupName
               ? <>
                 <span className="tt">{groupName}</span>
-                <span className="ss"><ExerciseName ex={ex} /> · {exLine(e, S.unit, speedUnitOf(S))}</span>
-                <span className="small accent workout-group-name">{t('{0} options', optionsOf(e).length)}</span>
+                <span className="ss">{optionsOf(e, S).map(option => exerciseNameText(exOr(option.id))).join(' · ')}</span>
+                <span className="small accent workout-group-name">{t('{0} options', optionsOf(e, S).length)}</span>
               </>
               : <>
                 <span className={`tt ${exerciseNameClass(ex)}`}><ExerciseName ex={ex} /></span>
@@ -585,9 +590,9 @@ export default function RoutineEdit() {
                 {choiceGroup && <span className="small accent workout-group-name">{t('Choose one')} · {t('{0} options', optionsOf(e).length)}</span>}
               </>}
             {e.note && <span className="small dim" style={{ marginTop: 2 }}>{e.note}</span>}</button>
-          {noEquip && <span className="tag" style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }} title={t('Needs {0}, which isn’t in your active profile', t(ex.eq))}><Icon name="warning" /></span>}
+          {noEquip && <span className="tag" style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }} title={t('Not in your equipment profile')}><Icon name="warning" /></span>}
           <button type="button" className="iconbtn" data-exercise-menu aria-haspopup="dialog"
-            aria-label={`${t('More')}: ${exerciseNameText(ex)}`} title={t('More')} onClick={openExerciseMenu}><Icon name="more" /></button>
+            aria-label={`${t('More')}: ${label}`} title={t('More')} onClick={openExerciseMenu}><Icon name="more" /></button>
         </div>
       return <div key={i} data-routine-row data-ex-index={i}
         className={'routine-drag-row' + (isDragging ? ' is-dragging' : '')}
@@ -614,7 +619,7 @@ export default function RoutineEdit() {
 
     {/* Coverage of the routine as planned, so a gap shows up while you're building it
         rather than after a month of training around it. */}
-    {r.ex.length > 0 && <RoutineMuscleMap routine={r} body={S.body} />}
+    {r.ex.length > 0 && <RoutineMuscleMap routine={r} body={S.body} state={S} />}
 
   </div>
 }

@@ -61,6 +61,13 @@ function entryView(e, S) {
   const mode = modeOf(cfg)
   return {
     id: e.id,
+    ...(e.groupInstance ? {
+      entry_id: e.entryId, option_id: e.optionId,
+      group_instance: { id: e.groupInstance.id, group_id: e.groupInstance.groupId || null,
+        slot_id: e.groupInstance.slotId || null, routine_id: e.groupInstance.rid || null, name: e.groupInstance.name,
+        options: e.groupInstance.options.map(option => ({ option_id: option.id, exercise_id: option.exerciseId, config: option.config })),
+      },
+    } : {}),
     name: ex.n,
     body_part: ex.bp || null,
     mode,
@@ -150,11 +157,19 @@ export const getRoutine = {
       exclude_from_progression: r.excludeFromProgression === true,
       unit: S.unit || 'kg',
       exercises: (r.ex || []).map(function describe(cfg, i) {
+        if (cfg.kind === 'group') return {
+          position: i + 1, kind: 'group', group_id: cfg.groupId, slot_id: cfg.slotId,
+          name: S.exerciseGroups.find(group => group.id === cfg.groupId)?.name || null,
+          choose_one: true, superset_group: cfg.sg || null,
+          alternatives: optionsOf(cfg, S).map(option => option.needsConfig
+            ? { id: option.id, option_id: option.optionId, name: exerciseOf(option.id, S).n, needs_configuration: true }
+            : { ...describe(option, i), option_id: option.optionId }),
+        }
         const ex = exerciseOf(cfg.id, S)
         const mode = modeOf(cfg)
         return {
           position: i + 1,
-          ...(hasOptions(cfg) ? { choose_one: true, alternatives: optionsOf(cfg).map(option => describe(option, i)) } : {}),
+          ...(hasOptions(cfg) ? { choose_one: true, alternatives: optionsOf(cfg, S).map(option => describe(option, i)) } : {}),
           id: cfg.id,
           name: ex.n,
           body_part: ex.bp || null,
@@ -573,8 +588,8 @@ export const previewSession = {
     const built = withCustomsIndexed(S, () => buildSessionEntries(S, r))
     const preview = (cfg, i, entry = built[i]) => {
       if (hasOptions(cfg)) return {
-        position: i + 1, choose_one: true,
-        alternatives: optionsOf(cfg).map(option => preview(option, i, withCustomsIndexed(S, () =>
+        position: i + 1, choose_one: true, group_id: cfg.groupId, slot_id: cfg.slotId,
+        alternatives: optionsOf(cfg, S).map(option => preview(option, i, withCustomsIndexed(S, () =>
           buildPlannedEntry(S, option, r, { noProg: r.excludeFromProgression === true }))))
       }
       const ex = exerciseOf(cfg.id, S)

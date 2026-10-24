@@ -20,6 +20,8 @@ import { bindUI } from '../components/ui.jsx'
 import { EXIDX } from '../lib/exercises.js'
 import { onSheetEntry } from '../lib/nav.js'
 import { defaultConfig } from '../lib/history.js'
+import { migrateExerciseGroups } from '../lib/exercise-groups.js'
+import { optionsOf } from '../lib/exercise-options.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 let root, host, navigate, location
@@ -31,7 +33,7 @@ function Navigation() {
   return null
 }
 function mount(path = '/plan/r/r1', extra = {}) {
-  const S = { ...clone(DEF), routines: [{ id: 'r1', name: 'Push', ex: clone(entries) }], ...extra }
+  const S = migrateExerciseGroups({ ...clone(DEF), routines: [{ id: 'r1', name: 'Push', ex: clone(entries) }], ...extra })
   useStore.setState({ S, user: null })
   useUI.setState({ sheets: [], toastMsg: '' })
   bindUI(useUI)
@@ -79,21 +81,27 @@ describe('Plan full-screen exercise navigation', () => {
     click(button('Add alternative'))
     expect(location.pathname).toBe('/plan/r/r1')
     expect(stored()).toHaveLength(1)
-    expect(stored()[0]).toMatchObject({ id: '0025', sets: 3, reps: 5, weight: 80 })
-    expect(stored()[0].alternatives).toHaveLength(1)
-    expect(stored()[0].alternatives[0].id).toBe('0289')
-    expect(stored()[0].alternatives[0].weight).not.toBe(80)
-    expect(host.textContent).toContain('Choose one')
+    const options = optionsOf(stored()[0], useStore.getState().S)
+    expect(stored()[0].kind).toBe('group')
+    expect(options[0]).toMatchObject({ id: '0025', sets: 3, reps: 5, weight: 80 })
+    expect(options).toHaveLength(2)
+    expect(options[1].id).toBe('0289')
+    expect(options[1].weight).not.toBe(80)
+    expect(host.textContent).toContain('Exercise group')
   })
 
-  it('preserves options on primary save and edits only the selected option', () => {
+  it('configures every group option equally without editing shared membership', () => {
     const group = { ...entries[0], slotId: 's', alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] }
-    mount('/plan/r/r1/exercise/0/0025?slotKey=s', { routines: [{ id: 'r1', name: 'Push', ex: [group] }] })
+    mount('/plan/r/r1', { routines: [{ id: 'r1', name: 'Push', ex: [group] }] })
+    const before = clone(useStore.getState().S)
+    click(host.querySelector('[data-row-open]'))
+    click(host.querySelector('.sheet .list .item-open'))
     click(button('Save'))
-    expect(stored()[0].alternatives).toEqual(group.alternatives)
-    act(() => navigate('/plan/r/r1/exercise/0/0025?slotKey=s&option=0289'))
+    expect(optionsOf(stored()[0], useStore.getState().S)[0]).toMatchObject(entries[0])
+    click(host.querySelectorAll('.sheet .list .item-open')[1])
     click(button('Save'))
-    expect(stored()[0]).toMatchObject({ id: '0025', reps: 5, weight: 80, alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] })
+    expect(optionsOf(stored()[0], useStore.getState().S)[1]).toMatchObject(group.alternatives[0])
+    expect(useStore.getState().S.exerciseGroups).toEqual(before.exerciseGroups)
   })
 
   it('rejects grouped edit routes when another occurrence moved into that position', () => {
@@ -102,20 +110,20 @@ describe('Plan full-screen exercise navigation', () => {
     expect(stored()[0].slotId).toBe('new')
   })
 
-  it('keeps the polished row menu separate from full-screen group authoring', () => {
+  it('keeps the row menu separate from shared definition and placement authoring', () => {
     const group = { ...entries[0], slotId: 'group-slot', alternatives: [{ id: '0289', sets: 2, reps: 12, weight: 45 }] }
     mount('/plan/r/r1', { routines: [{ id: 'r1', name: 'Push', ex: [group] }] })
     expect(host.querySelector('h1').textContent).toBe('Push')
-    expect(host.textContent).toContain('Choose one')
+    expect(host.textContent).toContain('Exercise group')
     click(host.querySelector('[data-exercise-menu]'))
     expect(location.pathname).toBe('/plan/r/r1')
     expect(useUI.getState().sheets).toHaveLength(1)
     act(() => useUI.getState().closeSheet(useUI.getState().sheets[0].id))
     click(host.querySelector('[data-row-open]'))
-    expect(location.pathname).toBe('/plan/r/r1/exercise/0/0025')
-    expect(location.search).toContain('slotKey=group-slot')
-    expect(host.textContent).toContain('Exercise alternatives')
-    expect(stored()[0].alternatives).toEqual(group.alternatives)
+    expect(location.pathname).toBe('/plan/r/r1')
+    expect(host.textContent).toContain('Save shared name')
+    expect(host.textContent).toContain('Make independent copy')
+    expect(optionsOf(stored()[0], useStore.getState().S)[1]).toMatchObject(group.alternatives[0])
   })
 
   it('adds from the overview immediately without opening settings or leaving the picker', () => {

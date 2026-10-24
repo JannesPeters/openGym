@@ -73,11 +73,12 @@
  * device that came back online after any time away brought back every workout, routine, custom
  * exercise, weigh-in or favourite the other device had removed meanwhile.
  */
-import { beatsWeight } from './exercises.js'
+import { beatsWeight, referencedCustomExercises } from './exercises.js'
 import { bestWeightForEntry } from './history.js'
 import { convertStateUnit, convertBodyWeight } from './units.js'
 import { sanitizeAccent } from './accent.js'
 import { readDayNote as readNote } from './day-notes.js'
+import { migrateExerciseGroups } from '../../../api/coach/core/exercise-groups.js'
 
 const clone = o => JSON.parse(JSON.stringify(o))
 const list = v => (Array.isArray(v) ? v : [])
@@ -399,6 +400,7 @@ const workoutTime = w => Number(w?._ts) || Number(w?.end) || Number(w?.start) ||
 // What a reset records of the entries it wiped (resetIds), by field: how an entry is named.
 const bodyweightKey = e => `${e?.d}|${e?.t ?? ''}`
 const RESET_LISTS = {
+  exerciseGroups: x => x?.id,
   workouts: workoutKey, routines: x => x?.id, customEx: x => x?.id, bodyweight: bodyweightKey,
   measurements: bodyweightKey, gymCards: x => x?.id, equipProfiles: x => x?.id, favEx: x => x,
 }
@@ -454,6 +456,7 @@ export function sinceReset(S, at, ids) {
     out.workouts = list(S.workouts).filter(w => w && after(workoutTime(w)))
     out.routines = list(S.routines).filter(r => r && after(r._ts))
     out.customEx = list(S.customEx).filter(c => c && after(c._ts))
+    out.exerciseGroups = list(S.exerciseGroups).filter(group => group && after(group._ts))
     out.bodyweight = list(S.bodyweight).filter(e => e && after(e.t))
     out.measurements = list(S.measurements).filter(e => e && after(e.t))
     // No time of their own: taken for what they were before the reset, which cleared them.
@@ -496,6 +499,7 @@ export function sinceReset(S, at, ids) {
 // brings back the workout, routine or custom exercise deleted meanwhile. An edit made after the
 // removal (the entry's own `_ts`, a weigh-in's `t`) keeps it, as does an add-back stamped later.
 const DEL_LISTS = {
+  exerciseGroups: x => x?.id,
   workouts: workoutKey, routines: x => x?.id, customEx: x => x?.id, bodyweight: e => e?.d,
   measurements: e => e?.d, gymCards: x => x?.id, equipProfiles: x => x?.id, favEx: x => x,
 }
@@ -503,6 +507,7 @@ const DEL_LISTS = {
 // (favourites, and cards and profiles saved before they were stamped) count as older than any
 // removal.
 const DEL_TIME = {
+  exerciseGroups: x => Number(x?._ts) || 0,
   workouts: workoutTime, routines: x => Number(x?._ts) || 0, customEx: x => Number(x?._ts) || 0,
   bodyweight: e => Number(e?.t) || 0, measurements: e => Number(e?.t) || 0,
   gymCards: x => Number(x?._ts) || 0, equipProfiles: x => Number(x?._ts) || 0,
@@ -610,6 +615,7 @@ function applyDeletions(S, deleted) {
 // a rotation pass refilled on the phone survives a setting flipped on the desktop. Fields with a
 // merge of their own are not stamped here; a field nobody stamped follows the newer copy, as before.
 const OWN_MERGE = new Set([
+  'exerciseGroups', 'stateVersion',
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
   'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes',
@@ -717,6 +723,8 @@ function applyEdits(out, n, o) {
 // on sign-in the server's profile is the truth and the device only contributes the entries it
 // logged while signed out. Without it the newer copy decides, as for a conflict between devices.
 export function mergeStates(a0, b0, { prefer } = {}) {
+  if (a0) a0 = migrateExerciseGroups(a0)
+  if (b0) b0 = migrateExerciseGroups(b0)
   if (!a0) return b0 ? clone(b0) : b0
   if (!b0) return clone(a0)
   let a = a0, b = b0
@@ -790,7 +798,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
     }
   }
   out.workouts.sort(byDayStart)
-  for (const f of ['routines', 'customEx', 'equipProfiles', 'gymCards']) {
+  for (const f of ['routines', 'customEx', 'equipProfiles', 'gymCards', 'exerciseGroups']) {
     if (list(n[f]).length || list(o[f]).length) out[f] = (f === 'routines' ? unionByNeighbours : unionById)(n[f], o[f]).map(clone)
   }
   // The routines in the order chosen last (`edited.routineOrder`), the newer copy's without a
@@ -808,7 +816,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
   // are both kept. The same for a custom exercise (a photo added on one device survives a rename
   // on the other), an equipment profile and a gym card.
   if (!prefer) {
-    for (const f of ['routines', 'customEx', 'equipProfiles', 'gymCards']) {
+    for (const f of ['routines', 'customEx', 'equipProfiles', 'gymCards', 'exerciseGroups']) {
       if (!out[f]) continue
       const other = new Map(list(o[f]).filter(x => x?.id != null).map(x => [x.id, x]))
       out[f] = out[f].map(x => {
@@ -877,6 +885,34 @@ export function mergeStates(a0, b0, { prefer } = {}) {
   delete out._wids
   delete out._unstamped   // the server's own notes (api/sync-stamps.js), never a client's
   delete out._prior
+  // A routine created offline can survive a reset that removed its shared definition.
+  // Keep that reference usable, archived, rather than deleting the routine or losing its group.
+  const referenced = new Set(list(out.routines).flatMap(r => list(r.ex).filter(slot => slot.kind === 'group').map(slot => slot.groupId)))
+  for (const id of referenced) {
+    if (list(out.exerciseGroups).some(group => group.id === id)) continue
+    const versions = [...list(a0.exerciseGroups), ...list(b0.exerciseGroups)].filter(group => group.id === id)
+    if (!versions.length) throw new Error('This exercise group is missing. Restore it or remove its placement.')
+    const group = versions.slice(1).reduce((kept, other) => mergeEntry(kept, other), clone(versions[0]))
+    const at = Math.max(highestStamp(out), highestStamp({ exerciseGroups: [group] })) + 1
+    group.archived = true
+    group._ts = at
+    group._f = { ...group._f, archived: at }
+    ;(out.exerciseGroups ||= []).push(group)
+    out._ts = at
+  }
+  const exerciseIds = list(out.routines).flatMap(r => list(r.ex).flatMap(slot => slot.kind === 'group'
+    ? list(out.exerciseGroups).find(group => group.id === slot.groupId)?.options.map(option => option.exerciseId) || []
+    : []))
+  const customs = unionById(a0.customEx, b0.customEx).map(exercise => {
+    const other = list(b0.customEx).find(candidate => candidate.id === exercise.id)
+    return other ? mergeEntry(exercise, other) : exercise
+  })
+  for (const exercise of referencedCustomExercises(customs, exerciseIds)) {
+    if (list(out.customEx).some(candidate => candidate.id === exercise.id)) continue
+    const at = Math.max(highestStamp(out), highestStamp({ customEx: [exercise] })) + 1
+    ;(out.customEx ||= []).push({ ...clone(exercise), _ts: at })
+    out._ts = at
+  }
   // The accent fields end up in CSS: whatever either copy brought, only a clean value goes on.
   sanitizeAccent(out)
   return out
@@ -933,7 +969,7 @@ export function stampRestore(next, others = [], now = Date.now()) {
   }
   ed[ORDER_KEY] = now
   next.edited = ed
-  for (const f of ['routines', 'customEx']) for (const x of list(next[f])) if (x && typeof x === 'object') x._ts = now
+  for (const f of ['routines', 'customEx', 'exerciseGroups']) for (const x of list(next[f])) if (x && typeof x === 'object') x._ts = now
   return next
 }
 
@@ -953,7 +989,7 @@ export function stampReplace(next, others = [], now = Date.now()) {
   const known = {}
   for (const f of Object.keys(DEL_LISTS)) known[f] = others.flatMap(o => list(o?.[f])).filter(x => x != null)
   stampDeletions(known, next, now)
-  for (const f of ['workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards']) {
+  for (const f of ['workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'exerciseGroups']) {
     const versions = new Map()
     for (const o of others) for (const x of list(o?.[f])) if (x && typeof x === 'object' && x.id != null) versions.set(x.id, [...(versions.get(x.id) || []), x])
     for (const x of list(next[f])) {
@@ -1001,7 +1037,7 @@ export function highestStamp(S) {
   see(S.resetAt)
   if (isMap(S.edited)) for (const v of Object.values(S.edited)) see(v)
   if (isMap(S.deleted)) for (const f of Object.values(S.deleted)) if (isMap(f)) for (const v of Object.values(f)) see(v)
-  for (const f of ['workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards']) {
+  for (const f of ['workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'exerciseGroups']) {
     for (const x of list(S[f])) {
       if (!x || typeof x !== 'object') continue
       see(x._ts)
@@ -1056,6 +1092,7 @@ export function stampChange(prev, next, wall = Date.now()) {
     !list(prev?.routines).some(x => x?.id === r.id)
   stampRoutines(prev?.routines, next.routines, now, putBack)
   stampCustomEx(prev?.customEx, next.customEx, now)
+  stampEntries(prev?.exerciseGroups, next.exerciseGroups, now)
   stampEntries(prev?.equipProfiles, next.equipProfiles, now)
   stampEntries(prev?.gymCards, next.gymCards, now)
   stampDeletions(prev, next, now)
@@ -1124,7 +1161,7 @@ export function localExtras(local, server) {
   const keysNew = f => Object.entries(isMap(local?.[f]) ? local[f] : {})
     .filter(([k, v]) => v != null && !(Array.isArray(v) && !v.length) && !(isMap(server?.[f]) && k in server[f])).length
   const measured = new Set(list(server?.measurements).map(e => e?.d))
-  const setup = ['gymCards', 'equipProfiles'].reduce((n, f) => n + list(local?.[f]).filter(x => x && x.id != null && !ids(f).has(x.id)).length, 0) +
+  const setup = ['gymCards', 'equipProfiles', 'exerciseGroups'].reduce((n, f) => n + list(local?.[f]).filter(x => x && x.id != null && !ids(f).has(x.id)).length, 0) +
     list(local?.measurements).filter(e => e && e.d != null && !measured.has(e.d)).length +
     Object.entries(isMap(local?.dayNotes) ? local.dayNotes : {}).filter(([k, v]) => readNote(v) && !readNote(server?.dayNotes?.[k])).length +
     keysNew('week') + keysNew('dayPlan') + keysNew('exNotes')

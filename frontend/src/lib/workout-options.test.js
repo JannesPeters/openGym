@@ -8,13 +8,15 @@ import { buildCompletedWorkout } from './finish-workout.js'
 import { routineChangesFromEntry, updateRoutineFromEntry } from './routines.js'
 import { nextUnfinishedUnit, supersetFlowStep } from './supersetFlow.js'
 import { setUnitsTotal } from './history.js'
+import { migrateExerciseGroups, groupOf, workoutOptions } from './exercise-groups.js'
+import { optionsOf } from './exercise-options.js'
 
 const makeState = () => {
   const routines = [{ id: 'r', prog: 'off', ex: [{
     id: '0025', slotId: 'slot', sets: 3, reps: 10, weight: 20, sg: 'pair',
     alternatives: [{ id: '0009', sets: 2, reps: 12, weight: 45 }]
   }, { id: '0031', sets: 3, reps: 8, weight: 30, sg: 'pair' }] }]
-  const state = { unit: 'kg', workouts: [], routines, exWeights: {} }
+  const state = migrateExerciseGroups({ unit: 'kg', workouts: [], routines, exWeights: {} })
   state.active = { id: 'a', entries: buildCombinedEntries(state, ['r']).entries, cur: 0 }
   return state
 }
@@ -22,20 +24,20 @@ const makeState = () => {
 describe('workout choices', () => {
   it('carries a routine group name through reload, selection, added options, reset and finish', () => {
     let state = makeState()
-    state.routines[0].ex[0].groupName = 'Chest options'
+    state.exerciseGroups[0].name = 'Chest options'
     state.active.entries = buildCombinedEntries(state, ['r']).entries
     state = JSON.parse(JSON.stringify(state))
-    expect(state.active.entries[0].groupName).toBe('Chest options')
-    expect(state.active.entries[0].choiceGroupId).toBe(state.active.entries[0].choiceId)
+    expect(state.active.entries[0].groupInstance.name).toBe('Chest options')
+    expect(state.active.entries[0].groupInstance.id).not.toBe(state.active.entries[0].entryId)
     expect(state.active.entries[0].target.groupName).toBeUndefined()
-    expect(state.active.entries[0].choiceOptions.every(option => !option.groupName)).toBe(true)
+    expect(workoutOptions(state.active.entries[0]).every(option => !option.groupName)).toBe(true)
     chooseWorkoutOption(state, 0, '0009')
     chooseWorkoutOption(state, 0, '0025', { add: true })
-    expect(state.active.entries[0].choiceGroupId).toBe(state.active.entries[2].choiceGroupId)
-    expect(state.active.entries[0].groupName).toBe('Chest options')
-    expect(state.active.entries[2].groupName).toBe('Chest options')
+    expect(state.active.entries[0].groupInstance.id).toBe(state.active.entries[2].groupInstance.id)
+    expect(state.active.entries[0].groupInstance.name).toBe('Chest options')
+    expect(state.active.entries[2].groupInstance.name).toBe('Chest options')
     resetWorkoutOption(state, 0)
-    expect(state.active.entries[0].groupName).toBe('Chest options')
+    expect(state.active.entries[0].groupInstance.name).toBe('Chest options')
     chooseWorkoutOption(state, 0, '0025')
     state.active.entries[0].sets[0].done = true
     const completed = buildCompletedWorkout(state.active).entries[0]
@@ -46,12 +48,12 @@ describe('workout choices', () => {
     const state = makeState()
     const routines = structuredClone(state.routines)
     const at = addWorkoutChoiceGroup(state, [{ id: '0025', sets: 3 }, { id: '0009', sets: 2 }], '  Upper body  ')
-    expect(state.active.entries[at].groupName).toBe('Upper body')
-    expect(state.active.entries[at].choiceGroupId).toBe(state.active.entries[at].choiceId)
-    expect(state.active.entries[0].groupName).toBeUndefined()
+    expect(state.active.entries[at].groupInstance.name).toBe('Upper body')
+    expect(state.active.entries[at].groupInstance.id).not.toBe(state.active.entries[at].entryId)
+    expect(state.active.entries[0].groupInstance.name).toBe('')
     expect(state.routines).toEqual(routines)
     chooseWorkoutOption(state, at, '0009')
-    expect(state.active.entries[at].groupName).toBe('Upper body')
+    expect(state.active.entries[at].groupInstance.name).toBe('Upper body')
     expect(state.active.entries[at].target.groupName).toBeUndefined()
   })
   const newOptions = () => [
@@ -68,14 +70,14 @@ describe('workout choices', () => {
     expect(state.active.entries.slice(0, 2)).toEqual(before.active.entries)
     expect(state.routines).toEqual(before.routines)
     const entry = state.active.entries[at]
-    expect(entry).toMatchObject({ choicePending: true, sets: [], rid: 'r', choiceRoutine: { id: 'r', prog: 'off' } })
+    expect(entry).toMatchObject({ choicePending: true, sets: [], rid: 'r', groupInstance: { routine: { id: 'r', prog: 'off' } } })
     expect(entry.sg).toBeUndefined()
     expect(entry.target.sg).toBeUndefined()
     expect(entry.slotId).not.toBe('slot')
     expect(entry.slotId).not.toBe('old')
-    expect(entry.choiceId).not.toBe(before.active.entries[0].choiceId)
+    expect(entry.entryId).not.toBe(before.active.entries[0].entryId)
     configs[1].weight = 999
-    expect(entry.choiceOptions[1].weight).toBe(25)
+    expect(workoutOptions(entry)[1].weight).toBe(25)
     chooseWorkoutOption(state, at, '0009')
     expect(state.active.entries[at].sets).toHaveLength(2)
     expect(state.active.entries[at].sets.every(s => s.w === 25 && s.r === 12)).toBe(true)
@@ -114,8 +116,8 @@ describe('workout choices', () => {
   it('does not mutate data when a draft is invalid or its workout is gone', () => {
     const state = makeState()
     const before = structuredClone(state)
-    expect(() => addWorkoutChoiceGroup(state, newOptions().slice(0, 1))).toThrow('at least two')
-    expect(() => addWorkoutChoiceGroup(state, [newOptions()[0], newOptions()[0]])).toThrow('at least two')
+    expect(() => addWorkoutChoiceGroup(state, [])).toThrow('at least one')
+    expect(() => addWorkoutChoiceGroup(state, [newOptions()[0], newOptions()[0]])).toThrow('at least one')
     expect(state).toEqual(before)
     state.active = null
     expect(() => addWorkoutChoiceGroup(state, newOptions())).toThrow('no longer available')
@@ -124,14 +126,14 @@ describe('workout choices', () => {
     const state = makeState()
     chooseWorkoutOption(state, 0, '0025')
     chooseWorkoutOption(state, 0, '0009', { add: true })
-    const groupId = state.active.entries[0].choiceGroupId
-    expect(state.active.entries[2].choiceGroupId).toBe(groupId)
+    const groupId = state.active.entries[0].groupInstance.id
+    expect(state.active.entries[2].groupInstance.id).toBe(groupId)
 
     state.active.entries[0].sets[0].done = true
     expect(() => setWorkoutChoiceGroup(state, 0, ['0009'])).toThrow('Logged exercises cannot be removed')
     setWorkoutChoiceGroup(state, 0, ['0025', '0009'])
     expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031', '0009'])
-    expect([state.active.entries[0], state.active.entries[2]].map(entry => entry.choiceGroupId)).toEqual([groupId, groupId])
+    expect([state.active.entries[0], state.active.entries[2]].map(entry => entry.groupInstance.id)).toEqual([groupId, groupId])
     expect(state.active.entries[0].sets[0].done).toBe(true)
 
     setWorkoutChoiceGroup(state, 0, ['0025'])
@@ -139,19 +141,18 @@ describe('workout choices', () => {
     expect(state.active.entries[0].sets[0].done).toBe(true)
     expect(() => setWorkoutChoiceGroup(state, 0, [])).toThrow('Choose at least one')
   })
-  it('rejoins a non-adjacent legacy member with the original choice identity', () => {
+  it('rejoins a non-adjacent member with the original instance identity', () => {
     const state = makeState()
     chooseWorkoutOption(state, 0, '0025')
     const original = state.active.entries[0]
-    const groupId = original.choiceId
-    delete original.choiceGroupId
+    const groupId = original.groupInstance.id
     chooseWorkoutOption(state, 0, '0009', { add: true })
 
-    expect(state.active.entries[2].choiceGroupId).toBe(groupId)
+    expect(state.active.entries[2].groupInstance.id).toBe(groupId)
     expect(workoutChoiceGroupIndices(state.active.entries, 0)).toEqual([0, 2])
     setWorkoutChoiceGroup(state, 0, ['0025', '0009'])
     expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031', '0009'])
-    expect([state.active.entries[0], state.active.entries[2]].map(entry => entry.choiceGroupId)).toEqual([groupId, groupId])
+    expect([state.active.entries[0], state.active.entries[2]].map(entry => entry.groupInstance.id)).toEqual([groupId, groupId])
   })
   it('groups non-adjacent legacy selections by their routine slot', () => {
     const state = makeState()
@@ -168,9 +169,9 @@ describe('workout choices', () => {
     const state = makeState()
     const first = structuredClone(state.active.entries[0])
     const second = structuredClone(first)
-    first.choiceGroupId = 'occurrence-one'
-    second.choiceGroupId = 'occurrence-two'
-    second.choiceId = 'choice-two'
+    first.groupInstance.id = 'occurrence-one'
+    second.groupInstance.id = 'occurrence-two'
+    second.entryId = 'choice-two'
     second.id = '0009'
     state.active.entries = [first, second]
 
@@ -188,8 +189,8 @@ describe('workout choices', () => {
     expect(state.active.entries[0].sg).toBeTruthy()
     expect(state.active.entries[0].sg).toBe(state.active.entries[1].sg)
     expect(state.active.entries[0].sets).toHaveLength(2)
-    expect(state.active.entries[0].choiceGroupId).toBeTruthy()
-    expect(state.active.entries[1].choiceGroupId).toBeUndefined()
+    expect(state.active.entries[0].groupInstance.id).toBeTruthy()
+    expect(state.active.entries[1].groupInstance).toBeUndefined()
   })
   it('clears a selected group back to one pending slot after confirmation', () => {
     const state = makeState()
@@ -198,9 +199,9 @@ describe('workout choices', () => {
     chooseWorkoutOption(state, 0, '0009', { add: true })
     state.active.entries[2].sets[0].done = true
     resetWorkoutChoiceGroup(state, 0)
-    expect(state.active.entries.map(entry => entry.id)).toEqual(['0025', '0031'])
-    expect(state.active.entries[0]).toMatchObject({ choicePending: true, choiceOptions: expect.any(Array), sets: [] })
-    expect(state.active.entries[0].choiceGroupId).toBe(state.active.entries[0].choiceId)
+    expect(state.active.entries.map(entry => entry.id)).toEqual([undefined, '0031'])
+    expect(state.active.entries[0]).toMatchObject({ choicePending: true, groupInstance: { options: expect.any(Array) }, sets: [] })
+    expect(state.active.entries[0].groupInstance.id).not.toBe(state.active.entries[0].entryId)
     expect(state.active.cur).toBe(0)
   })
 
@@ -220,12 +221,12 @@ describe('workout choices', () => {
     const before = structuredClone(state)
     resetWorkoutOption(state, 0)
     expect(state.active.entries[0]).toMatchObject({
-      id: '0025', rid: 'r', slotId: 'slot', sg: 'pair', choicePending: true, sets: [], noProg: true,
-      target: { weight: 20, reps: 10, sets: 3, sgName: 'Pair', sgRest: 45 },
-      choiceOptions: before.active.entries[0].choiceOptions,
-      choiceRoutine: before.active.entries[0].choiceRoutine,
+      rid: 'r', slotId: 'slot', sg: 'pair', choicePending: true, sets: [], noProg: true,
+      target: { sgName: 'Pair', sgRest: 45 },
+      groupInstance: before.active.entries[0].groupInstance,
     })
-    expect(state.active.entries[0].choiceId).not.toBe(before.active.entries[0].choiceId)
+    expect(state.active.entries[0].id).toBeUndefined()
+    expect(state.active.entries[0].entryId).not.toBe(before.active.entries[0].entryId)
     expect(state.active.entries[0].note).toBeUndefined()
     expect(state.active.entries.slice(1)).toEqual(before.active.entries.slice(1))
     expect(state.routines).toEqual(before.routines)
@@ -266,7 +267,7 @@ describe('workout choices', () => {
   it('alternating options resumes each exercise independently', () => {
     const state = makeState()
     state.routines[0].prog = 'linear'
-    state.routines[0].ex[0].inc = 2.5
+    state.routines[0].ex[0].optionConfigs[state.exerciseGroups[0].options[0].id].inc = 2.5
     const start = id => {
       state.active = { id, entries: buildCombinedEntries(state, ['r']).entries, cur: 0 }
     }
@@ -290,7 +291,7 @@ describe('workout choices', () => {
   it('keeps the workout snapshot when the saved group or routine policy changes', () => {
     const state = makeState()
     state.routines[0].prog = 'linear'
-    state.routines[0].ex[0].alternatives[0].weight = 90
+    state.routines[0].ex[0].optionConfigs[state.exerciseGroups[0].options[1].id].weight = 90
     chooseWorkoutOption(state, 0, '0009')
     expect(state.active.entries[0].target.weight).toBe(45)
     expect(state.active.entries[0].plan.policy).toBe('off')
@@ -304,7 +305,7 @@ describe('workout choices', () => {
     expect(entry.sets.every(set => set.w === 45)).toBe(true)
     expect(entry.target.choiceOptions).toBeUndefined()
     expect(entry.choicePending).toBeUndefined()
-    expect(state.routines[0].ex[0].id).toBe('0025')
+    expect(optionsOf(state.routines[0].ex[0], state)[0].id).toBe('0025')
   })
   it('never swaps logged work, but adds the other option outside the superset', () => {
     const state = makeState()
@@ -328,7 +329,7 @@ describe('workout choices', () => {
     chooseWorkoutOption(state, 0, '0009', { add: true })
     expect(state.active.entries[2].noProg).toBe(true)
   })
-  it('updates only the selected saved option and finishes without option snapshots', () => {
+  it('updates only the selected placement config and preserves the historical instance snapshot', () => {
     const state = makeState()
     chooseWorkoutOption(state, 0, '0009')
     const entry = state.active.entries[0]
@@ -336,10 +337,11 @@ describe('workout choices', () => {
     expect(routineChangesFromEntry(state.routines[0], state.active.entries, 0)).toBeTruthy()
     updateRoutineFromEntry(state.routines[0], state.active.entries, 0)
     expect(state.routines[0].ex[0].note).toBeUndefined()
-    expect(state.routines[0].ex[0].alternatives[0].note).toBe('machine setting')
+    expect(optionsOf(state.routines[0].ex[0], state)[1].note).toBe('machine setting')
     entry.sets[0].done = true
     const completed = buildCompletedWorkout(state.active).entries[0]
     expect(completed).toMatchObject({ id: '0009', rid: 'r', slotId: 'slot' })
     expect(completed.choiceOptions).toBeUndefined()
+    expect(completed.groupInstance.id).toBe(entry.groupInstance.id)
   })
 })

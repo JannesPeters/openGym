@@ -6,6 +6,7 @@ import Workout from './Workout.jsx'
 import { api, beacon } from '../lib/api.js'
 import { nextPrescription } from '../lib/progression.js'
 import { buildCombinedEntries } from '../lib/session-merge.js'
+import { migrateExerciseGroups } from '../lib/exercise-groups.js'
 import { chooseWorkoutOption } from '../lib/workout-options.js'
 import { buildCompletedWorkout } from '../lib/finish-workout.js'
 import { isWarmupRow } from '../lib/workout-model.js'
@@ -380,14 +381,14 @@ describe('workout exercise alternatives', () => {
     await click(create())
     expect(close).toHaveBeenCalledOnce()
     await act(async () => { sheetRoot.unmount() })
-    mocks.S.active.entries[1].groupName = 'Chest options'
+    mocks.S.active.entries[1].groupInstance.name = 'Chest options'
     await rerender()
     expect(mocks.S.active.entries).toHaveLength(2)
     expect(mocks.S.active.entries[0]).toEqual(before.active.entries[0])
-    expect(mocks.S.active.entries[1]).toMatchObject({ groupName: 'Chest options', choicePending: true, sets: [], choiceOptions: [
-      expect.objectContaining({ id: '0025' }),
-      expect.objectContaining({ id: '0009', sets: 2, reps: 12, weight: 25 }),
-    ] })
+    expect(mocks.S.active.entries[1]).toMatchObject({ choicePending: true, sets: [], groupInstance: { name: 'Chest options', options: [
+      expect.objectContaining({ exerciseId: '0025' }),
+      expect.objectContaining({ exerciseId: '0009', config: expect.objectContaining({ sets: 2, reps: 12, weight: 25 }) }),
+    ] } })
     expect(container.querySelector('[data-testid="workout-choice"] h2').textContent).toBe('Chest options')
     await chooseWorkoutGroupOption('0009', 'Chest options')
     expect(mocks.S.active.entries[1].sets).toHaveLength(2)
@@ -425,9 +426,9 @@ describe('workout exercise alternatives', () => {
       alternatives: [{ id: '0009', mode: 'reps', sets: 2, reps: 12, weight: 45 }] }],
   })
   it.each(['custom', 'cards', 'list', 'compact', 'focus'])('chooses, logs and adds a second full prescription in %s', async layout => {
-    const routine = groupedRoutine()
-    const state = workout([], 0, { routines: [routine] })
-    await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], active: { workoutView: layout, routineIds: [routine.id] } })
+    const state = migrateExerciseGroups(workout([], 0, { routines: [groupedRoutine()] }))
+    const routine = state.routines[0]
+    await mount(buildCombinedEntries(state, [routine.id]).entries, 0, { routines: [routine], exerciseGroups: state.exerciseGroups, active: { workoutView: layout, routineIds: [routine.id] } })
     expect(container.textContent).toContain('Choose exercise')
     const choice = container.querySelector('.workout-choice')
     expect(choice).toBeTruthy()
@@ -480,7 +481,7 @@ describe('workout exercise alternatives', () => {
     expect(mocks.S.active.entries[1]).toMatchObject({ id: '0025', slotId: 'chest-slot' })
     expect(mocks.S.active.entries[1].sets).toHaveLength(3)
     expect(mocks.S.active.entries[1].sets[0]).toMatchObject({ w: 20, r: 8, done: false })
-    expect(mocks.S.active.entries[0].choiceGroupId).toBe(mocks.S.active.entries[1].choiceGroupId)
+    expect(mocks.S.active.entries[0].groupInstance.id).toBe(mocks.S.active.entries[1].groupInstance.id)
     if (['custom', 'list', 'compact'].includes(layout)) {
       expect(container.querySelectorAll('.workout-group-name')).toHaveLength(1)
       expect(container.querySelector('.wl-choice-group-start')).toBeTruthy()
@@ -514,7 +515,8 @@ describe('workout exercise alternatives', () => {
     await act(async () => { confirmation.onConfirm() })
     await rerender()
     expect(mocks.S.active.entries).toHaveLength(1)
-    expect(mocks.S.active.entries[0]).toMatchObject({ id: '0025', choicePending: true, sets: [] })
+    expect(mocks.S.active.entries[0]).toMatchObject({ choicePending: true, sets: [] })
+    expect(mocks.S.active.entries[0].id).toBeUndefined()
     expect(mocks.S.routines).toEqual(before.routines)
     expect(mocks.stopWork).toHaveBeenCalled()
     expect(mocks.stopRest).toHaveBeenCalled()

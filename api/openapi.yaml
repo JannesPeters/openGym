@@ -169,7 +169,9 @@ paths:
       operationId: getHealth
       summary: Health check
       description: |
-        Always public. Also reports how many user accounts exist.
+        Always public. Also reports how many user accounts exist and the supported
+        state format, so an operator can verify API compatibility without reading
+        an account's state.
 
         The check writes: it creates and removes one empty file under `DATA_DIR`,
         because a server whose data directory is full or read-only has every write
@@ -193,7 +195,8 @@ paths:
                     type: integer
                     description: Number of registered user accounts.
                   writable: { type: boolean, const: true }
-              example: { ok: true, users: 7, writable: true }
+                  stateVersion: { type: integer, enum: [2] }
+              example: { ok: true, users: 7, writable: true, stateVersion: 2 }
         '503':
           description: >-
             The data directory could not be written — a full disk, or a mount that
@@ -1411,6 +1414,11 @@ paths:
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /api/data:
+    parameters:
+      - in: header
+        name: X-OpenGym-State-Version
+        description: Required with value 2 after an account upgrades to reusable exercise groups.
+        schema: { type: string, enum: ['2'] }
     get:
       tags: [data]
       operationId: getData
@@ -1421,6 +1429,7 @@ paths:
         that document (0 when there is none). A client keeps the `rev` it last read or
         wrote and sends it back as `baseRev` on the next push, which lets the server
         refuse a write over a document the client never saw (see the 409 on PUT).
+        Clients declaring state version 2 also receive `stateVersion: 2` as a server capability.
       responses:
         '200':
           description: The stored state, or null, and its revision.
@@ -1437,6 +1446,8 @@ paths:
                     type: integer
                     description: Server revision of the stored document; 0 when there is none.
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '426':
+          description: The account needs an updated client declaring state version 2.
     put:
       tags: [data]
       operationId: putData
@@ -1445,6 +1456,11 @@ paths:
         Replaces the stored state wholesale (atomic write; there is no merge on the
         server). The `active` field (an in-progress workout) is stripped before
         saving: a running session belongs to the device running it. Body limit 5 MiB.
+
+        State version 2 validates reusable group identities, references and workout snapshots.
+        The first version-2 write durably preserves the exact previous account document in
+        `state-<uid>.json.pre-groups-v1.json` before replacing it. Failure leaves the original
+        document intact. An upgraded account refuses legacy clients and version downgrades.
 
         With `baseRev` the write is conditional: it goes through only when `baseRev`
         equals the document's current revision, and answers 409 with the current
@@ -1557,8 +1573,15 @@ paths:
                 missing: { value: { error: "state required" } }
                 invalid: { value: { error: "invalid state" } }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '426':
+          description: Unsupported state version, missing client capability, or attempted account downgrade.
 
   /api/data/rev:
+    parameters:
+      - in: header
+        name: X-OpenGym-State-Version
+        description: Required with value 2 after an account upgrades to reusable exercise groups.
+        schema: { type: string, enum: ['2'] }
     get:
       tags: [data]
       summary: Current revision of the caller's profile state
@@ -1576,7 +1599,10 @@ paths:
                 properties:
                   rev: { type: integer }
                   wid: { type: string, description: 'The write id (`_wid`) of the stored document; absent before its first write.' }
+                  stateVersion: { type: integer, enum: [2], description: Advertised to version-2 clients. }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '426':
+          description: The account needs an updated client declaring state version 2.
 
   /api/media/{hash}:
     parameters:
@@ -3263,11 +3289,19 @@ components:
         The whole app state as one blob. The server treats it as opaque (it only
         strips `active` on save and reads a few fields for reminders and the admin
         dashboard). The schema below is **representative, not enforced** (except
-        `workouts` and `routines`, which must be arrays (or null) when present), and grows
+        `workouts` and `routines`, which must be arrays (or null) when present, and the
+        version-2 exercise group model, which validates identities and references), and grows
         with the app. Concurrent writes are caught by the server's revision (`_rev`,
         see PUT /api/data); the client merges the two documents and decides by `_ts`
         which side's settings win.
       properties:
+        stateVersion:
+          type: integer
+          enum: [1, 2]
+          description: Missing or 1 is legacy inline groups. Version 2 is the canonical reusable model.
+        exerciseGroups:
+          type: array
+          items: { $ref: '#/components/schemas/ExerciseGroup' }
         _ts:
           type: number
           description: Client-set last-write timestamp (ms since epoch); drives sync.
@@ -3466,6 +3500,12 @@ components:
             type: object
             properties:
               id: { type: string, description: Exercise id. }
+              entryId: { type: string, description: Stable identity of a performed group entry. }
+              optionId: { type: string, description: Explicitly selected snapshot option. }
+              groupInstance:
+                type: object
+                description: Immutable workout snapshot with its own id, source group/slot/routine ids, name and equal option records with configs and resolved prescriptions.
+                additionalProperties: true
               topW: { oneOf: [{ type: number }, { type: 'null' }] }
               sets:
                 type: array
@@ -3501,8 +3541,26 @@ components:
         emoji: { type: string }
         ex:
           type: array
-          description: Exercises with set/rep targets.
+          description: Exercises with set/rep targets or group placements referencing exerciseGroups. A placement is {kind, slotId, groupId, optionConfigs} with kind group and configs keyed by stable option id; optional sg/sgName/sgRest remain the distinct superset relationship.
           items: { type: object, additionalProperties: true }
+      additionalProperties: true
+
+    ExerciseGroup:
+      type: object
+      required: [id, name, options]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 60 }
+        archived: { type: boolean, description: Hidden from reuse; existing references remain usable. }
+        options:
+          type: array
+          description: Ordered equal options. Order never implies selection; draft and one-option groups retain identity.
+          items:
+            type: object
+            required: [id, exerciseId]
+            properties:
+              id: { type: string, description: Stable option identity. }
+              exerciseId: { type: string, description: Actual catalogue/custom/variant exercise identity, never a group id. }
       additionalProperties: true
 
     BodyweightEntry:

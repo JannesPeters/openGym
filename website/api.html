@@ -245,7 +245,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>69 endpoints</span>
+    <span>71 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -304,7 +304,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Health check</span>
   </summary>
   <div class="ep-body">
-<p>Always public. Also reports how many user accounts exist.</p>
+<p>Always public. Also reports how many user accounts exist and the supported state format, so an operator can verify API compatibility without reading an account's state.</p>
 <p>The check writes: it creates and removes one empty file under <code>DATA_DIR</code>, because a server whose data directory is full or read-only has every write path broken while the port still answers. It is a 503 when that fails — the container healthcheck (<code>wget --spider</code>) reads the status and nothing else.</p>
 <p>The probe runs at most once every five seconds and the answer in between is the last one, so a poll can be that stale. The route is unauthenticated, and one disk write per request is not something to leave open to anyone.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
@@ -314,7 +314,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <div class="ptab">
   <div class="prow rrow">
     <span class="r-code s2">200</span>
-    <span class="p-desc">The server is up and its data directory is writable.<span class="r-sig">{ ok: always true, users: integer, writable: always true }</span></span>
+    <span class="p-desc">The server is up and its data directory is writable.<span class="r-sig">{ ok: always true, users: integer, writable: always true, stateVersion: 2 }</span></span>
   </div>
   <div class="prow rrow">
     <span class="r-code s5">503</span>
@@ -1465,7 +1465,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Pull the account's app state</span>
   </summary>
   <div class="ep-body">
-<p>Returns the caller's entire app state as one JSON blob, or <code>{&quot;state&quot;: null}</code> if nothing has been synced yet, together with <code>rev</code>, the server's revision of that document (0 when there is none). A client keeps the <code>rev</code> it last read or wrote and sends it back as <code>baseRev</code> on the next push, which lets the server refuse a write over a document the client never saw (see the 409 on PUT).</p>
+<p>Returns the caller's entire app state as one JSON blob, or <code>{&quot;state&quot;: null}</code> if nothing has been synced yet, together with <code>rev</code>, the server's revision of that document (0 when there is none). A client keeps the <code>rev</code> it last read or wrote and sends it back as <code>baseRev</code> on the next push, which lets the server refuse a write over a document the client never saw (see the 409 on PUT). Clients declaring state version 2 also receive <code>stateVersion: 2</code> as a server capability.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
 
@@ -1478,6 +1478,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">401</span>
     <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">426</span>
+    <span class="p-desc">The account needs an updated client declaring state version 2.</span>
   </div>
     </div>
   </div>
@@ -1492,6 +1496,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   </summary>
   <div class="ep-body">
 <p>Replaces the stored state wholesale (atomic write; there is no merge on the server). The <code>active</code> field (an in-progress workout) is stripped before saving: a running session belongs to the device running it. Body limit 5 MiB.</p>
+<p>State version 2 validates reusable group identities, references and workout snapshots. The first version-2 write durably preserves the exact previous account document in <code>state-&lt;uid&gt;.json.pre-groups-v1.json</code> before replacing it. Failure leaves the original document intact. An upgraded account refuses legacy clients and version downgrades.</p>
 <p>With <code>baseRev</code> the write is conditional: it goes through only when <code>baseRev</code> equals the document's current revision, and answers 409 with the current document otherwise; the client merges the two and pushes again with the revision it was given. Without <code>baseRev</code> the write is unconditional (clients from before revisions, and deliberate replaces such as a backup import). The server stamps the new revision into the document as <code>_rev</code>; a <code>_rev</code> sent by the client is ignored.</p>
 <p>The records of removals (<code>deleted</code>) and of edits (<code>edited</code>) never shrink: the stored ones are joined into the write (a reset keeps its own). A writer that does not stamp its own changes (no <code>stamped: true</code>; an API script, an older app) and sends the current <code>baseRev</code> gets them stamped by the server, at the server's time: every entry it removed (a workout, routine, custom exercise, weigh-in, card, profile or favourite), every setting and plan day it changed (<code>queue</code>, <code>week.&lt;day&gt;</code>, …), and every entry it edited (<code>_ts</code>, per field <code>_f</code>). That keeps a planner's new week, or a routine it removed, from being undone by a phone that reconnects later with an older change. A setting, plan day or entry field whose stored stamp (<code>edited</code>, <code>_f</code>) is later than the one the writer sends back keeps the stored value: the writer never saw that change, so send back the <code>edited</code> and <code>_f</code> you read. A writer that sends no <code>edited</code> at all is not held to it. An entry the document holds while a removal on record says it was deleted after its last edit is kept and marked as added back.</p>
 <p>Such a writer also cannot delete what it does not know: a field of the stored document, of a stored routine, workout, custom exercise, card or profile, of a routine's exercise, or of a logged exercise or set that its copy leaves out comes back from the stored copy (an older app rebuilds an exercise from the fields it knows, which dropped pyramid sets made on an updated device). Only the fields v1.3.9 itself removes (a superset link, a note, a cleared set value, …) can be removed this way. Send <code>stamped: true</code> to remove anything else.</p>
@@ -1538,6 +1543,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="r-code s4">409</span>
     <span class="p-desc"><code>baseRev</code> is not the current revision: another client wrote since this one last read. Carries the current document so the client can merge and retry.</span>
   </div>
+  <div class="prow rrow">
+    <span class="r-code s4">426</span>
+    <span class="p-desc">Unsupported state version, missing client capability, or attempted account downgrade.</span>
+  </div>
     </div>
   </div>
 </details>
@@ -1558,11 +1567,15 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <div class="ptab">
   <div class="prow rrow">
     <span class="r-code s2">200</span>
-    <span class="p-desc">The current revision (0 when the profile has no state yet).<span class="r-sig">{ rev: integer, wid: string }</span></span>
+    <span class="p-desc">The current revision (0 when the profile has no state yet).<span class="r-sig">{ rev: integer, wid: string, stateVersion: 2 }</span></span>
   </div>
   <div class="prow rrow">
     <span class="r-code s4">401</span>
     <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">426</span>
+    <span class="p-desc">The account needs an updated client declaring state version 2.</span>
   </div>
     </div>
   </div>
@@ -3540,8 +3553,18 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">The whole app state as one blob.</span>
   </summary>
   <div class="ep-body">
-<p>The server treats it as opaque (it only strips <code>active</code> on save and reads a few fields for reminders and the admin dashboard). The schema below is <b>representative, not enforced</b> (except <code>workouts</code> and <code>routines</code>, which must be arrays (or null) when present), and grows with the app. Concurrent writes are caught by the server's revision (<code>_rev</code>, see PUT /api/data); the client merges the two documents and decides by <code>_ts</code> which side's settings win.</p>
+<p>The server treats it as opaque (it only strips <code>active</code> on save and reads a few fields for reminders and the admin dashboard). The schema below is <b>representative, not enforced</b> (except <code>workouts</code> and <code>routines</code>, which must be arrays (or null) when present, and the version-2 exercise group model, which validates identities and references), and grows with the app. Concurrent writes are caught by the server's revision (<code>_rev</code>, see PUT /api/data); the client merges the two documents and decides by <code>_ts</code> which side's settings win.</p>
 <div class="ptab">
+  <div class="prow">
+    <span class="p-name">stateVersion</span>
+    <span class="p-type">1 | 2</span>
+    <span class="p-desc">Missing or 1 is legacy inline groups. Version 2 is the canonical reusable model.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">exerciseGroups</span>
+    <span class="p-type"><a href="#schema-ExerciseGroup">ExerciseGroup</a>[]</span>
+    <span class="p-desc"></span>
+  </div>
   <div class="prow">
     <span class="p-name">_ts</span>
     <span class="p-type">number</span>
@@ -3986,6 +4009,21 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="p-desc">Exercise id.</span>
   </div>
   <div class="prow">
+    <span class="p-name">entries[].entryId</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Stable identity of a performed group entry.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">entries[].optionId</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Explicitly selected snapshot option.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">entries[].groupInstance</span>
+    <span class="p-type">object</span>
+    <span class="p-desc">Immutable workout snapshot with its own id, source group/slot/routine ids, name and equal option records with configs and resolved prescriptions.</span>
+  </div>
+  <div class="prow">
     <span class="p-name">entries[].topW</span>
     <span class="p-type">number | null</span>
     <span class="p-desc"></span>
@@ -4061,7 +4099,50 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow">
     <span class="p-name">ex</span>
     <span class="p-type">object[]</span>
-    <span class="p-desc">Exercises with set/rep targets.</span>
+    <span class="p-desc">Exercises with set/rep targets or group placements referencing exerciseGroups. A placement is {kind, slotId, groupId, optionConfigs} with kind group and configs keyed by stable option id; optional sg/sgName/sgRest remain the distinct superset relationship.</span>
+  </div>
+</div>
+  </div>
+</details>
+
+<details class="ep sch" id="schema-ExerciseGroup">
+  <summary>
+    <span class="sch-name"><code>ExerciseGroup</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum"></span>
+  </summary>
+  <div class="ep-body">
+
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">name<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string <span class="p-hint">(&le; 60 chars)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">archived</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc">Hidden from reuse; existing references remain usable.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">options<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object[]</span>
+    <span class="p-desc">Ordered equal options. Order never implies selection; draft and one-option groups retain identity.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">options[].id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Stable option identity.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">options[].exerciseId<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Actual catalogue/custom/variant exercise identity</span>
   </div>
 </div>
   </div>

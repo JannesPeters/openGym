@@ -33,7 +33,8 @@ export default function WorkoutChips({ entries, cur, onPick }) {
   if (!chips.length) return null
   return <nav ref={strip} className="chips wchips" aria-label={t('Exercises in this workout')}>
     {chips.map(c => {
-      const names = c.unit.map(idx => [cleanGroupName(entries[idx].groupName), exerciseNameText(exOr(entries[idx].id))].filter(Boolean).join(': ')).join(' + ')
+      const names = c.unit.map(idx => [cleanGroupName(entries[idx].groupInstance?.name ?? entries[idx].groupName),
+        entries[idx].choicePending ? t('Choose exercise') : exerciseNameText(exOr(entries[idx].id))].filter(Boolean).join(': ')).join(' + ')
       const label = c.unit.length > 1
         ? t('Superset {0}: {1} ({2})', c.n, names, STATE_WORD[c.state]())
         : t('Exercise {0}: {1} ({2})', c.n, names, STATE_WORD[c.state]())

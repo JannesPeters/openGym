@@ -186,7 +186,8 @@ export function loadStarterPlan(planId, profile) {
     // exercises) for the weekdays instead of a second Upper A, Lower A, ... under the same names.
     // A plan fitted to different equipment has other exercises, so it is added alongside.
     const idOf = {}
-    const sameLift = (a, b) => a.ex.length === b.ex.length && a.ex.every((e, i) => e.id === b.ex[i].id)
+    const sameLift = (a, b) => a.ex.length === b.ex.length && a.ex.every((e, i) => e.kind === 'group'
+      ? b.ex[i].kind === 'group' && e.groupId === b.ex[i].groupId : e.id === b.ex[i].id)
     plan.routines.forEach(r => {
       const have = st.routines.find(x => x.name === r.name && sameLift(x, r))
       if (have) idOf[r.id] = have.id
@@ -1137,7 +1138,7 @@ function AddToRoutine({ ex, close }) {
       {st.routines.map(r => <div key={r.id} className="item" {...tappable(() => pick(r.id))}>
         {routineIconsVisible(st) && <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>}
         <div className="grow"><div className="tt">{r.name}</div><div className="ss">{exCount(r.ex.length)}</div></div>
-        {r.ex.some(e => e.id === ex.id) && <span className="tag">{t('already in')}</span>}<Icon name="plus" className="chev" />
+        {r.ex.some(e => e.id === ex.id || (S().exerciseGroups || []).find(group => group.id === e.groupId)?.options.some(option => option.exerciseId === ex.id)) && <span className="tag">{t('already in')}</span>}<Icon name="plus" className="chev" />
       </div>)}
       <div className="item" {...tappable(() => pick('_new'))}><span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name="plusCircle" /></span>
         <div className="grow"><div className="tt">{t('New routine')}</div><div className="ss">{t('Create one and start with this exercise')}</div></div><Icon name="plus" className="chev" /></div>
@@ -1308,7 +1309,7 @@ export const exerciseVariantSheet = (ex, onDone = exerciseDetailSheet) => {
 }
 
 export function deleteCustomEx(ex, afterDelete) {
-  if (S().active?.entries.some(e => e.id === ex.id || e.choiceOptions?.some(option => option.id === ex.id))) { toast(t('Finish your current workout first')); return }
+  if (S().active?.entries.some(e => e.id === ex.id || e.groupInstance?.options.some(option => option.exerciseId === ex.id) || e.choiceOptions?.some(option => option.id === ex.id))) { toast(t('Finish your current workout first')); return }
   confirmSheet({
     title: t('Delete “{0}”?', ex.n),
     message: t('It will be removed from your routines. Already-logged workouts keep their sets.'),
@@ -1323,7 +1324,8 @@ export function deleteCustomEx(ex, afterDelete) {
           if (!e.muscleSnapshot || !Object.keys(e.muscleSnapshot).length) e.muscleSnapshot = snapshot
         }))
         s.customEx = (s.customEx || []).filter(x => x.id !== ex.id)
-        s.routines.forEach(r => { r.ex = r.ex.map(slot => removeOption(slot, ex.id)).filter(Boolean); cleanupSg(r.ex) })
+        for (const group of s.exerciseGroups || []) group.options = group.options.filter(option => option.exerciseId !== ex.id)
+        s.routines.forEach(r => { r.ex = r.ex.map(slot => slot.kind === 'group' ? slot : removeOption(slot, ex.id)).filter(Boolean); cleanupSg(r.ex) })
         delete s.exWeights[ex.id]
         s.favEx = (s.favEx || []).filter(id => id !== ex.id)
       })
@@ -1359,7 +1361,7 @@ export const exercisePicker = (onPick, { title, like, routineId, detailLabel } =
 export function swapActiveWorkoutExercise(index) {
   const active = S().active
   if (!active?.entries?.[index]) return
-  if (active.entries[index].choiceOptions) {
+  if (active.entries[index].groupInstance || active.entries[index].choiceOptions) {
     toast(t('Use this group’s exercise options instead. Logged exercises cannot be swapped.'))
     return
   }
@@ -2110,13 +2112,13 @@ export const planHasRoutines = st => (st.routines || []).some(r => r.ex && r.ex.
 export async function exportPlanFile() {
   const st = S(), user = useStore.getState().user
   const bundle = buildPlanBundle(st, user?.name ? t('{0}’s plan', user.name) : '')
-  if (bundle.opengym_plan === 2) toast(t('This plan contains exercise alternatives. Import it only in an updated openGym.'))
+  if (bundle.opengym_plan >= 2) toast(t('This plan contains exercise alternatives. Import it only in an updated openGym.'))
   const json = JSON.stringify(bundle, null, 2)
   const name = 'opengym-plan-' + todayISO() + '.json'
   if (MOBILE) { try { await shareExport(json, name) } catch (e) { /* dismissed */ } return }
   const blob = new Blob([json], { type: 'application/json' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
-  toast(bundle.opengym_plan === 2 ? t('Plan saved with exercise alternatives. The recipient needs an updated openGym.') : t('Plan file saved. Send it to a friend!'))
+  toast(bundle.opengym_plan >= 2 ? t('Plan saved with exercise alternatives. The recipient needs an updated openGym.') : t('Plan file saved. Send it to a friend!'))
 }
 // Web: the browser's print dialog (→ Save as PDF). Mobile: the OS print flow via the native
 // Print plugin — Android WebView has no window.print(). Same printable HTML both ways.
@@ -2758,7 +2760,10 @@ export function startFlow(routineIds) {
 }
 export function beginWorkout(routineIds, bw) {
   const st = S()
-  const { entries, routineIds: rids, routines } = buildCombinedEntries(st, routineIds)
+  let built
+  try { built = buildCombinedEntries(st, routineIds) }
+  catch (error) { toast(t(error.message)); return }
+  const { entries, routineIds: rids, routines } = built
   update(s => {
     s.active = {
       id: uid(), d: todayISO(), start: Date.now(),
@@ -2891,7 +2896,10 @@ function beginBackfill({ iso, time, durationMin, routineIds, replaceId }) {
   const st = S()
   const start = backfillStart(iso, time)
   const past = historyAsOf(st, { d: iso, start, replaceId })
-  const { entries, routineIds: rids, routines } = buildCombinedEntries(past, routineIds || [])
+  let built
+  try { built = buildCombinedEntries(past, routineIds || []) }
+  catch (error) { toast(t(error.message)); return }
+  const { entries, routineIds: rids, routines } = built
   update(s => {
     s.active = {
       id: uid(), d: iso, start,
@@ -2918,7 +2926,9 @@ function AddRoutineToSession({ close }) {
   if (!active) return null
   const inSession = new Set([].concat(active.routineIds || []))
   const add = r => {
-    const entries = buildSessionEntries(sessionHistory(st), r).map(e => ({ ...e, rid: r.id }))
+    let entries
+    try { entries = buildSessionEntries(sessionHistory(st), r).map(e => ({ ...e, rid: r.id })) }
+    catch (error) { toast(t(error.message)); return }
     update(s => {
       if (!s.active) return
       // A session kept out of progression as a whole (the header ⋮) keeps the routine's

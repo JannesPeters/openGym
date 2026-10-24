@@ -4,6 +4,7 @@ import { isAssisted, isBodyweightEq, isCardio } from './exercises.js'
 import { sessionsFor } from './progression.js'
 import { isWarmupRow } from './workout-model.js'
 import { freshSlotIds, optionsOf, saveOption } from './exercise-options.js'
+import { isGroup } from './exercise-groups.js'
 
 /**
  * Create a deep copy of a routine with a new id and a "(Copy)" suffix.
@@ -168,8 +169,10 @@ export function replaceSlotExercise(slot, id, S, rid) {
  */
 export function routineSlotIndex(routine, entries, idx) {
   const entry = entries?.[idx]
-  if (!entry || !routine || !Array.isArray(routine.ex) || entry.rid !== routine.id) return -1
-  if (entry.slotId) return routine.ex.findIndex(slot => slot.slotId === entry.slotId && optionsOf(slot).some(option => option.id === entry.id))
+  if (!entry || entry.choicePending || !entry.id || !routine || !Array.isArray(routine.ex) || entry.rid !== routine.id) return -1
+  if (entry.slotId) return routine.ex.findIndex(slot => slot.slotId === entry.slotId && (isGroup(slot)
+    ? slot.optionConfigs?.[entry.optionId]?.id === entry.id
+    : optionsOf(slot).some(option => option.id === entry.id)))
   const twinsBefore = entries.slice(0, idx).filter(e => e && e.rid === routine.id && e.id === entry.id).length
   let seen = 0
   for (let i = 0; i < routine.ex.length; i++) {
@@ -208,7 +211,8 @@ function setupOf(entry) {
 export function routineChangesFromEntry(routine, entries, idx) {
   const at = routineSlotIndex(routine, entries, idx)
   if (at < 0) return null
-  const slot = optionsOf(routine.ex[at]).find(option => option.id === entries[idx].id)
+  const parent = routine.ex[at]
+  const slot = isGroup(parent) ? parent.optionConfigs[entries[idx].optionId] : optionsOf(parent).find(option => option.id === entries[idx].id)
   const now = setupOf(entries[idx])
   const changes = []
   for (const key of ['warmupSets', 'restSec', 'note']) {
@@ -228,11 +232,11 @@ export function updateRoutineFromEntry(routine, entries, idx) {
   const found = routineChangesFromEntry(routine, entries, idx)
   if (!found) return null
   const parent = routine.ex[found.at]
-  const slot = optionsOf(parent).find(option => option.id === entries[idx].id)
+  const slot = isGroup(parent) ? { ...parent.optionConfigs[entries[idx].optionId] } : optionsOf(parent).find(option => option.id === entries[idx].id)
   for (const { key, to } of found.changes) {
     if (to) slot[key] = to
     else delete slot[key]
   }
-  routine.ex[found.at] = saveOption(parent, slot.id, slot)
+  routine.ex[found.at] = saveOption(parent, isGroup(parent) ? entries[idx].optionId : slot.id, slot)
   return found.changes
 }

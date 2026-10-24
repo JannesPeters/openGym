@@ -28,6 +28,7 @@ import { DEFAULT_TEMPLATE_ID } from '../lib/structuralBalanceTemplates.js'
 import { WC_DEFAULT } from '../lib/workout-controls.js'
 import { DEFAULT_WORKOUT_LAYOUT } from '../lib/workout-layout.js'
 import { sanitizeAccent } from '../lib/accent.js'
+import { migrateExerciseGroups, STATE_VERSION } from '../lib/exercise-groups.js'
 
 const KEY = 'gym_state_v1'
 // Where the saved copy stands with the server: the revision it descends from, and its own `_ts`
@@ -75,6 +76,8 @@ function logoutOwed(on) {
 // Mobile build: whose copy the file mirror (lib/mobile.js, opengym-state.json) holds, and which
 // one — { owner, ts }, written after it (saveMirror). A device fact, so never inside S.
 const MIRROR_OWNER_FILE = 'opengym-state-owner.json'
+const groupBackupKey = owner => KEY + '_pre_groups_v1:' + (owner || 'guest')
+const groupBackupFile = owner => 'opengym-pre-groups-v1-' + encodeURIComponent(owner || 'guest') + '.json'
 const CHECK_MIN_MS = 3000    // rev checks closer together than this are the same event (focus + visibility)
 const POLL_MS = 30000        // while the app is open and signed in, ask the server for its revision this often
 const AUTO_BACKUP_SOON_MS = 2000   // several photos picked at once make one backup
@@ -86,6 +89,7 @@ const gainedWorkoutMedia = (prev, next) => {
   return workoutMediaHashes(next).some(h => !had.has(h))
 }
 export const DEF = {
+  stateVersion: STATE_VERSION, exerciseGroups: [],
   unit: 'kg', restSec: 90, restPauseSec: 15, sound: true, soundOnSilent: false, vibrateOnSilent: false, timerFlash: false, timedSetOvertime: false, keepAwake: true, lang: 'en',
   theme: 'dark', accent: 'lime', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
@@ -280,35 +284,41 @@ export function restartedState(cur) {
 }
 
 function loadState() {
+  let raw
   try {
-    const raw = localStorage.getItem(KEY)
-    if (raw) {
-      const saved = JSON.parse(raw)
-      const s = sanitizeAccent(Object.assign(clone(DEF), saved))
-      if (!saved.lang) s.lang = detectedLang()
-      return s
-    }
-  } catch (e) { /* ignore */ }
-  return freshState()
+    raw = localStorage.getItem(KEY)
+  } catch { return freshState() }
+  if (!raw) return freshState()
+  const saved = JSON.parse(raw)
+  const migrated = migrateExerciseGroups(saved)
+  // Save the exact original, once, before any converted copy can reach the normal storage key.
+  const backupKey = groupBackupKey(localStorage.getItem('gym_owner'))
+  if (saved.stateVersion !== STATE_VERSION && !localStorage.getItem(backupKey)) {
+    localStorage.setItem(backupKey, raw)
+  }
+  const s = sanitizeAccent(Object.assign(clone(DEF), migrated))
+  if (!saved.lang) s.lang = detectedLang()
+  return s
 }
 
 // Whether a copy holds anything of its own worth keeping over another: workouts, routines,
 // weigh-ins and custom exercises. A custom exercise is all a new guest may have made — with its
 // photo or video, which the server counts as unreferenced until the state that names it lands —
 // so a profile created from such a copy takes it at once, like one holding a workout.
-const hasData = st => !!((st.workouts || []).length || (st.routines || []).length || (st.bodyweight || []).length || (st.customEx || []).length || (st.measurements || []).length)
+const hasData = st => !!((st.exerciseGroups || []).length || (st.workouts || []).length || (st.routines || []).length || (st.bodyweight || []).length || (st.customEx || []).length || (st.measurements || []).length)
 
 // Decide whether a pulled account state may replace the local saved state. A local active workout
 // is deliberately carried forward: the server stores completed/saved state, while the in-progress
 // session belongs to the device that is currently running it.
 export function restoredStateFor(local, remote, dirty = false) {
   if (!remote || (hasData(local) && (dirty || (remote._ts || 0) < (local._ts || 0)))) return null
-  const next = sanitizeAccent(Object.assign(clone(DEF), remote))
+  const next = sanitizeAccent(Object.assign(clone(DEF), migrateExerciseGroups(remote)))
   if (local.active) next.active = local.active
   return next
 }
 
 export const useStore = create((set, get) => {
+  let loadError = null
   let pushTm = null
   let saveTm = null
   let toldTooLarge = false
@@ -334,6 +344,7 @@ export const useStore = create((set, get) => {
   let fpOf = null          // the copy the stored fingerprint was last taken of (confirmed)
   let keeping = null       // phone: the file write of what keepForPrevious set aside, until it lands
   let mirrorQ = Promise.resolve()   // phone: the file mirror's writes, one after the other (saveMirror)
+  const verifiedGroupBackups = new Set()
   // The write of the saved copy this tab last read or made, and whose copy it was (joinSaved).
   let seenWid = (() => { try { return localStorage.getItem(WID_KEY) } catch { return null } })()
   let seenOwner = (() => { try { return localStorage.getItem('gym_owner') } catch { return null } })()
@@ -487,9 +498,29 @@ export const useStore = create((set, get) => {
     const S = get().S
     let owner = null
     try { owner = localStorage.getItem('gym_owner') } catch { /* unknown — the file is then nobody's */ }
+    try {
+      const raw = localStorage.getItem(groupBackupKey(owner))
+      if (raw && !verifiedGroupBackups.has(owner)) {
+        const file = groupBackupFile(owner)
+        let recovery = await readJsonFile(file)
+        if (!recovery) {
+          await writeJsonFile(file, { owner, raw })
+          recovery = await readJsonFile(file)
+          if (recovery?.raw !== raw) throw new Error('Migration backup read-back did not match.')
+        }
+        if (!recovery || recovery.owner !== owner || typeof recovery.raw !== 'string') throw new Error('Migration backup is not readable.')
+        migrateExerciseGroups(JSON.parse(recovery.raw))
+        verifiedGroupBackups.add(owner)
+      }
+    } catch (error) {
+      console.error('Exercise group migration backup failed; native mirror left unchanged.', error)
+      import('./useUI.js').then(({ useUI }) => useUI.getState().toast(t('The migration backup could not be saved. The original phone file has not been changed.')))
+        .catch(error => console.error('Migration backup notification failed.', error))
+      return
+    }
     await nativeSave(S)
     await writeJsonFile(MIRROR_OWNER_FILE, { owner, ts: S._ts || 0 })
-  }).catch(() => {}))
+  }).catch(error => { console.error('Native state mirror failed.', error) }))
   // Mobile build: mirror the state into a file in the app's data directory (survives WebView
   // storage eviction) and keep the native reminder schedule in step with the weekly plan.
   // `now` skips the wait and returns the write, for a copy that replaced the last one wholesale.
@@ -566,7 +597,15 @@ export const useStore = create((set, get) => {
     return true
   }
   const persist = (S, push = true, stamp = true) => {
+    if (loadError) throw loadError
     if (refuseStale(S)) return
+    const original = S
+    S = migrateExerciseGroups(S)
+    if (S !== original && ((original.routines || []).some(r => (r.ex || []).some(slot => slot.alternatives || slot.groupName))
+      || original.active?.entries?.some(entry => entry.choiceOptions))) {
+      const key = groupBackupKey(seenOwner)
+      if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(original))
+    }
     const { base, owed } = metaOf()   // the copy being replaced; the new one stands where it stood
     const joined = joinSaved(S, get()?.S)
     if (joined) S = joined
@@ -942,6 +981,8 @@ export const useStore = create((set, get) => {
     releaseAdopt()   // the copy it was about is gone
     localStorage.removeItem(KEY)
     localStorage.removeItem('gym_owner_name')
+    const recoveryOwner = seenOwner
+    localStorage.removeItem(groupBackupKey(recoveryOwner))
     localStorage.removeItem('gym_owner')
     seenOwner = null   // a guest's tab now: it joins what other signed-out tabs save (as setUser)
     handedOver = false
@@ -951,7 +992,10 @@ export const useStore = create((set, get) => {
     // On a phone the file is wiped with it, now rather than after the usual wait: a start in
     // between would open in local mode on the signed-out account's data, since that boot takes
     // the file whenever storage holds nothing.
-    const wiped = MOBILE ? nativePersist(true) : null
+    const wiped = MOBILE ? nativePersist(true).then(() => {
+      verifiedGroupBackups.delete(recoveryOwner)
+      return writeJsonFile(groupBackupFile(recoveryOwner), null)
+    }) : null
     // The account's photos and videos go with its copy (a shared device keeps nothing of it),
     // except the ones a stash still refers to — whatever was pending is in a stash by now
     // (signOut refuses otherwise) and comes back with it. A file picked from here on is kept.
@@ -1282,12 +1326,15 @@ export const useStore = create((set, get) => {
     if (!who || of?.owner !== who || (owner && owner !== who) || of.ts !== (saved._ts || 0)) return
     try { if (!owner) localStorage.setItem('gym_owner', who) } catch { /* setUser writes it again */ }
     seenOwner = readOwner()
-    persist(sanitizeAccent(Object.assign(clone(DEF), saved)), false, false)
+    try { persist(sanitizeAccent(Object.assign(clone(DEF), saved)), false, false) }
+    catch (error) { loadError = error; set({ loadError, ready: true }); throw error }
     dropSync()
     markOwed(true)
   }
 
-  const S0 = loadState()
+  let S0
+  try { S0 = loadState() }
+  catch (error) { loadError = error; S0 = freshState() }
   S0.customEx = healCustomEx(S0.customEx)
   registerCustom(S0.customEx)
   // Which photos and videos are still waiting for the server, known before the first sign-out
@@ -1301,6 +1348,7 @@ export const useStore = create((set, get) => {
 
   return {
     S: S0,
+    loadError,
     user: user0,
     ready: false,
     // The connection as the screens show it — see statusOf above for every field.
@@ -1324,15 +1372,17 @@ export const useStore = create((set, get) => {
     // Mutate a draft of S via producer fn, then persist + schedule sync. Every routine the change
     // touched carries the time of it, for a conflict to keep the version edited last.
     update(mut, push = true) {
+      if (loadError) throw loadError
       const prev = get().S
       const S = clone(prev)
       mut(S)
+      const converted = migrateExerciseGroups(S)
       // What the change removed, and which routines, workouts, settings and plan days it touched,
       // each with one time that comes after every stamp the copy already carries: a conflict then
       // keeps a removal and the edit made last, even from a device whose clock runs behind
       // (lib/sync-merge.js stampChange).
-      S._ts = stampChange(prev, S, Date.now())
-      persist(S, push)
+      converted._ts = stampChange(prev, converted, Date.now())
+      persist(converted, push)
       // A photo or video added to a workout is a change worth the day's backup too: the one
       // finishing wrote went before the finish screen's pictures (autoBackupNow). Not a removal,
       // nor a workout deleted: the day's copy then still holds what was taken off, as a backup should.
@@ -1434,7 +1484,7 @@ export const useStore = create((set, get) => {
       importRead = null
       const server = read?.state || null
       const now = Math.max(Date.now(), highestStamp(cur) + 1, highestStamp(server) + 1, highestStamp(backup) + 1)
-      const next = sanitizeAccent(Object.assign(clone(DEF), backup))
+      const next = sanitizeAccent(Object.assign(clone(DEF), migrateExerciseGroups(backup)))
       // A workout running here lives on this device only: no backup and no server copy holds it,
       // so the import keeps it (in the backup's unit). Only with none running does a backup taken
       // mid-workout bring its own session back. Both the replace and "Merge them in" dropped it.
@@ -1840,6 +1890,7 @@ export const useStore = create((set, get) => {
 
     // Boot: ask the server who we are, then pull.
     async boot() {
+      if (loadError) { set({ ready: true }); return }
       // Mobile build: no backend by default — restore from the file mirror (the durable copy;
       // localStorage may have been evicted since the last run) and go straight in. Unless this
       // device was paired to a server ("connect to my server" mode, lib/remote.js), in which
@@ -1853,8 +1904,8 @@ export const useStore = create((set, get) => {
           setRemoteAuth(remote.base, remote.token)
           pairedBase = remote.base || null
           setSync({ server: pairedBase })
-          await restoreFromMirror(remote)
           try {
+            await restoreFromMirror(remote)
             const me = await api('/api/me')   // also catches a token revoked elsewhere (sign out everywhere)
             if (!me.user?.id) throw Object.assign(new Error('no user'), { status: 200, code: 'bad-response' })
             // A token past half its life comes back renewed: kept, it never runs out on a phone
@@ -1878,6 +1929,7 @@ export const useStore = create((set, get) => {
             await get().pullState()
             if (!get().sync.lastError) await applyStash()   // only once the server really answered
           } catch (e) {
+            if (loadError) { finishBoot({ loadError }); return }
             // Whatever the answer — no network, a server error, a token the server no longer
             // accepts — the pairing, this copy and the account all stay, and what is owed stays
             // owed. A refused token used to unpair the phone on the spot while it went on showing
@@ -1893,10 +1945,17 @@ export const useStore = create((set, get) => {
         }
         const saved = await nativeLoad()
         const S = get().S
-        if (saved && (!hasData(S) || (saved._ts || 0) >= (S._ts || 0))) {
-          persist(sanitizeAccent(Object.assign(clone(DEF), saved)), false, false)
-        } else if (hasData(S)) {
-          nativePersist(true)   // first run after an update from a file-less version: seed the mirror
+        try {
+          if (saved) migrateExerciseGroups(saved)
+          if (saved && (!hasData(S) || (saved._ts || 0) >= (S._ts || 0))) {
+            persist(sanitizeAccent(Object.assign(clone(DEF), saved)), false, false)
+          } else if (hasData(S)) {
+            nativePersist(true)   // first run after an update from a file-less version: seed the mirror
+          }
+        } catch (error) {
+          loadError = error
+          finishBoot({ loadError })
+          return
         }
         if (get().user) {
           // A phone that lost its pairing to a refused token under an earlier version: that boot
